@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, Index
+from sqlalchemy import String, Text, Integer, Float, DateTime, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database.base import Base
@@ -23,6 +23,8 @@ class Memory(Base):
     key: Mapped[str] = mapped_column(String(100), nullable=False)
     value: Mapped[str] = mapped_column(Text, nullable=False, default="")
     importance: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    source: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -34,4 +36,4 @@ class Memory(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Memory(id={self.id!r}, user_id={self.user_id!r}, key={self.key!r}, value={self.value!r})>"
+        return f"<Memory(id={self.id!r}, user_id={self.user_id!r}, key={self.key!r}, value={self.value!r}, confidence={self.confidence})>"

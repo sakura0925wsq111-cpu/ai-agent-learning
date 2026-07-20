@@ -52,6 +52,8 @@ def parse_memory_updates(raw_response: str) -> Tuple[str, list[dict]]:
                             "key": str(item["key"]),
                             "value": str(item["value"]),
                             "importance": item.get("importance", 1),
+                            "confidence": item.get("confidence", 1.0),
+                            "source": item.get("source", ""),
                         })
             # Remove the JSON block from the clean reply
             clean_text = clean_text.replace(match.group(0), "").strip()
@@ -76,6 +78,8 @@ def parse_memory_updates(raw_response: str) -> Tuple[str, list[dict]]:
                                 "key": str(item["key"]),
                                 "value": str(item["value"]),
                                 "importance": item.get("importance", 1),
+                                "confidence": item.get("confidence", 1.0),
+                                "source": item.get("source", ""),
                             })
                     clean_text = clean_text.replace(match.group(0), "").strip()
             except json.JSONDecodeError:

@@ -24,6 +24,8 @@ from sandbox.state import (
     SandboxSession,
     SandboxPhase,
     SANDBOX_PATHS,
+    SANDBOX_PATH_LIST_STR,
+    PATH_KEYWORDS,
     MAX_DISCOVERY_ROUNDS,
     MAX_PATH_PROBE_ROUNDS,
 )
@@ -119,6 +121,9 @@ class DecisionSandbox:
             except Exception as exc:
                 logger.warning("Sandbox: failed to load memories: {}", exc)
 
+        # Pre-populate profile from memory so discovery skips known info
+        self.load_memory_into_profile(session)
+
         self._sessions[session_id] = session
         logger.info("Sandbox session started: {} (user={})", session_id, user_id)
         return session
@@ -201,6 +206,9 @@ class DecisionSandbox:
                 session, f"处理过程中出现错误: {exc}。请稍后重试。",
                 extra={"error": True},
             )
+        finally:
+            # Evict completed/errored sessions to prevent memory leaks
+            self._evict_stale_sessions()
 
     # ── Phase 1: Discovery ──────────────────────────────────────
 
@@ -256,7 +264,12 @@ class DecisionSandbox:
         parsed = safe_json_parse(raw)
         if parsed is None:
             logger.warning("Discovery: failed to parse LLM JSON, using raw text")
-            next_q = raw.strip()[:200] if raw else "请详细说说你的想法？"
+            if is_first:
+                next_q = "你好！我是你的成长规划助手。你现在对未来的方向有什么困惑吗？可以和我聊聊你目前的情况和想法。"
+            elif raw and raw.strip():
+                next_q = raw.strip()[:200]
+            else:
+                next_q = "接下来我想更了解你的情况——你觉得目前最大的困惑是什么？"
             session.record_discovery(next_q, message)
         else:
             next_q = parsed.get("next_question", "请详细说说你的想法？")
@@ -266,6 +279,7 @@ class DecisionSandbox:
                 for k, v in updated.items():
                     if v:  # Only store non-empty values
                         session.user_profile[k] = v
+                        session._profile_dirty = True
             session.record_discovery(next_q, message)
 
         # Check if we should advance
@@ -307,7 +321,7 @@ class DecisionSandbox:
                 extra={"phase": "path_probe", "current_path": first_path},
             )
         # Ask which paths to compare
-        path_list = "、".join(SANDBOX_PATHS.values())
+        path_list = SANDBOX_PATH_LIST_STR
         question = (
             f"好的，我已经对你的情况有了基本了解。接下来我们来做路径对比。\\n\\n"
             f"目前有以下方向可以分析：{path_list}。\\n"
@@ -336,7 +350,7 @@ class DecisionSandbox:
         if not session.path_selections:
             selections = self._parse_path_selections(message)
             if not selections:
-                path_list = "、".join(SANDBOX_PATHS.values())
+                path_list = SANDBOX_PATH_LIST_STR
                 return self._build_response(
                     session, f"我没能识别出你想对比的方向。请从以下选择：{path_list}。可以说多个。",
                     extra={"selecting_paths": True},
@@ -468,7 +482,8 @@ class DecisionSandbox:
     def _parse_path_selections(self, message: str) -> list[str]:
         """Parse user message to determine which paths they want to compare.
 
-        Uses keyword matching against Chinese path names.
+        Uses keyword matching against Chinese path names, with the
+        centralized PATH_KEYWORDS registry for richer matching.
 
         Args:
             message: User text message.
@@ -477,20 +492,12 @@ class DecisionSandbox:
             List of matching path type keys.
         """
         selected: list[str] = []
-        msg_lower = message.lower()
 
-        keywords = {
-            "career": ["就业", "工作", "求职", "上班", "职业", "校招", "社招", "offer"],
-            "graduate": ["考研", "读研", "研究生", "深造", "硕士", "备考"],
-            "civil": ["考公", "考编", "公务员", "体制", "事业编", "铁饭碗", "稳定"],
-            "major": ["转专业", "换专业", "跨专业", "辅修", "不喜欢现在的专业"],
-        }
-
-        for path_type, words in keywords.items():
+        for path_type, words in PATH_KEYWORDS.items():
             if any(w in message for w in words):
                 selected.append(path_type)
 
-        # If nothing matched, try to detect "all" or "都"
+        # If nothing matched, try globals like "all" / "对比"
         if not selected:
             if any(w in message for w in ["都", "全部", "所有", "all", "对比"]):
                 selected = list(SANDBOX_PATHS.keys())
@@ -582,8 +589,12 @@ class DecisionSandbox:
                 for qa in probe_history
             )
 
-        # Initialize agent with profile to skip READ_PROFILE/READ_DIAGNOSIS
+        # Initialize agent with profile, then force-skip to report generation.
+        # This bypasses the normal follow-up engine entirely.
         agent.init_state(user_profile=user_profile)
+        from planning.state import WorkflowStep
+        agent.state.set_step(WorkflowStep.GENERATE_OUTPUT)
+        agent.state.follow_up_complete = True
 
         # Build the simulation prompt: inject context and ask for direct analysis
         simulation_message = f"""请基于以下信息直接进行分析，跳过追问阶段。
@@ -674,11 +685,12 @@ class DecisionSandbox:
     ) -> None:
         """Write accumulated user profile data to the Memory DB.
 
-        Args:
-            session: Active sandbox session.
-            db_session: SQLAlchemy database session.
+        Only persists when profile has meaningful changes (dirty flag),
+        avoiding redundant database writes on every chat turn.
         """
         if not self.memory:
+            return
+        if not getattr(session, "_profile_dirty", True):
             return
 
         items: list[dict] = []
@@ -738,7 +750,7 @@ class DecisionSandbox:
             lines.append(f"- {k}: {v}")
         return "已知信息:\n" + "\n".join(lines) if lines else ""
 
-    def _load_memory_into_profile(self, session: SandboxSession) -> None:
+    def load_memory_into_profile(self, session: SandboxSession) -> None:
         """Pre-populate user_profile from memory snapshot.
 
         Called at session start so discovery phase doesn't re-ask known info.
@@ -759,6 +771,23 @@ class DecisionSandbox:
         for mem_key, field in key_mapping.items():
             if mem_key in session.memory_snapshot:
                 session.user_profile[field] = session.memory_snapshot[mem_key]
+
+    # ── Session Cleanup ────────────────────────────────────────
+
+    def _evict_stale_sessions(self) -> None:
+        """Remove completed or errored sessions from memory.
+
+        Prevents the in-memory session store from growing unboundedly.
+        Completed sessions remain accessible via the API session store.
+        """
+        stale_ids = [
+            sid for sid, s in self._sessions.items()
+            if s.finished or s.current_phase == SandboxPhase.ERROR
+        ]
+        for sid in stale_ids:
+            del self._sessions[sid]
+        if stale_ids:
+            logger.debug("Sandbox: evicted {} stale sessions", len(stale_ids))
 
     # ── Response Builder ────────────────────────────────────────
 

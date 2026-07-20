@@ -81,11 +81,33 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Create all tables that don't exist yet.
+    """Create all tables and run column migrations.
 
     Called on application startup.
-    Safe to call repeatedly — won't drop existing data.
+    Safe to call repeatedly  won't drop existing data.
+    Adds missing columns for schema evolution.
     """
     from database.base import Base  # noqa: F811
+    from sqlalchemy import inspect, text
 
     Base.metadata.create_all(bind=engine)
+
+    # ── Schema migrations (add columns if they don't exist) ──
+    from loguru import logger
+
+    inspector = inspect(engine)
+    if "memories" in inspector.get_table_names():
+        existing_cols = {c["name"] for c in inspector.get_columns("memories")}
+
+        migrations = {
+            "confidence": "ALTER TABLE memories ADD COLUMN confidence FLOAT NOT NULL DEFAULT 1.0",
+            "source": "ALTER TABLE memories ADD COLUMN source TEXT NOT NULL DEFAULT ''",
+        }
+
+        with engine.connect() as conn:
+            for col_name, sql in migrations.items():
+                if col_name not in existing_cols:
+                    logger.info("Running migration: {}", sql)
+                    conn.execute(text(sql))
+                    conn.commit()
+                    logger.info("Migration complete for column: {}", col_name)

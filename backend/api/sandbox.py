@@ -54,23 +54,19 @@ def get_sandbox() -> DecisionSandbox:
 
 
 # ── Session store ──────────────────────────────────────────────
-# {session_id: serialized_state_dict}
-_sandbox_sessions: dict[str, dict[str, Any]] = {}
+# Session helpers — sessions live in DecisionSandbox._sessions only.
+# The API layer accesses them through sandbox methods with auth checks.
 
 
-def _save_session(sandbox: DecisionSandbox, session_id: str) -> None:
-    """Persist a session to the session store."""
+def _load_session(sandbox, session_id, user_id=""):
     session = sandbox.get_session(session_id)
-    if session:
-        _sandbox_sessions[session_id] = session.to_dict()
-
-
-def _load_session(sandbox: DecisionSandbox, session_id: str) -> Any:
-    """Load a session from the store and restore it in the sandbox."""
-    data = _sandbox_sessions.get(session_id)
-    if data is None:
+    if session is None:
+        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Session not found")
-    return sandbox.restore_session(data)
+    if user_id and session.user_id != user_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Access denied")
+    return session
 
 
 # ── Helper: build projection result ────────────────────────────
@@ -114,8 +110,6 @@ async def start_session(
         db_session=db,
     )
 
-    # Pre-load memories into profile
-    sandbox._load_memory_into_profile(session)
 
     # Pre-set paths if specified
     if request.paths:
@@ -129,7 +123,6 @@ async def start_session(
     result = sandbox.chat(session, "开始", db_session=db)
 
     # Persist session
-    _save_session(sandbox, session.session_id)
 
     return SandboxChatResponse(
         session_id=session.session_id,
@@ -156,7 +149,7 @@ async def chat(
 
     The message is processed through the current phase of the workflow.
     """
-    session = _load_session(sandbox, request.session_id)
+    session = _load_session(sandbox, request.session_id, request.user_id)
 
     if session.finished:
         # Session already complete — return cached result
@@ -192,7 +185,6 @@ async def chat(
     result = sandbox.chat(session, request.message, db_session=db)
 
     # Persist session
-    _save_session(sandbox, session.session_id)
 
     return SandboxChatResponse(
         session_id=session.session_id,
@@ -254,7 +246,6 @@ async def resume_session(
     result = sandbox.chat(session, request.message, db_session=db)
 
     # Persist session
-    _save_session(sandbox, session.session_id)
 
     return SandboxChatResponse(
         session_id=session.session_id,
@@ -278,12 +269,9 @@ async def get_result(
     sandbox: DecisionSandbox = Depends(get_sandbox),
 ):
     """Get the final projection result for a completed session."""
-    data = _sandbox_sessions.get(session_id)
-    if data is None:
+    session = sandbox.get_session(session_id)
+    if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    from sandbox.state import SandboxSession
-    session = SandboxSession.from_dict(data)
 
     return {
         "session_id": session.session_id,

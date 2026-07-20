@@ -49,8 +49,8 @@ def _build_fallback_projection(path_type: str, path_label: str) -> dict[str, Any
 
 def _build_fallback_result(path_reports: dict[str, dict]) -> dict[str, Any]:
     """Build a complete fallback comparison result."""
-    labels = {"career": "就业规划", "graduate": "考研规划",
-              "civil": "考公考编规划", "major": "转专业规划"}
+    from sandbox.state import SANDBOX_PATHS
+    labels = SANDBOX_PATHS
 
     projections = [
         _build_fallback_projection(pt, labels.get(pt, pt))
@@ -106,12 +106,7 @@ class ProjectionAgent:
 
     # ── Known path labels ───────────────────────────────────────
 
-    PATH_LABELS: dict[str, str] = {
-        "career": "就业规划",
-        "graduate": "考研规划",
-        "civil": "考公考编规划",
-        "major": "转专业规划",
-    }
+    PATH_LABELS: dict[str, str] = None  # initialized in __init__ from SANDBOX_PATHS
 
     def __init__(self, llm_service: Any) -> None:
         """Initialize the projection agent.
@@ -119,6 +114,8 @@ class ProjectionAgent:
         Args:
             llm_service: LLMService instance for API calls.
         """
+        from sandbox.state import SANDBOX_PATHS
+        self.PATH_LABELS = SANDBOX_PATHS
         self.llm = llm_service
         logger.info("ProjectionAgent initialized")
 
@@ -210,36 +207,17 @@ class ProjectionAgent:
                 )
 
         # Ensure comparison_matrix
-        if "comparison_matrix" not in raw or not isinstance(raw["comparison_matrix"], dict):
-            raw["comparison_matrix"] = {
-                "dimensions": ["匹配度", "风险", "时间成本"],
-                "scores": {},
-            }
+        raw.setdefault("comparison_matrix", {"dimensions": ["匹配度", "风险", "时间成本"], "scores": {}})
 
         # Ensure relationship_analysis
-        if "relationship_analysis" not in raw or not isinstance(raw["relationship_analysis"], dict):
-            raw["relationship_analysis"] = {
-                "note": "路径关系分析暂未完成。",
-            }
+        raw.setdefault("relationship_analysis", {"note": "路径关系分析暂未完成。"})
 
         # Ensure decision_guide
-        if "decision_guide" not in raw or not isinstance(raw["decision_guide"], dict):
-            raw["decision_guide"] = {
-                "questions_to_ask_yourself": [
-                    "你最看重的是什么？",
-                    "你能接受的最大风险是什么？",
-                ],
-                "if_you_value_X_then_Y": [],
-                "possible_hybrid_strategies": [],
-            }
-
+        raw.setdefault("decision_guide", {})
         dg = raw["decision_guide"]
-        if "questions_to_ask_yourself" not in dg:
-            dg["questions_to_ask_yourself"] = []
-        if "if_you_value_X_then_Y" not in dg:
-            dg["if_you_value_X_then_Y"] = []
-        if "possible_hybrid_strategies" not in dg:
-            dg["possible_hybrid_strategies"] = []
+        dg.setdefault("questions_to_ask_yourself", ["你最看重的是什么？", "你能接受的最大风险是什么？"])
+        dg.setdefault("if_you_value_X_then_Y", [])
+        dg.setdefault("possible_hybrid_strategies", [])
 
         # Ensure key_uncertainties
         if "key_uncertainties" not in raw or not isinstance(raw["key_uncertainties"], list):

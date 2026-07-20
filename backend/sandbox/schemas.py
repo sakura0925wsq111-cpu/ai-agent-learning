@@ -8,7 +8,7 @@ multi-path sandbox workflow.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -112,6 +112,29 @@ class ProjectionResult(BaseModel):
 
 
 # ── Response Models ─────────────────────────────────────────────
+
+
+
+class SandboxStateDict(TypedDict, total=False):
+    session_id: str
+    user_id: str
+    current_phase: str
+    phase_index: int
+    finished: bool
+    error_message: str
+    discovery_round: int
+    discovery_history: list
+    discovery_answers: dict
+    ambiguous_count: int
+    discovery_complete: bool
+    user_profile: dict
+    path_selections: list
+    path_probe_history: dict
+    path_probe_done: list
+    path_reports: dict
+    parallel_sim_complete: bool
+    projection_result: dict
+    memory_snapshot: dict
 
 class SandboxChatResponse(BaseModel):
     """Response for /sandbox/chat and /sandbox/start."""

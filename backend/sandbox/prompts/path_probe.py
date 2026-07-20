@@ -28,15 +28,15 @@ PATH_PROBE_SYSTEM_PROMPT = """你是一位跨领域的成长顾问，正在帮�
 ## 输出格式
 你必须**只输出**以下 JSON 格式，前后不要有任何解释文字：
 
-`json
-{
+```json
+{{
   "questions": [
     "第一个补充问题...",
     "第二个补充问题..."
   ],
   "reasoning": "为什么需要这两个问题（不展示给用户）"
-}
-`
+}}
+```
 
 如果只有一个问题就够了，questions 数组可以只包含一个元素。
 """
@@ -94,8 +94,9 @@ def build_path_probe_prompt(
     label = PATH_LABELS.get(path_type, path_type)
     dimensions = PATH_DIMENSIONS.get(path_type, "通用维度")
 
-    return PATH_PROBE_SYSTEM_PROMPT.format(
-        path_label=label,
-        path_dimensions=dimensions,
-        discovery_context=discovery_context,
-    )
+    # Use safe formatting that won't break on JSON braces
+    prompt = PATH_PROBE_SYSTEM_PROMPT
+    prompt = prompt.replace("{path_label}", label)
+    prompt = prompt.replace("{path_dimensions}", dimensions)
+    prompt = prompt.replace("{discovery_context}", discovery_context)
+    return prompt

@@ -1,9 +1,10 @@
-﻿"""Memory Pydantic schemas."""
+"""Memory Pydantic schemas."""
 
+import json as _json
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class MemoryCreate(BaseModel):
@@ -13,6 +14,8 @@ class MemoryCreate(BaseModel):
     key: str = Field(..., min_length=1, max_length=100, description="Memory key (e.g., major, goal)")
     value: str = Field(..., min_length=1, description="Memory value")
     importance: int = Field(default=1, ge=1, le=10, description="Importance 1-10")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence 0-1")
+    source: str = Field(default="", description="Source / evidence for this memory")
 
 
 class MemoryUpdate(BaseModel):
@@ -20,6 +23,8 @@ class MemoryUpdate(BaseModel):
 
     value: Optional[str] = Field(default=None, description="New value")
     importance: Optional[int] = Field(default=None, ge=1, le=10, description="New importance")
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="New confidence")
+    source: Optional[str] = Field(default=None, description="New source")
 
 
 class MemoryResponse(BaseModel):
@@ -30,9 +35,23 @@ class MemoryResponse(BaseModel):
     key: str
     value: str
     importance: int
+    confidence: float = 1.0
+    source: str = ""
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @property
+    def parsed_value(self) -> Any:
+        """Attempt to JSON-parse the value string.
+
+        Returns the parsed object (list/dict) on success,
+        or the original string on failure.
+        """
+        try:
+            return _json.loads(self.value)
+        except (_json.JSONDecodeError, TypeError):
+            return self.value
 
 
 class MemoryListResponse(BaseModel):
@@ -56,3 +75,5 @@ class MemoryBatchItem(BaseModel):
     key: str = Field(..., min_length=1, max_length=100)
     value: str = Field(..., min_length=1)
     importance: int = Field(default=1, ge=1, le=10)
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    source: str = Field(default="")
