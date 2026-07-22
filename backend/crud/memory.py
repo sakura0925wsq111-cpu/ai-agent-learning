@@ -1,6 +1,7 @@
 """CRUD operations for Memory model."""
 
 import json as _json
+from datetime import datetime, timezone
 from typing import Any, Optional, Sequence
 
 from sqlalchemy import select as _select
@@ -19,6 +20,17 @@ def _serialize_value(value: Any) -> str:
     return str(value)
 
 
+def _build_conflict_history(old_value: str, timestamp: datetime) -> str:
+    """Build a history note when a memory value changes."""
+    ts_str = timestamp.strftime("%Y-%m-%d %H:%M")
+    return f"[鏃у€? {old_value} (鏇存柊浜?{ts_str})]"
+
+
+def history_note_in_source(source: str) -> bool:
+    """Check if source already contains a conflict history note."""
+    return "[旧值:" in source
+
+
 class CRUDMemory(CRUDBase[Memory]):
     """Memory CRUD with domain-specific methods."""
 
@@ -32,15 +44,20 @@ class CRUDMemory(CRUDBase[Memory]):
         user_id: str,
         skip: int = 0,
         limit: int = 100,
+        memory_type: str | None = None,
     ) -> Sequence[Memory]:
-        """Get all memory entries for a user, ordered by importance desc."""
+        """Get all memory entries for a user, ordered by importance desc.
+
+        Optionally filter by memory_type.
+        """
         stmt = (
             _select(Memory)
             .where(Memory.user_id == user_id)
-            .order_by(Memory.importance.desc(), Memory.created_at.desc())
-            .offset(skip)
-            .limit(limit)
         )
+        if memory_type and memory_type != "all":
+            stmt = stmt.where(Memory.memory_type == memory_type)
+        stmt = stmt.order_by(Memory.importance.desc(), Memory.created_at.desc())
+        stmt = stmt.offset(skip).limit(limit)
         return db.scalars(stmt).all()
 
     def get_by_key(self, db: Session, *, user_id: str, key: str) -> Optional[Memory]:
@@ -54,6 +71,21 @@ class CRUDMemory(CRUDBase[Memory]):
         """Count total memories for a user."""
         return self.count(db, user_id=user_id)
 
+    def get_by_type(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        memory_type: str,
+    ) -> Sequence[Memory]:
+        """Get all memories of a specific type for a user."""
+        stmt = (
+            _select(Memory)
+            .where(Memory.user_id == user_id, Memory.memory_type == memory_type)
+            .order_by(Memory.importance.desc())
+        )
+        return db.scalars(stmt).all()
+
     def upsert(
         self,
         db: Session,
@@ -61,6 +93,7 @@ class CRUDMemory(CRUDBase[Memory]):
         user_id: str,
         key: str,
         value: Any,
+        memory_type: str = "fact",
         importance: int = 1,
         confidence: float = 1.0,
         source: str = "",
@@ -68,19 +101,36 @@ class CRUDMemory(CRUDBase[Memory]):
         """Insert or update a memory entry.
 
         If a record with the same (user_id, key) exists, update it.
+        On value change, appends conflict history to source field.
         Otherwise, create a new one.
         Auto-serializes list/dict values to JSON strings.
         """
         serialized_value = _serialize_value(value)
         existing = self.get_by_key(db, user_id=user_id, key=key)
+        now = datetime.now(timezone.utc)
+
         if existing:
+            # ---- Conflict history: if value changed, preserve old value in source ----
+            if existing.value != serialized_value:
+                history_note = _build_conflict_history(existing.value, now)
+                if existing.source:
+                    existing.source = f"{existing.source} {history_note}"
+                else:
+                    existing.source = history_note
+
             existing.value = serialized_value
+            existing.memory_type = memory_type
             if importance is not None:
                 existing.importance = importance
             if confidence is not None:
                 existing.confidence = confidence
             if source:
-                existing.source = source
+                # If caller provides explicit source, use it (appending to history)
+                if existing.source and history_note_in_source(existing.source):
+                    existing.source = f"{source} {existing.source}"
+                else:
+                    existing.source = source
+            existing.updated_at = now
             db.add(existing)
             db.commit()
             db.refresh(existing)
@@ -92,9 +142,12 @@ class CRUDMemory(CRUDBase[Memory]):
                     "user_id": user_id,
                     "key": key,
                     "value": serialized_value,
+                    "memory_type": memory_type,
                     "importance": importance,
                     "confidence": confidence,
                     "source": source,
+                    "created_at": now,
+                    "updated_at": now,
                 },
             )
 

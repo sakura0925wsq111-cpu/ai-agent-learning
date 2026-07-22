@@ -54,6 +54,19 @@ AMBIGUOUS_PATTERNS: frozenset[str] = frozenset({
     "都差不多", "都可以", "再说吧", "还没考虑",
 })
 
+# ── 方案 B: 计划阶段固定模板 ──────────────────────────────────
+
+PLAN_PHASE_TEMPLATE: list[dict[str, Any]] = [
+    {"phase": "第1-2周", "tasks_count": 3, "key": "phase_1"},
+    {"phase": "第3-4周", "tasks_count": 3, "key": "phase_2"},
+    {"phase": "第5-8周", "tasks_count": 4, "key": "phase_3"},
+    {"phase": "第9-12周", "tasks_count": 4, "key": "phase_4"},
+]
+
+MIN_ADVANTAGES: int = 3
+MIN_RISKS: int = 3
+MIN_PLAN_PHASES: int = 4
+
 
 @dataclass
 class PlanningState:
@@ -72,7 +85,7 @@ class PlanningState:
     user_profile: dict[str, Any] = field(default_factory=dict)
     has_profile: bool = False
 
-    # Step 3: Follow-up rounds
+    # Step 2: Follow-up rounds
     follow_up_round: int = 0
     follow_up_answers: dict[str, str] = field(default_factory=dict)
     follow_up_history: list[dict[str, str]] = field(default_factory=list)
@@ -80,17 +93,34 @@ class PlanningState:
     retry_count: int = 0
     follow_up_complete: bool = False
 
-    # Steps 4-7: Analysis results (populated by LLM during GENERATE_OUTPUT)
+    # Step 3: Analyze (方案 B: LLM 输出 → parsed into this)
     analysis_raw: str = ""
-    identified_problems: list[str] = field(default_factory=list)
+    analysis: dict[str, Any] = field(default_factory=dict)
+    # Expected shape:
+    # {
+    #     "current_status": "...",
+    #     "directions": [{"name": "...", "match_score": 85, "reasoning": "..."}],
+    #     "advantages": [{"point": "...", "detail": "..."}],
+    # }
+
+    # Step 4: Identified problems (方案 B: 代码计算, no longer LLM)
+    identified_problems: list[dict[str, Any]] = field(default_factory=list)
+    # Expected shape:
+    # [{"skill": "Redis缓存", "status": "缺失", "priority": "high"}, ...]
+
+    # Step 5: Long-term goal (方案 B: LLM generates text only)
     long_term_goal: str = ""
+
+    # Step 6: Action plan (方案 B: 代码骨架 + LLM per phase)
     action_plan: list[dict[str, Any]] = field(default_factory=list)
 
-    # Step 8: Final unified output
+    # Step 7: Final unified output (方案 B: 100% 代码组装)
     output: dict[str, Any] = field(default_factory=dict)
 
     # Error tracking
     error_message: str = ""
+
+    # ── Step Helpers ──────────────────────────────────────────
 
     def advance_step(self) -> WorkflowStep:
         """Move to the next workflow step."""
@@ -135,8 +165,6 @@ class PlanningState:
             return False
         if self.follow_up_round < MIN_FOLLOW_UP_ROUNDS:
             return True
-        # Rounds 5-6: continue only when user is still ambiguous
-        # If user gave clear answers (low ambiguity), we likely have enough
         return self.ambiguous_count >= 2
 
     def build_context_for_llm(self) -> str:
@@ -156,6 +184,31 @@ class PlanningState:
 
         return "\n".join(parts)
 
+    def get_user_skills(self) -> list[str]:
+        """Extract a flat list of user skill strings from profile + follow-up history.
+
+        Tries known keys in user_profile, then scans follow-up answers.
+        """
+        skills: list[str] = []
+
+        # Try explicit skill keys in profile
+        for key in ("skills", "技能", "编程语言", "languages", "tools"):
+            val = self.user_profile.get(key)
+            if isinstance(val, str):
+                skills.append(val)
+            elif isinstance(val, list):
+                skills.extend(val)
+
+        # Also scan follow-up answers for skill mentions
+        for entry in self.follow_up_history:
+            ans = entry.get("a", "")
+            if ans and len(ans) < 200:
+                skills.append(ans)
+
+        return skills
+
+    # ── Serialization ─────────────────────────────────────────
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "agent_type": self.agent_type,
@@ -169,6 +222,7 @@ class PlanningState:
             "follow_up_history": self.follow_up_history,
             "ambiguous_count": self.ambiguous_count,
             "follow_up_complete": self.follow_up_complete,
+            "analysis": self.analysis,
             "identified_problems": self.identified_problems,
             "long_term_goal": self.long_term_goal,
             "action_plan": self.action_plan,
@@ -188,6 +242,7 @@ class PlanningState:
             follow_up_history=data.get("follow_up_history", []),
             ambiguous_count=data.get("ambiguous_count", 0),
             follow_up_complete=data.get("follow_up_complete", False),
+            analysis=data.get("analysis", {}),
             identified_problems=data.get("identified_problems", []),
             long_term_goal=data.get("long_term_goal", ""),
             action_plan=data.get("action_plan", []),

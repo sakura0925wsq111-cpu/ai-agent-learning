@@ -1,18 +1,21 @@
 ﻿# -*- coding: utf-8 -*-
-"""PlanningAgent — extensible base class for all growth planning agents.
+"""PlanningAgent — 方案 B: 5 步拆分执行。
 
-Design principle: All agents share the same 8-step workflow engine.
-Each agent only swaps three things:
-    1. System Prompt     — role definition + analysis rules + output format
-    2. Analysis Strategy — what dimensions to focus on
-    3. Output Template   — unified JSON structure (same schema, domain-specific content)
+原始: _run_full_analysis() = 1 次 LLM 调用，一次生成全部。
+方案 B:
+  Step 3  ANALYZE          → LLM 分析现状 + 方向评估
+  Step 4  IDENTIFY_PROBLEMS → 代码计算技能缺口
+  Step 5  SET_GOALS         → LLM 生成目标描述
+  Step 6  BUILD_PLAN        → 代码骨架 + LLM 逐阶段填充
+  Step 7  GENERATE_OUTPUT   → 100% 代码组装 + 硬校验
 
-To add a new agent (e.g., "留学规划Agent"):
-    1. Create prompts/study_abroad.py with STUDY_ABROAD_SYSTEM_PROMPT
-    2. Create agents/study_abroad.py inheriting PlanningAgent
-    3. Override agent_type, agent_label, build_system_prompt()
-    4. Register in router.py
-    5. Add route in api/planning.py
+新增子类需实现:
+  - agent_type, agent_label
+  - build_analyze_prompt()   → 分析 Prompt
+  - build_goal_prompt()      → 目标描述 Prompt
+  - build_task_fill_prompt() → 任务填充 Prompt
+  - build_analysis_strategy() → 追问策略（不变）
+  - build_system_prompt()    → 保留向后兼容
 """
 
 from __future__ import annotations
@@ -29,12 +32,14 @@ from planning.state import (
     WORKFLOW_ORDER,
     MAX_FOLLOW_UP_ROUNDS,
     MAX_RETRIES_PER_QUESTION,
+    PLAN_PHASE_TEMPLATE,
+    MIN_ADVANTAGES,
+    MIN_RISKS,
+    MIN_PLAN_PHASES,
 )
 
 
 # ── Unified Output JSON Schema ──────────────────────────────────
-# Every agent MUST produce this exact structure.
-# Content varies by agent domain, but the shape is invariant.
 
 UNIFIED_OUTPUT_SCHEMA: dict[str, Any] = {
     "summary": "",
@@ -49,17 +54,10 @@ UNIFIED_OUTPUT_SCHEMA: dict[str, Any] = {
 
 
 class PlanningAgent(ABC):
-    """Extensible base for all CampusPal growth planning agents.
+    """方案 B: 5 步拆分的工作流引擎。
 
-    Orchestrates the 7-step workflow:
-        READ_PROFILE -> FOLLOW_UP (5-7 rounds)
-        -> ANALYZE -> IDENTIFY_PROBLEMS -> SET_GOALS
-        -> BUILD_PLAN -> GENERATE_OUTPUT
-
-    Subclasses only need to provide:
-        - agent_type, agent_label
-        - build_system_prompt()
-        - build_analysis_strategy()
+    LLM 从"全能"变"文案工"——
+    格式、结构由代码保证，内容由 LLM 填充。
     """
 
     def __init__(self, llm_service: Any) -> None:
@@ -80,25 +78,29 @@ class PlanningAgent(ABC):
 
     @abstractmethod
     def build_system_prompt(self) -> str:
-        """Return the full system prompt for this agent.
+        """Legacy: full system prompt. Kept for backward compat."""
 
-        Must include:
-            - Role definition
-            - Analysis rules
-            - The UNIFIED_OUTPUT_SCHEMA as output format instruction
-        """
+    @abstractmethod
+    def build_analyze_prompt(self) -> str:
+        """方案 B Step 3: 分析 Prompt。LLM 输出 current_status + directions + advantages。"""
+
+    @abstractmethod
+    def build_goal_prompt(self) -> str:
+        """方案 B Step 5: 目标描述 Prompt。LLM 输出一段纯文本。"""
+
+    @abstractmethod
+    def build_task_fill_prompt(self) -> str:
+        """方案 B Step 6: 任务填充 Prompt。LLM 为单个阶段输出 N 条任务。
+        Must contain {count}, {goal}, {skill_gaps}, {phase}, {previous_tasks} placeholders."""
 
     @abstractmethod
     def build_analysis_strategy(self) -> dict[str, Any]:
-        """Return the analysis strategy config for this agent.
+        """追问策略。包含 focus_dimensions, special_rules, question_topics。"""
 
-        Example for career agent:
-            {
-                "focus_dimensions": ["岗位定位", "职业方向", "能力缺口"],
-                "special_rules": ["不要推荐具体招聘网站"],
-                "question_topics": ["专业背景", "求职动机", "工作偏好", ...],
-            }
-        """
+    @property
+    def use_split_workflow(self) -> bool:
+        """方案 B 开关: True=5步拆分, False=旧版单次调用。"""
+        return True
 
     # ── Workflow Engine ─────────────────────────────────────────
 
@@ -111,9 +113,8 @@ class PlanningAgent(ABC):
             self.state.has_profile = True
             logger.info("PlanningAgent[{}]: profile loaded", self.agent_type)
 
-        # Start at the appropriate step
         if self.state.has_profile:
-            self.state.advance_step()  # skip READ_PROFILE
+            self.state.advance_step()
         return self.state
 
     def restore_state(self, saved: PlanningState) -> None:
@@ -121,10 +122,7 @@ class PlanningAgent(ABC):
         self.state = saved
 
     def chat(self, message: str) -> dict[str, Any]:
-        """Main entry: process one user message and advance the workflow.
-
-        Returns a dict the service layer can serialize into API responses.
-        """
+        """Main entry: process one user message and advance the workflow."""
         if self.state.finished:
             return self._build_response(
                 step="completed",
@@ -140,11 +138,26 @@ class PlanningAgent(ABC):
         handlers = {
             WorkflowStep.READ_PROFILE: self._handle_read_profile,
             WorkflowStep.FOLLOW_UP: self._handle_follow_up,
-            WorkflowStep.ANALYZE: self._handle_analyze,
-            WorkflowStep.IDENTIFY_PROBLEMS: self._handle_identify_problems,
-            WorkflowStep.SET_GOALS: self._handle_set_goals,
-            WorkflowStep.BUILD_PLAN: self._handle_build_plan,
-            WorkflowStep.GENERATE_OUTPUT: self._handle_generate_output,
+            WorkflowStep.ANALYZE: (
+                self._handle_analyze_split if self.use_split_workflow
+                else self._handle_analyze_legacy
+            ),
+            WorkflowStep.IDENTIFY_PROBLEMS: (
+                self._handle_identify_problems_split if self.use_split_workflow
+                else self._handle_analyze_legacy
+            ),
+            WorkflowStep.SET_GOALS: (
+                self._handle_set_goals_split if self.use_split_workflow
+                else self._handle_analyze_legacy
+            ),
+            WorkflowStep.BUILD_PLAN: (
+                self._handle_build_plan_split if self.use_split_workflow
+                else self._handle_analyze_legacy
+            ),
+            WorkflowStep.GENERATE_OUTPUT: (
+                self._handle_generate_output_split if self.use_split_workflow
+                else self._handle_analyze_legacy
+            ),
         }
 
         handler = handlers.get(step)
@@ -153,42 +166,26 @@ class PlanningAgent(ABC):
 
         return handler(message)
 
-    # ── Step Handlers ───────────────────────────────────────────
+    # ── Step Handlers (original, unchanged) ─────────────────────
 
     def _handle_read_profile(self, message: str) -> dict[str, Any]:
-        """Step 1: Read user profile.
-
-        If the message contains structured profile data (JSON or key-value),
-        parse it. Otherwise, ask the user to provide basic info.
-        """
-        # Try to parse structured profile from message
+        """Step 1: Read user profile."""
         profile = self._try_parse_profile(message)
         if profile:
             self.state.user_profile = profile
             self.state.has_profile = True
             self.state.advance_step()
-            logger.info("PlanningAgent[{}]: profile parsed from message", self.agent_type)
-            # Proceed to next step
             return self._continue_workflow("")
         else:
-            # Ask for profile info
-            self.state.has_profile = True  # mark as handled even if empty
+            self.state.has_profile = True
             self.state.user_profile = {"raw_input": message}
             self.state.advance_step()
             return self._continue_workflow("")
 
     def _handle_follow_up(self, message: str) -> dict[str, Any]:
-        """Step 3: Dynamic follow-up questions (3-7 rounds).
-
-        Key behaviors:
-        - Questions are generated dynamically by the LLM based on previous answers
-        - NOT a fixed script of questions
-        - Stop when enough info is gathered (min 3, max 7)
-        - Detect ambiguous answers and probe deeper
-        """
+        """Step 2: Dynamic follow-up questions (5-7 rounds)."""
         is_ambiguous = self.state.is_ambiguous(message)
 
-        # Record this round's answer
         current_q_id = f"follow_up_{self.state.follow_up_round + 1}"
         self.state.record_follow_up(current_q_id, message)
 
@@ -196,93 +193,350 @@ class PlanningAgent(ABC):
             self.state.ambiguous_count += 1
             if self.state.retry_count < MAX_RETRIES_PER_QUESTION:
                 self.state.retry_count += 1
-                next_q = self._generate_dynamic_question(
-                    is_retry=True,
-                    last_answer=message,
-                )
+                next_q = self._generate_dynamic_question(is_retry=True, last_answer=message)
                 return self._build_response(
-                    step="follow_up",
-                    finished=False,
-                    message=next_q,
+                    step="follow_up", finished=False, message=next_q,
                     follow_up_round=self.state.follow_up_round,
                 )
-            # Max retries exceeded, accept ambiguous answer
             self.state.retry_count = 0
         else:
             self.state.retry_count = 0
 
-        # Check if we should continue or stop
         if self.state.should_continue_follow_up():
-            next_q = self._generate_dynamic_question(
-                is_retry=False,
-                last_answer=message,
-            )
+            next_q = self._generate_dynamic_question(is_retry=False, last_answer=message)
             return self._build_response(
-                step="follow_up",
-                finished=False,
-                message=next_q,
+                step="follow_up", finished=False, message=next_q,
                 follow_up_round=self.state.follow_up_round,
             )
 
-        # Follow-up complete -> advance to analysis
         self.state.follow_up_complete = True
         self.state.advance_step()
         logger.info("PlanningAgent[{}]: follow-up complete after {} rounds",
                     self.agent_type, self.state.follow_up_round)
-
-        # Chain into analysis immediately
         return self._continue_workflow(message)
 
-    def _handle_analyze(self, message: str) -> dict[str, Any]:
-        """Steps 4-8: Run LLM analysis and generate full output in one pass.
+    # ── 方案 B: 5-Step Split Handlers ──────────────────────────
 
-        Combines analyze, identify problems, set goals, build plan, and
-        generate output into a single LLM call for efficiency.
-        """
-        report = self._run_full_analysis()
-        self.state.output = report
+    def _handle_analyze_split(self, message: str) -> dict[str, Any]:
+        """Step 3: LLM 分析现状 + 方向评估 → 存入 state.analysis。"""
+        logger.info("PlanningAgent[{}]: ANALYZE (split)", self.agent_type)
+
+        context = self.state.build_context_for_llm()
+        system_prompt = self.build_analyze_prompt()
+
+        try:
+            raw = self.llm.chat(
+                user_message=f"## 用户信息\n{context}\n\n请输出分析 JSON。",
+                system_prompt=system_prompt,
+                temperature=0.3,
+                max_tokens=2048,
+            )
+            self.state.analysis_raw = raw
+            analysis = self._parse_json_output(raw)
+
+            if analysis and "current_status" in analysis:
+                self.state.analysis = analysis
+                # Ensure advantages count
+                adv = analysis.get("advantages", [])
+                if not isinstance(adv, list) or len(adv) < MIN_ADVANTAGES:
+                    analysis["advantages"] = self._pad_advantages(adv)
+                self.state.analysis = analysis
+                self.state.advance_step()
+                return self._continue_workflow("")
+        except Exception as exc:
+            logger.error("PlanningAgent[{}]: ANALYZE failed: {}", self.agent_type, exc)
+
+        # Fallback: use empty analysis, let identify_problems still work
+        self.state.analysis = {
+            "current_status": "分析暂时不可用",
+            "directions": [],
+            "advantages": [{"point": "主动规划", "detail": "你正在积极规划未来"}],
+        }
+        self.state.advance_step()
+        return self._continue_workflow("")
+
+    def _handle_identify_problems_split(self, message: str) -> dict[str, Any]:
+        """Step 4: 代码计算技能缺口。对比用户技能 vs 目标方向要求。"""
+        logger.info("PlanningAgent[{}]: IDENTIFY_PROBLEMS (split)", self.agent_type)
+
+        gaps = self._compute_skill_gaps()
+        self.state.identified_problems = gaps
+        self.state.advance_step()
+        return self._continue_workflow("")
+
+    def _handle_set_goals_split(self, message: str) -> dict[str, Any]:
+        """Step 5: LLM 生成目标描述。只用 LLM 写文案。"""
+        logger.info("PlanningAgent[{}]: SET_GOALS (split)", self.agent_type)
+
+        system_prompt = self.build_goal_prompt()
+        gaps_text = self._format_gaps()
+
+        try:
+            raw = self.llm.chat(
+                user_message=f"缺口：\n{gaps_text}",
+                system_prompt=system_prompt,
+                temperature=0.5,
+                max_tokens=256,
+            )
+            self.state.long_term_goal = raw.strip()
+        except Exception as exc:
+            logger.error("PlanningAgent[{}]: SET_GOALS failed: {}", self.agent_type, exc)
+            self.state.long_term_goal = f"在 90 天内补齐能力短板，为{self.agent_label}做好准备"
+
+        self.state.advance_step()
+        return self._continue_workflow("")
+
+    def _handle_build_plan_split(self, message: str) -> dict[str, Any]:
+        """Step 6: 代码骨架 + LLM 逐阶段填充任务。"""
+        logger.info("PlanningAgent[{}]: BUILD_PLAN (split)", self.agent_type)
+
+        template_prompt = self.build_task_fill_prompt()
+        goal = self.state.long_term_goal
+        gaps_text = self._format_gaps()
+        previous_summary = "（尚无前序阶段）"
+
+        action_plan: list[dict[str, Any]] = []
+
+        for phase_cfg in PLAN_PHASE_TEMPLATE:
+            count = phase_cfg["tasks_count"]
+            phase = phase_cfg["phase"]
+
+            user_prompt = template_prompt.format(
+                count=count,
+                goal=goal,
+                skill_gaps=gaps_text,
+                phase=phase,
+                previous_tasks=previous_summary,
+            )
+
+            try:
+                raw = self.llm.chat(
+                    user_message=user_prompt,
+                    temperature=0.5,
+                    max_tokens=512,
+                )
+                tasks = self._parse_task_lines(raw, count)
+            except Exception as exc:
+                logger.error("PlanningAgent[{}]: BUILD_PLAN phase={} failed: {}",
+                           self.agent_type, phase, exc)
+                tasks = [f"完成{phase}阶段核心学习任务" for _ in range(count)]
+
+            action_plan.append({
+                "phase": phase,
+                "tasks": tasks,
+                "expected_outcome": f"完成{phase}阶段的{count}项任务，进入下一阶段",
+            })
+
+            # Build cumulative summary for next phase
+            done = "; ".join(tasks[:2])
+            previous_summary = f"已完成：{done}"
+
+        self.state.action_plan = action_plan
+        self.state.advance_step()
+        return self._continue_workflow("")
+
+    def _handle_generate_output_split(self, message: str) -> dict[str, Any]:
+        """Step 7: 100% 代码组装 JSON + 硬校验。"""
+        logger.info("PlanningAgent[{}]: GENERATE_OUTPUT (split)", self.agent_type)
+
+        output = self._build_final_output()
+
+        # 硬校验
+        errors = self._validate_output(output)
+        if errors:
+            logger.warning("PlanningAgent[{}]: output validation: {}", self.agent_type, errors)
+            output = self._fix_output(output, errors)
+
+        self.state.output = output
         self.state.finished = True
 
         return self._build_response(
             step="completed",
             finished=True,
             message=self._get_completion_message(),
-            report=report,
+            report=output,
         )
 
-    def _handle_identify_problems(self, message: str) -> dict[str, Any]:
-        """Step 5: Merged into _handle_analyze for efficiency."""
-        return self._handle_analyze(message)
+    # ── Legacy monolithic handler (backward compatibility) ──────
 
-    def _handle_set_goals(self, message: str) -> dict[str, Any]:
-        """Step 6: Merged into _handle_analyze for efficiency."""
-        return self._handle_analyze(message)
+    def _handle_analyze_legacy(self, message: str) -> dict[str, Any]:
+        """OLD: 1 LLM call for everything."""
+        report = self._run_full_analysis()
+        self.state.output = report
+        self.state.finished = True
+        return self._build_response(
+            step="completed", finished=True,
+            message=self._get_completion_message(), report=report,
+        )
 
-    def _handle_build_plan(self, message: str) -> dict[str, Any]:
-        """Step 7: Merged into _handle_analyze for efficiency."""
-        return self._handle_analyze(message)
+    # ── 方案 B: 核心逻辑 ────────────────────────────────────────
 
-    def _handle_generate_output(self, message: str) -> dict[str, Any]:
-        """Step 8: Merged into _handle_analyze for efficiency."""
-        return self._handle_analyze(message)
+    def _compute_skill_gaps(self) -> list[dict[str, Any]]:
+        """对比用户技能 vs 目标方向 → 结构化缺口列表。
 
-    # ── LLM Integration ─────────────────────────────────────────
+        交给子类的 _get_skill_matrix_for_direction 完成映射。
+        """
+        from planning.rules import find_best_matching_direction, compute_skill_gaps
+
+        # Get top direction from analysis
+        directions = self.state.analysis.get("directions", [])
+        if not directions:
+            return [{"skill": "目标方向未明确", "status": "待定", "priority": "high"}]
+
+        top_direction = directions[0].get("name", "")
+        matched_direction = find_best_matching_direction(top_direction)
+
+        if not matched_direction:
+            return [{
+                "skill": f"方向「{top_direction}」暂未收录",
+                "status": "未知", "priority": "medium",
+                "detail": "系统中暂无该方向的技能矩阵，请手动评估"
+            }]
+
+        # Get user skills
+        user_skills = self.state.get_user_skills()
+
+        result = compute_skill_gaps(matched_direction, user_skills)
+
+        gaps: list[dict[str, Any]] = []
+
+        for skill in result["missing_required"]:
+            gaps.append({"skill": skill, "status": "缺失", "priority": "high"})
+
+        for skill in result["missing_nice"]:
+            gaps.append({"skill": skill, "status": "建议补充", "priority": "medium"})
+
+        if not gaps:
+            gaps.append({
+                "skill": "必备技能已基本覆盖",
+                "status": "合格", "priority": "low",
+                "detail": f"覆盖率 {result['completeness']:.0%}"
+            })
+
+        return gaps
+
+    def _format_gaps(self) -> str:
+        """Format identified_problems as a readable string."""
+        if not self.state.identified_problems:
+            return "（暂无已知缺口）"
+        lines = []
+        for g in self.state.identified_problems:
+            lines.append(f"- [{g.get('priority', '?')}] {g['skill']}: {g.get('status', '?')}")
+        return "\n".join(lines)
+
+    def _build_final_output(self) -> dict[str, Any]:
+        """100% 代码组装最终 JSON。"""
+        analysis = self.state.analysis
+        gaps = self.state.identified_problems
+        goal = self.state.long_term_goal
+        plan = self.state.action_plan
+
+        # Build risks from gaps
+        risks = []
+        for g in gaps:
+            if g.get("priority") in ("high", "medium"):
+                risks.append({
+                    "point": g["skill"],
+                    "detail": f"该项技能{g.get('status', '缺失')}，需要通过针对性学习补齐",
+                    "level": g.get("priority", "medium"),
+                })
+
+        if len(risks) < MIN_RISKS:
+            risks.append({
+                "point": "市场竞争",
+                "detail": "当前就业市场竞争激烈，需要持续提升竞争力",
+                "level": "medium",
+            })
+
+        # Build main_problem from gaps
+        high_gaps = [g["skill"] for g in gaps if g.get("priority") == "high"]
+        main_problem = "、".join(high_gaps[:3]) if high_gaps else "需进一步明确方向后制定针对性计划"
+
+        return {
+            "summary": goal,
+            "current_status": analysis.get("current_status", ""),
+            "main_problem": main_problem,
+            "goal": goal,
+            "advantages": analysis.get("advantages", []),
+            "risks": risks[:MIN_RISKS + 2],
+            "action_plan": plan,
+            "next_question": "你想深入了解哪个阶段的计划？或者有什么需要调整的地方？",
+        }
+
+    def _validate_output(self, output: dict[str, Any]) -> list[str]:
+        """硬校验输出。返回错误列表（空=通过）。"""
+        errors: list[str] = []
+
+        adv = output.get("advantages", [])
+        if not isinstance(adv, list) or len(adv) < MIN_ADVANTAGES:
+            errors.append(f"advantages: 需要至少 {MIN_ADVANTAGES} 条，当前 {len(adv) if isinstance(adv, list) else 0} 条")
+
+        risks = output.get("risks", [])
+        if not isinstance(risks, list) or len(risks) < MIN_RISKS:
+            errors.append(f"risks: 需要至少 {MIN_RISKS} 条，当前 {len(risks) if isinstance(risks, list) else 0} 条")
+
+        plan = output.get("action_plan", [])
+        if not isinstance(plan, list) or len(plan) < MIN_PLAN_PHASES:
+            errors.append(f"action_plan: 需要至少 {MIN_PLAN_PHASES} 个阶段，当前 {len(plan) if isinstance(plan, list) else 0} 个")
+
+        for s_field in ("summary", "current_status", "main_problem", "goal"):
+            if not isinstance(output.get(s_field), str) or not output.get(s_field):
+                errors.append(f"{s_field}: 不能为空")
+
+        return errors
+
+    def _fix_output(self, output: dict[str, Any], errors: list[str]) -> dict[str, Any]:
+        """尝试修复校验失败的字段。"""
+        fixed = dict(output)
+
+        if not isinstance(fixed.get("advantages"), list) or len(fixed.get("advantages", [])) < MIN_ADVANTAGES:
+            cur = fixed.get("advantages", [])
+            if not isinstance(cur, list):
+                cur = []
+            while len(cur) < MIN_ADVANTAGES:
+                cur.append({"point": "主动规划的意愿", "detail": "你正在积极规划未来发展方向"})
+            fixed["advantages"] = cur
+
+        if not isinstance(fixed.get("risks"), list) or len(fixed.get("risks", [])) < MIN_RISKS:
+            cur = fixed.get("risks", [])
+            if not isinstance(cur, list):
+                cur = []
+            while len(cur) < MIN_RISKS:
+                cur.append({
+                    "point": "信息有限", "detail": "当前收集的信息有限，后续可补充完善",
+                    "level": "medium",
+                })
+            fixed["risks"] = cur
+
+        for s_field in ("current_status", "main_problem"):
+            if not fixed.get(s_field):
+                fixed[s_field] = "信息待补充"
+
+        if not fixed.get("goal"):
+            fixed["goal"] = self.state.long_term_goal or f"完成{self.agent_label}"
+
+        if not fixed.get("summary"):
+            fixed["summary"] = fixed["goal"]
+
+        return fixed
+
+    def _pad_advantages(self, existing: list[dict]) -> list[dict]:
+        """Ensure advantages list meets minimum count."""
+        result = list(existing) if existing else []
+        while len(result) < MIN_ADVANTAGES:
+            result.append({"point": "自我驱动力", "detail": "主动使用工具进行成长规划"})
+        return result
+
+    # ── Legacy: old monolithic analysis (kept for backward compat) ─
 
     def _run_full_analysis(self) -> dict[str, Any]:
-        """Send all collected context to the LLM and parse the unified JSON output.
-
-        Returns:
-            Dict matching UNIFIED_OUTPUT_SCHEMA.
-        """
+        """OLD: Single LLM call for full report."""
         system_prompt = self.build_system_prompt()
         user_prompt = self._build_analysis_user_prompt()
-
         try:
             raw = self.llm.chat(
-                user_message=user_prompt,
-                system_prompt=system_prompt,
-                temperature=0.3,
-                max_tokens=4096,
+                user_message=user_prompt, system_prompt=system_prompt,
+                temperature=0.3, max_tokens=4096,
             )
             self.state.analysis_raw = raw
             report = self._parse_json_output(raw)
@@ -290,20 +544,16 @@ class PlanningAgent(ABC):
                 return report
         except Exception as exc:
             logger.error("PlanningAgent[{}]: LLM analysis failed: {}", self.agent_type, exc)
-
         return self._generate_fallback_output()
 
     def _build_analysis_user_prompt(self) -> str:
-        """Construct the user prompt for the final analysis LLM call."""
+        """OLD: user prompt for monolithic analysis."""
         strategy = self.build_analysis_strategy()
         context = self.state.build_context_for_llm()
-
         focus_dims = strategy.get("focus_dimensions", [])
         special_rules = strategy.get("special_rules", [])
-
         dims_text = "\n".join(f"- {d}" for d in focus_dims)
         rules_text = "\n".join(f"- {r}" for r in special_rules)
-
         return f"""请根据以下信息进行分析并生成规划报告。
 
 {context}
@@ -330,55 +580,51 @@ class PlanningAgent(ABC):
         if parsed is None:
             logger.warning("PlanningAgent[{}]: failed to parse JSON output", self.agent_type)
             return None
-
-        # Validate against unified schema
         result = dict(UNIFIED_OUTPUT_SCHEMA)
         for key in UNIFIED_OUTPUT_SCHEMA:
             if key in parsed:
                 result[key] = parsed[key]
-
-        # Ensure list fields are lists
         for list_field in ("advantages", "risks", "action_plan"):
             if not isinstance(result.get(list_field), list):
                 result[list_field] = []
-
-        # Ensure string fields are strings
         for str_field in ("summary", "current_status", "main_problem", "goal", "next_question"):
             if not isinstance(result.get(str_field), str):
                 result[str_field] = str(result.get(str_field, ""))
-
         return result
 
+    def _parse_task_lines(self, raw: str, expected_count: int) -> list[str]:
+        """Parse LLM output into exactly expected_count task lines."""
+        lines = [l.strip() for l in raw.strip().split("\n") if l.strip()]
+        # Remove leading numbers like "1. ", "1、", "1) "
+        import re
+        cleaned = []
+        for line in lines:
+            line = re.sub(r'^[\d]+[\.\、\)\)\s]+', '', line).strip()
+            if line:
+                cleaned.append(line)
+
+        # Pad or trim to expected count
+        if len(cleaned) < expected_count:
+            cleaned += [f"完成{self.agent_label}相关学习任务" for _ in range(expected_count - len(cleaned))]
+        return cleaned[:expected_count]
+
     def _generate_fallback_output(self) -> dict[str, Any]:
-        """Generate a graceful fallback when LLM analysis fails."""
-        strategy = self.build_analysis_strategy()
+        """Graceful fallback when LLM analysis fails."""
         return {
             "summary": f"很抱歉，{self.agent_label}分析暂时无法完成。请稍后重试。",
             "current_status": "分析过程中遇到技术问题",
             "main_problem": "系统暂时无法完成分析",
             "goal": f"完成{self.agent_label}",
-            "advantages": [
-                {"point": "你已经迈出了规划的第一步", "detail": "主动寻求成长规划本身就是一种优势"}
-            ],
-            "risks": [
-                {"point": "信息不足", "detail": "当前收集的信息不足以生成完整分析", "level": "medium"}
-            ],
-            "action_plan": [
-                {"phase": "近期", "tasks": ["重新尝试分析", "补充更多个人信息"]}
-            ],
+            "advantages": [{"point": "你已经迈出了规划的第一步", "detail": "主动寻求成长规划本身就是一种优势"}],
+            "risks": [{"point": "信息不足", "detail": "当前收集的信息不足以生成完整分析", "level": "medium"}],
+            "action_plan": [{"phase": "近期", "tasks": ["重新尝试分析", "补充更多个人信息"]}],
             "next_question": "是否愿意重新开始一轮规划？",
         }
 
-    # ── Dynamic Question Generation ─────────────────────────────
+    # ── Dynamic Question Generation (unchanged) ─────────────────
 
     def _generate_dynamic_question(self, is_retry: bool, last_answer: str) -> str:
-        """Generate the next dynamic follow-up question via LLM.
-
-        The question is NOT from a fixed script — it adapts based on:
-        - Previous answers
-        - Missing information dimensions
-        - Agent-specific analysis strategy
-        """
+        """Generate the next dynamic follow-up question via LLM."""
         strategy = self.build_analysis_strategy()
         topics = strategy.get("question_topics", [])
         history = self.state.follow_up_history
@@ -399,7 +645,6 @@ class PlanningAgent(ABC):
                 f"请生成一个收尾问题准备进入分析阶段。"
             )
 
-        # Build user context from profile and follow-up history
         user_context = self.state.build_context_for_llm()
 
         prompt = f"""你是{self.agent_label}领域的专业顾问，正在通过追问了解用户情况。
@@ -425,16 +670,13 @@ class PlanningAgent(ABC):
 
         try:
             response = self.llm.chat(
-                user_message=prompt,
-                temperature=0.8,  # higher creativity for question generation
-                max_tokens=256,
+                user_message=prompt, temperature=0.8, max_tokens=256,
             )
             return response.strip()
         except Exception:
-            # Fallback to a generic contextual question
             if is_retry:
                 return "可以再具体说说吗？比如有没有特别在意的方向或限制条件？"
-            elif len(history) >= MIN_FOLLOW_UP_ROUNDS:
+            elif len(history) >= 5:
                 return "好的，我已经了解了你的基本情况。还有什么特别想补充的吗？"
             else:
                 return "接下来我想了解你的具体情况，能详细说说吗？"
@@ -479,8 +721,4 @@ class PlanningAgent(ABC):
         }
 
     def _build_error(self, message: str) -> dict[str, Any]:
-        return self._build_response(
-            step="error",
-            finished=True,
-            message=message,
-        )
+        return self._build_response(step="error", finished=True, message=message)

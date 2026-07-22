@@ -10,11 +10,9 @@ Architecture:
     ├── CivilPlanningAgent      — 考公考编规划
     └── MajorPlanningAgent      — 转专业规划
 
-To add a new agent (e.g. 留学规划):
-    1. Create planning/prompts/study_abroad.py
-    2. Create planning/agents/study_abroad.py
-    3. Register in planning/router.py
-    4. Done — all workflows, state management, and API are inherited.
+LangGraph Integration (NEW):
+    GrowthGraph — StateGraph orchestrating the growth workflow with
+    interrupt/resume (SQLite checkpointer), human-in-the-loop, and SSE streaming.
 """
 
 from planning.base import PlanningAgent, UNIFIED_OUTPUT_SCHEMA

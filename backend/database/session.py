@@ -1,4 +1,4 @@
-﻿"""Database engine and session management.
+"""Database engine and session management.
 
 Uses SQLAlchemy 2.0 style with a sessionmaker factory.
 The get_db dependency yields a session per request and closes it automatically.

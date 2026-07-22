@@ -1,10 +1,16 @@
 ﻿# -*- coding: utf-8 -*-
-"""Major Transfer Planning Agent — 转专业规划."""
+"""Major Transfer Planning Agent — 方案 B: 转专业规划."""
 
 from __future__ import annotations
 from typing import Any
 from planning.base import PlanningAgent
-from planning.prompts.major import MAJOR_PLANNING_PROMPT, MAJOR_ANALYSIS_STRATEGY
+from planning.prompts.major import (
+    MAJOR_ANALYZE_PROMPT,
+    MAJOR_GOAL_PROMPT,
+    MAJOR_TASK_FILL_PROMPT,
+    MAJOR_ANALYSIS_STRATEGY,
+    MAJOR_PLANNING_PROMPT,
+)
 
 
 class MajorPlanningAgent(PlanningAgent):
@@ -24,6 +30,15 @@ class MajorPlanningAgent(PlanningAgent):
 
     def build_system_prompt(self) -> str:
         return MAJOR_PLANNING_PROMPT
+
+    def build_analyze_prompt(self) -> str:
+        return MAJOR_ANALYZE_PROMPT
+
+    def build_goal_prompt(self) -> str:
+        return MAJOR_GOAL_PROMPT
+
+    def build_task_fill_prompt(self) -> str:
+        return MAJOR_TASK_FILL_PROMPT
 
     def build_analysis_strategy(self) -> dict[str, Any]:
         return MAJOR_ANALYSIS_STRATEGY

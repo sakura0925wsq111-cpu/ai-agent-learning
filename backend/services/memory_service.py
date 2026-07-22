@@ -24,19 +24,28 @@ from core.exceptions import NotFoundException
 MEMORY_MAX_PER_USER = 50
 MEMORY_CONSOLIDATE_THRESHOLD = int(MEMORY_MAX_PER_USER * 0.8)  # 40
 
+# Display labels for memory types
+MEMORY_TYPE_LABELS = {
+    "profile": "用户画像",
+    "goal": "成长目标",
+    "action": "行动记录",
+    "fact": "其他信息",
+}
+
 
 class MemoryService:
     """Service layer for Memory CRUD operations."""
 
     def save_memory(self, db: Session, *, data: MemoryCreate) -> MemoryResponse:
         """Save a new memory or update an existing one (upsert)."""
-        logger.info(f"Saving memory: user={data.user_id}, key={data.key}")
+        logger.info(f"Saving memory: user={data.user_id}, key={data.key}, type={data.memory_type}")
 
         obj = memory_crud.upsert(
             db,
             user_id=data.user_id,
             key=data.key,
             value=data.value,
+            memory_type=data.memory_type,
             importance=data.importance,
             confidence=data.confidence,
             source=data.source,
@@ -62,6 +71,7 @@ class MemoryService:
                 user_id=user_id,
                 key=item["key"],
                 value=item["value"],
+                memory_type=item.get("memory_type", "fact"),
                 importance=item.get("importance", 1),
                 confidence=item.get("confidence", 1.0),
                 source=item.get("source", ""),
@@ -69,9 +79,7 @@ class MemoryService:
             results.append(MemoryResponse.model_validate(obj))
         logger.info(f"Batch saved {len(results)} memories for user={user_id}")
 
-        # Trigger async consolidation check
         self._maybe_consolidate_async(db, user_id)
-
         return results
 
     def load_memory(
@@ -80,16 +88,29 @@ class MemoryService:
         *,
         user_id: str,
         as_dict: bool = False,
+        memory_type: str | None = None,
     ) -> list[MemoryResponse] | dict[str, str]:
-        """Load all memories for a user.
+        """Load all memories for a user, optionally filtered by type.
 
         Args:
-            as_dict: If True, return {key: value} dict. Otherwise list of MemoryResponse.
+            as_dict: If True, return {key: value} dict.
+            memory_type: Optional filter (profile/goal/action/fact).
         """
         if as_dict:
             return memory_crud.as_dict(db, user_id=user_id)
 
-        memories = memory_crud.get_by_user(db, user_id=user_id)
+        memories = memory_crud.get_by_user(db, user_id=user_id, memory_type=memory_type)
+        return [MemoryResponse.model_validate(m) for m in memories]
+
+    def load_memory_by_type(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        memory_type: str,
+    ) -> list[MemoryResponse]:
+        """Load memories of a specific type for a user."""
+        memories = memory_crud.get_by_type(db, user_id=user_id, memory_type=memory_type)
         return [MemoryResponse.model_validate(m) for m in memories]
 
     # ── Relevant memory retrieval (P1) ──────────────────────────
@@ -104,47 +125,27 @@ class MemoryService:
     ) -> list[MemoryResponse]:
         """Load memories relevant to the current conversation context.
 
-        Uses jieba + Jaccard similarity to rank memories against keywords
-        extracted from the query (last 1-2 rounds of conversation).
-
-        Falls back to returning top memories by importance if jieba is
-        unavailable or query is empty.
-
-        Args:
-            db: Database session.
-            user_id: Target user ID.
-            query: Recent conversation text for keyword extraction.
-            top_k: Max number of relevant memories to return.
-
-        Returns:
-            List of MemoryResponse sorted by relevance.
+        Uses jieba + Jaccard similarity. Profile memories get a 1.5x boost.
+        Falls back to top by importance if jieba unavailable or query empty.
         """
         all_memories = memory_crud.get_by_user(db, user_id=user_id)
         if not all_memories:
             return []
 
-        # If no query provided, return top by importance
         if not query.strip():
             return [
                 MemoryResponse.model_validate(m)
                 for m in all_memories[:top_k]
             ]
 
-        # Try jieba keyword extraction + Jaccard ranking
         try:
             import jieba
         except ImportError:
             logger.warning("jieba not installed, falling back to substring match")
             return self._fallback_relevance(all_memories, query, top_k)
 
-        # Extract keywords from query (top 5 by TF)
         query_words = list(jieba.cut(query))
-        # Simple keyword selection: keep meaningful words (len >= 2)
         keywords = [w for w in query_words if len(w) >= 2]
-        if not keywords:
-            keywords = query_words
-
-        # Take up to 5 most informative keywords (deduplicated)
         seen: set[str] = set()
         unique_keywords: list[str] = []
         for w in keywords:
@@ -159,35 +160,30 @@ class MemoryService:
                 for m in all_memories[:top_k]
             ]
 
-        # Compute Jaccard similarity for each memory
         keyword_set = set(keywords)
         scored: list[tuple[Memory, float]] = []
 
         for mem in all_memories:
-            # Build text from key + value
             mem_text = f"{mem.key} {mem.value}"
             mem_words = set(jieba.lcut(mem_text))
 
-            # Jaccard similarity
             intersection = len(keyword_set & mem_words)
             union = len(keyword_set | mem_words)
             score = intersection / union if union > 0 else 0.0
 
-            # Boost by importance factor
+            # Boost by importance and memory_type
             score *= (1.0 + mem.importance * 0.1)
+            if getattr(mem, "memory_type", "fact") == "profile":
+                score *= 1.5  # Profile memories are always relevant
 
             scored.append((mem, score))
 
-        # Sort by score descending, take top_k
         scored.sort(key=lambda x: x[1], reverse=True)
         top_memories = [m for m, _ in scored[:top_k] if _ > 0]
 
         if not top_memories:
-            # All scores are 0, return top by importance
             all_memories_sorted = sorted(
-                all_memories,
-                key=lambda m: m.importance,
-                reverse=True,
+                all_memories, key=lambda m: m.importance, reverse=True,
             )
             top_memories = all_memories_sorted[:top_k]
 
@@ -232,8 +228,7 @@ class MemoryService:
             db: Database session (used synchronously when run_async=False).
             user_id: Target user ID.
             messages: Conversation history (role/content dicts).
-            run_async: If True (default), runs extraction in a background thread.
-                       If False, runs synchronously and returns results.
+            run_async: If True (default), runs in a background thread.
 
         Returns:
             List of saved MemoryResponse when run_async=False, None otherwise.
@@ -259,7 +254,7 @@ class MemoryService:
         user_id: str,
         messages: list[dict[str, str]],
     ) -> list[MemoryResponse]:
-        """Synchronous extraction + save. Called by thread or directly."""
+        """Synchronous extraction + save."""
         from memory.async_extractor import extract_profile_from_history
 
         try:
@@ -275,7 +270,6 @@ class MemoryService:
             logger.debug("extract_and_save: no memories extracted for user={}", user_id)
             return []
 
-        # Save to DB — need a fresh session since this may run in a thread
         from database.session import SessionLocal
         db = SessionLocal()
         try:
@@ -297,10 +291,7 @@ class MemoryService:
     # ── Consolidation trigger (P2) ──────────────────────────────
 
     def _maybe_consolidate_async(self, db: Session, user_id: str) -> None:
-        """Check and trigger consolidation if memory count exceeds threshold.
-
-        Runs consolidation in a background thread to avoid blocking.
-        """
+        """Check and trigger consolidation if memory count exceeds threshold."""
         count = memory_crud.count_by_user(db, user_id=user_id)
         if count >= MEMORY_CONSOLIDATE_THRESHOLD:
             logger.info(
@@ -316,21 +307,18 @@ class MemoryService:
             thread.start()
 
     def _run_consolidation(self, user_id: str) -> None:
-        """Run consolidation in a background thread with its own DB session."""
+        """Run consolidation in a background thread."""
         from database.session import SessionLocal
         db = SessionLocal()
         try:
             from memory.consolidator import consolidate_memories
             consolidate_memories(db, user_id)
         except Exception as exc:
-            logger.error(
-                "Consolidation failed for user={}: {}",
-                user_id, exc,
-            )
+            logger.error("Consolidation failed for user={}: {}", user_id, exc)
         finally:
             db.close()
 
-    # ── Existing single-entry operations ─────────────────────────
+    # ── Single-entry operations ─────────────────────────────────
 
     def get_memory(self, db: Session, *, user_id: str, key: str) -> Optional[MemoryResponse]:
         """Get a single memory entry by key."""
@@ -366,15 +354,35 @@ class MemoryService:
         return True
 
     def format_for_prompt(self, db: Session, *, user_id: str) -> str:
-        """Format all user memories as a string for system prompt injection."""
-        memories = memory_crud.get_by_user(db, user_id=user_id)
-        if not memories:
+        """Format user memories grouped by type for system prompt injection.
+
+        Profile memories come first, then goals, then actions, then facts.
+        """
+        all_memories = list(memory_crud.get_by_user(db, user_id=user_id))
+        if not all_memories:
             return ""
 
-        lines = ["## 用户已知信息"]
-        for m in memories:
-            lines.append(f"- {m.key}: {m.value}")
-        return "\n".join(lines)
+        # Group by memory_type
+        grouped: dict[str, list[Memory]] = {"profile": [], "goal": [], "action": [], "fact": []}
+        for m in all_memories:
+            mtype = getattr(m, "memory_type", "fact")
+            if mtype not in grouped:
+                mtype = "fact"
+            grouped[mtype].append(m)
+
+        sections: list[str] = []
+        type_order = ["profile", "goal", "action", "fact"]
+        for mtype in type_order:
+            mems = grouped.get(mtype, [])
+            if not mems:
+                continue
+            label = MEMORY_TYPE_LABELS.get(mtype, mtype)
+            section_lines = [f"## {label}"]
+            for m in mems:
+                section_lines.append(f"- {m.key}: {m.value}")
+            sections.append("\n".join(section_lines))
+
+        return "\n\n".join(sections) if sections else ""
 
     def load_memory_count(self, db: Session, *, user_id: str) -> int:
         """Return the total number of memories for a user."""

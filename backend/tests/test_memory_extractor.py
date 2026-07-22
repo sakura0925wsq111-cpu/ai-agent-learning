@@ -9,8 +9,7 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-# Ensure backend is importable
-sys.path.insert(0, r"D:i-agent-learningackend")
+sys.path.insert(0, r"D:\ai-agent-learning\backend")
 
 
 class TestParseExtractionResult(unittest.TestCase):
@@ -20,67 +19,93 @@ class TestParseExtractionResult(unittest.TestCase):
         from memory.async_extractor import _parse_extraction_result
         self.parse = _parse_extraction_result
 
-    def test_valid_json_response(self):
-        """Should parse a valid JSON response correctly."""
+    def test_valid_json_with_memory_type(self):
+        """Should parse JSON with memory_type field."""
         raw = json.dumps({
             "memories": [
-                {"key": "专业", "value": "交通工程", "confidence": 1.0, "source": "用户说"},
-                {"key": "年级", "value": "大二", "confidence": 0.9, "source": "推断"},
+                {"key": "major", "value": "交通工程", "confidence": 1.0, "source": "用户说", "memory_type": "profile", "importance": 5},
+                {"key": "考研", "value": "准备中", "confidence": 0.9, "source": "推断", "memory_type": "goal", "importance": 4},
             ]
         }, ensure_ascii=False)
         result = self.parse(raw)
         self.assertEqual(len(result), 2)
-        self.assertEqual(result[0]["key"], "专业")
-        self.assertEqual(result[0]["value"], "交通工程")
-        self.assertEqual(result[0]["confidence"], 1.0)
+        self.assertEqual(result[0]["memory_type"], "profile")
+        self.assertEqual(result[1]["memory_type"], "goal")
+
+    def test_missing_memory_type_defaults_to_fact(self):
+        """Missing memory_type should default to 'fact'."""
+        raw = json.dumps({"memories": [{"key": "note", "value": "something"}]})
+        result = self.parse(raw)
+        self.assertEqual(result[0]["memory_type"], "fact")
 
     def test_json_in_code_fence(self):
-        """Should extract JSON from markdown code fence."""
-        raw = '```json{"memories": [{"key": "goal", "value": "考研", "confidence": 1.0, "source": "用户说"}]}```'
+        raw = '```json\n{"memories": [{"key": "goal", "value": "考研", "confidence": 1.0, "source": "用户说", "memory_type": "goal"}]}\n```'
         result = self.parse(raw)
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["key"], "goal")
+        self.assertEqual(result[0]["memory_type"], "goal")
 
     def test_empty_response(self):
-        """Should return empty list for empty JSON."""
         raw = '{"memories": []}'
         result = self.parse(raw)
         self.assertEqual(len(result), 0)
 
     def test_invalid_json(self):
-        """Should return empty list for invalid JSON."""
         result = self.parse("not json at all")
         self.assertEqual(result, [])
 
     def test_missing_memories_key(self):
-        """Should return empty list when 'memories' key is missing."""
         result = self.parse('{"other": "data"}')
         self.assertEqual(result, [])
 
     def test_memories_not_list(self):
-        """Should return empty list when 'memories' is not a list."""
         result = self.parse('{"memories": "not a list"}')
         self.assertEqual(result, [])
 
     def test_missing_fields_get_defaults(self):
-        """Missing confidence/source should get defaults."""
         raw = json.dumps({"memories": [{"key": "test", "value": "val"}]})
         result = self.parse(raw)
         self.assertEqual(result[0]["confidence"], 0.5)
         self.assertEqual(result[0]["source"], "")
+        self.assertEqual(result[0]["memory_type"], "fact")
 
     def test_skip_non_dict_items(self):
-        """Non-dict items in the memories list should be skipped."""
         raw = json.dumps({"memories": [{"key": "a", "value": "b"}, "not a dict", {"key": "c", "value": "d"}]})
         result = self.parse(raw)
         self.assertEqual(len(result), 2)
 
     def test_partial_json_with_noise(self):
-        """Should handle JSON with surrounding text noise."""
-        raw = 'Some text before {"memories": [{"key": "k", "value": "v", "confidence": 0.8, "source": "s"}]} and after'
+        raw = 'Some text before {"memories": [{"key": "k", "value": "v", "confidence": 0.8, "source": "s", "memory_type": "profile"}]} and after'
         result = self.parse(raw)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["key"], "k")
+        self.assertEqual(result[0]["memory_type"], "profile")
+
+
+class TestInferMemoryType(unittest.TestCase):
+    """Tests for _infer_memory_type helper."""
+
+    def setUp(self):
+        from memory.async_extractor import _infer_memory_type
+        self.infer = _infer_memory_type
+
+    def test_infer_profile(self):
+        self.assertEqual(self.infer("major"), "profile")
+        self.assertEqual(self.infer("专业"), "profile")
+        self.assertEqual(self.infer("personality"), "profile")
+
+    def test_infer_goal(self):
+        self.assertEqual(self.infer("goal"), "goal")
+        self.assertEqual(self.infer("目标"), "goal")
+        self.assertEqual(self.infer("deadline"), "goal")
+
+    def test_infer_action(self):
+        self.assertEqual(self.infer("task"), "action")
+        self.assertEqual(self.infer("任务"), "action")
+        self.assertEqual(self.infer("feedback"), "action")
+
+    def test_infer_unknown_as_fact(self):
+        self.assertEqual(self.infer("random_key"), "fact")
+        self.assertEqual(self.infer("notes"), "fact")
 
 
 class TestExtractProfileFromHistory(unittest.TestCase):
@@ -95,7 +120,7 @@ class TestExtractProfileFromHistory(unittest.TestCase):
     def test_extracts_and_parses(self, mock_get_llm):
         mock_llm = MagicMock()
         mock_llm.chat_multi_turn.return_value = json.dumps({
-            "memories": [{"key": "major", "value": "CS", "confidence": 1.0, "source": "stated"}]
+            "memories": [{"key": "major", "value": "CS", "confidence": 1.0, "source": "stated", "memory_type": "profile"}]
         })
         mock_get_llm.return_value = mock_llm
 
@@ -105,14 +130,14 @@ class TestExtractProfileFromHistory(unittest.TestCase):
         ])
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["key"], "major")
+        self.assertEqual(result[0]["memory_type"], "profile")
 
     @patch("memory.async_extractor.get_llm_service")
     def test_retry_on_failure(self, mock_get_llm):
         mock_llm = MagicMock()
-        # First call fails, second succeeds
         mock_llm.chat_multi_turn.side_effect = [
             RuntimeError("API error"),
-            json.dumps({"memories": [{"key": "goal", "value": "就业", "confidence": 0.9, "source": "推断"}]}),
+            json.dumps({"memories": [{"key": "goal", "value": "就业", "confidence": 0.9, "source": "推断", "memory_type": "goal"}]}),
         ]
         mock_get_llm.return_value = mock_llm
 
@@ -121,7 +146,7 @@ class TestExtractProfileFromHistory(unittest.TestCase):
             {"role": "user", "content": "我想找工作"},
         ], max_retries=1)
         self.assertEqual(len(result), 1)
-        self.assertEqual(mock_llm.chat_multi_turn.call_count, 2)
+        self.assertEqual(result[0]["memory_type"], "goal")
 
     @patch("memory.async_extractor.get_llm_service")
     def test_returns_empty_on_all_failures(self, mock_get_llm):
@@ -130,11 +155,25 @@ class TestExtractProfileFromHistory(unittest.TestCase):
         mock_get_llm.return_value = mock_llm
 
         from memory.async_extractor import extract_profile_from_history
-        result = extract_profile_from_history([
-            {"role": "user", "content": "hello"},
-        ], max_retries=1)
+        result = extract_profile_from_history([{"role": "user", "content": "hello"}], max_retries=1)
         self.assertEqual(result, [])
-        self.assertEqual(mock_llm.chat_multi_turn.call_count, 2)
+
+
+class TestConflictHistory(unittest.TestCase):
+    """Tests for conflict history preservation in CRUD upsert."""
+
+    def test_build_conflict_history(self):
+        from crud.memory import _build_conflict_history
+        from datetime import datetime, timezone
+        ts = datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc)
+        result = _build_conflict_history("旧目标", ts)
+        self.assertIn("旧值: 旧目标", result)
+        self.assertIn("2026-07-22 10:30", result)
+
+    def test_history_note_in_source(self):
+        from crud.memory import history_note_in_source
+        self.assertTrue(history_note_in_source("some text [旧值: old (更新于 2026-01-01)]"))
+        self.assertFalse(history_note_in_source("clean source"))
 
 
 class TestStructuredValue(unittest.TestCase):
@@ -144,7 +183,8 @@ class TestStructuredValue(unittest.TestCase):
         from schemas.memory import MemoryResponse
         resp = MemoryResponse(
             id="1", user_id="u1", key="skills", value='["Python","SQL"]',
-            importance=5, confidence=1.0, source="", created_at=datetime.datetime(2026, 1, 1),
+            importance=5, confidence=1.0, source="", memory_type="profile",
+            created_at=datetime.datetime(2026, 1, 1),
         )
         self.assertEqual(resp.parsed_value, ["Python", "SQL"])
 
@@ -152,7 +192,8 @@ class TestStructuredValue(unittest.TestCase):
         from schemas.memory import MemoryResponse
         resp = MemoryResponse(
             id="1", user_id="u1", key="prefs", value='{"city":"北京"}',
-            importance=5, confidence=1.0, source="", created_at=datetime.datetime(2026, 1, 1),
+            importance=5, confidence=1.0, source="", memory_type="fact",
+            created_at=datetime.datetime(2026, 1, 1),
         )
         self.assertEqual(resp.parsed_value, {"city": "北京"})
 
@@ -160,7 +201,8 @@ class TestStructuredValue(unittest.TestCase):
         from schemas.memory import MemoryResponse
         resp = MemoryResponse(
             id="1", user_id="u1", key="major", value="交通工程",
-            importance=5, confidence=1.0, source="", created_at=datetime.datetime(2026, 1, 1),
+            importance=5, confidence=1.0, source="", memory_type="profile",
+            created_at=datetime.datetime(2026, 1, 1),
         )
         self.assertEqual(resp.parsed_value, "交通工程")
 

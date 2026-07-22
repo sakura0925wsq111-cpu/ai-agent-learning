@@ -46,15 +46,17 @@ def batch_upsert_memory(payload: MemoryBatchUpsert, db: Session = Depends(get_db
 def get_user_memories(
     user_id: str,
     as_dict: bool = Query(default=False, description="Return as {key: value} dict"),
+    memory_type: str = Query(default="all", description="Filter by type: all/profile/goal/action/fact"),
     db: Session = Depends(get_db),
 ):
-    """Get all memory entries for a user."""
+    """Get all memory entries for a user, optionally filtered by type."""
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
     if as_dict:
         result = memory_service.load_memory(db, user_id=user_id, as_dict=True)
         return APIResponse.ok(data={"user_id": user_id, "memories": result})
-    memories = memory_service.load_memory(db, user_id=user_id, as_dict=False)
+    mtype = None if memory_type == "all" else memory_type
+    memories = memory_service.load_memory(db, user_id=user_id, as_dict=False, memory_type=mtype)
     return APIResponse.ok(
         data=MemoryListResponse(user_id=user_id, total=len(memories), memories=memories)
     )
@@ -91,32 +93,47 @@ def delete_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
 class MemoryPanelUpdate(BaseModel):
     """Payload for updating a memory via the panel."""
     value: str = Field(..., min_length=1, description="New memory value")
+    memory_type: str = Field(default="fact", pattern=r"^(profile|goal|action|fact)$", description="Memory type")
 
 
 @router.get("/panel/{user_id}", response_model=APIResponse[dict])
-def get_memory_panel(user_id: str, db: Session = Depends(get_db)):
-    """Get the user-visible memory panel.
-
-    Returns all memories with key, value, confidence, source
-    for user review and correction.
-    """
+def get_memory_panel(
+    user_id: str,
+    memory_type: str = Query(default="all", description="Filter by type"),
+    db: Session = Depends(get_db),
+):
+    """Get the user-visible memory panel, grouped by type."""
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
-    memories = memory_service.load_memory(db, user_id=user_id)
+
+    mtype = None if memory_type == "all" else memory_type
+    memories = memory_service.load_memory(db, user_id=user_id, memory_type=mtype)
     total = memory_service.load_memory_count(db, user_id=user_id)
+
     panel_items: list[dict[str, Any]] = []
     for m in memories:
         panel_items.append({
             "key": m.key,
             "value": m.value,
+            "memory_type": m.memory_type,
             "confidence": m.confidence,
             "source": m.source,
             "importance": m.importance,
+            "updated_at": m.updated_at.isoformat() if m.updated_at else None,
         })
+
+    # Count by type
+    type_counts: dict[str, int] = {}
+    for mt in ("profile", "goal", "action", "fact"):
+        count = len([p for p in panel_items if p["memory_type"] == mt])
+        if count > 0 or memory_type != "all":
+            type_counts[mt] = count
+
     return APIResponse.ok(data={
         "user_id": user_id,
         "total": total,
         "max_capacity": 50,
+        "type_counts": type_counts,
         "memories": panel_items,
     })
 
@@ -132,7 +149,7 @@ def delete_memory_panel_item(user_id: str, key: str, db: Session = Depends(get_d
 def update_memory_panel_item(
     user_id: str, key: str, payload: MemoryPanelUpdate, db: Session = Depends(get_db),
 ):
-    """Update a single memory entry's value from the panel."""
-    update_data = MemoryUpdate(value=payload.value)
+    """Update a single memory entry's value and/or type from the panel."""
+    update_data = MemoryUpdate(value=payload.value, memory_type=payload.memory_type)
     result = memory_service.update_memory(db, user_id=user_id, key=key, data=update_data)
     return APIResponse.ok(data=result)
