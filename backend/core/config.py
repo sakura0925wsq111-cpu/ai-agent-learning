@@ -39,8 +39,6 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com"
     llm_model: str = "deepseek-chat"
-    llm_temperature: float = 0.7
-    llm_max_tokens: int = 2048
 
     # ── Logging ──
     log_level: str = "DEBUG"
@@ -49,7 +47,6 @@ class Settings(BaseSettings):
     log_retention: str = "7 days"
 
     # ── Memory ──
-    memory_auto_extract: bool = True
     memory_max_per_user: int = 50
 
 

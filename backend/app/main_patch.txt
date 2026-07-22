@@ -1,1 +1,0 @@
-﻿from app.api.v1.diagnosis import router as diagnosis_router_v1

@@ -36,6 +36,7 @@ from schemas.growth import (
     QuestionCard,
 )
 from crud.base import CRUDBase
+from crud.user import user as user_crud
 
 
 session_crud = CRUDBase[GrowthSession](GrowthSession)
@@ -83,10 +84,22 @@ class GrowthService:
         )
 
         agent = self.router.get_agent(agent_type)
-        agent.init_state()
 
-        # Kick off the workflow — this triggers follow_up step (first question)
-        result = agent.chat("开始规划")
+        # Load user profile from registration data
+        user = user_crud.get(db, id=request.user_id)
+        profile = {}
+        if user:
+            if user.nickname:
+                profile["nickname"] = user.nickname
+            if user.major:
+                profile["major"] = user.major
+            if user.grade:
+                profile["grade"] = user.grade
+
+        agent.init_state(user_profile=profile)
+
+        # Kick off the workflow — starts at FOLLOW_UP with profile context
+        result = agent.chat("")
 
         # Create DB session
         session = session_crud.create(db, obj_in={

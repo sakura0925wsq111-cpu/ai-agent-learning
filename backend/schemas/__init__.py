@@ -1,7 +1,6 @@
 ﻿"""Pydantic schemas — request/response data models."""
 
 from schemas.response import APIResponse
-from schemas.chat import ChatRequest, ChatResponse
 from schemas.user import UserCreate, UserUpdate, UserResponse
 from schemas.conversation import (
     ConversationCreate,
@@ -21,8 +20,6 @@ from schemas.memory import (
 
 __all__ = [
     "APIResponse",
-    "ChatRequest",
-    "ChatResponse",
     "UserCreate",
     "UserUpdate",
     "UserResponse",

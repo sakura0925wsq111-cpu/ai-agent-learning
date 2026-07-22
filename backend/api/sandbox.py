@@ -263,6 +263,39 @@ async def resume_session(
     )
 
 
+
+@router.get("/handoff")
+async def handoff_to_agent(
+    session_id: str = __import__("fastapi").Query(..., description="Sandbox session ID"),
+    path_type: str = __import__("fastapi").Query(..., description="Chosen path type (career/graduate/civil/major)"),
+    sandbox: DecisionSandbox = Depends(get_sandbox),
+):
+    """Hand off sandbox context to a planning agent.
+
+    After the user sees the sandbox comparison and picks a direction,
+    this endpoint packages all discovery context and returns the first
+    planning agent question. The frontend should then switch to the
+    growth/chat flow with the returned agent_state.
+
+    Returns:
+        - agent_type: the chosen planning agent type
+        - agent_label: Chinese label
+        - initial_question: first follow-up question from the agent
+        - handoff_context: all discovery data for the frontend to pass to growth/start
+        - agent_state: initial PlanningState for growth/chat
+    """
+    try:
+        result = sandbox.handoff_to_agent(
+            session_id=session_id,
+            path_type=path_type,
+        )
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Sandbox handoff failed: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
 @router.get("/result/{session_id}")
 async def get_result(
     session_id: str,

@@ -124,6 +124,22 @@ class DecisionSandbox:
         # Pre-populate profile from memory so discovery skips known info
         self.load_memory_into_profile(session)
 
+        # Also load user registration info (nickname, major, grade)
+        if db_session:
+            try:
+                from crud.user import user as user_crud
+                user = user_crud.get(db_session, id=user_id)
+                if user:
+                    if user.nickname and "nickname" not in session.user_profile:
+                        session.user_profile["nickname"] = user.nickname
+                    if user.major and "major" not in session.user_profile:
+                        session.user_profile["major"] = user.major
+                    if user.grade and "grade" not in session.user_profile:
+                        session.user_profile["grade"] = user.grade
+                    logger.info("Sandbox: loaded user registration info for {}", user_id)
+            except Exception as exc:
+                logger.warning("Sandbox: failed to load user info: {}", exc)
+
         self._sessions[session_id] = session
         logger.info("Sandbox session started: {} (user={})", session_id, user_id)
         return session
@@ -556,13 +572,11 @@ class DecisionSandbox:
         context: str,
         session: SandboxSession,
     ) -> dict[str, Any] | None:
-        """Run a single planning agent simulation for one path.
+        """Run comparison analysis for one path via direct LLM call.
 
         Strategy:
-            - Create the agent
-            - Initialize with user_profile and skip follow-up
-            - Inject a "please skip to analysis" message
-            - Parse the report from the agent's output
+            - Use a comparison-only prompt (NOT PlanningAgent workflow)
+            - Only produce fit/risk/projection, no action plans
 
         Args:
             path_type: Agent type key.
@@ -589,42 +603,56 @@ class DecisionSandbox:
                 for qa in probe_history
             )
 
-        # Initialize agent with profile, then force-skip to report generation.
-        # This bypasses the normal follow-up engine entirely.
-        agent.init_state(user_profile=user_profile)
-        from planning.state import WorkflowStep
-        agent.state.set_step(WorkflowStep.GENERATE_OUTPUT)
-        agent.state.follow_up_complete = True
+        # Build comparison-only analysis via LLM (NOT full planning agent workflow).
+        # The sandbox only needs: strengths, challenges, fit, projection, risks.
+        # Action plans and daily tasks belong to the planning agent after handoff.
+        comparison_prompt = f"""你是一位{SANDBOX_PATHS.get(path_type, path_type)}领域的专业顾问。请基于以下用户信息，生成一份**对比分析摘要**（不是完整的成长规划）。
 
-        # Build the simulation prompt: inject context and ask for direct analysis
-        simulation_message = f"""请基于以下信息直接进行分析，跳过追问阶段。
-
-## 背景信息
-路径类型: {SANDBOX_PATHS.get(path_type, path_type)}
+## 用户信息
 {context}
 
-## 要求
-请直接生成完整的分析报告（JSON格式）。
-如果某些维度信息不足，请基于一般情况和合理假设进行分析，并在对应部分标注。"""
+## 输出要求
+请以JSON格式输出，只包含以下字段，不要生成行动计划或学习路线：
+
+{{
+  "strengths": [
+    {{"point": "该路径对用户的优势", "detail": "具体说明"}}
+  ],
+  "challenges": [
+    {{"point": "该路径对用户的挑战", "detail": "具体说明", "level": "high|medium|low"}}
+  ],
+  "best_for": "这条路径最适合什么样的人",
+  "deal_breakers": "什么样的人应该避开这条路径",
+  "time_projection": {{
+    "short_term": "选择这条路3个月后的可能状态（1-2句话）",
+    "mid_term": "1年后的可能状态",
+    "long_term": "2-3年后的可能状态"
+  }},
+  "key_requirements": ["成功走这条路需要具备的条件1", "条件2"],
+  "risk_summary": "一句话概括最大的风险"
+}}
+
+## 规则
+- 不要生成行动计划、每日任务、学习路线——这些由后续的深度规划Agent负责
+- 聚焦在「这条路适不适合这个用户」的判断依据
+- 信息不足的维度可以合理推测，但标注为推测"""
 
         try:
-            result = agent.chat(simulation_message)
+            raw = self.llm.chat(
+                user_message=comparison_prompt,
+                temperature=0.7,
+                max_tokens=2048,
+            )
+            report = safe_json_parse(raw)
+            if report and isinstance(report, dict):
+                report["path_type"] = path_type
+                report["path_label"] = SANDBOX_PATHS.get(path_type, path_type)
+                return report
         except Exception as exc:
-            logger.error("Sandbox: agent chat failed for {}: {}", path_type, exc)
-            return None
+            logger.error("Sandbox: comparison analysis failed for {}: {}", path_type, exc)
 
-        # Extract report from result
-        report = result.get("report")
-        if report:
-            return report
-
-        # Try to parse from output
-        output = result.get("state", {}).get("output", {})
-        if output:
-            return output
-
-        logger.warning("Sandbox: no report in agent output for {}", path_type)
-        return None
+        # Fallback
+        return self._build_fallback_report(path_type)
 
     def _build_fallback_report(self, path_type: str) -> dict[str, Any]:
         """Build a minimal fallback report when agent simulation fails."""
@@ -773,6 +801,89 @@ class DecisionSandbox:
                 session.user_profile[field] = session.memory_snapshot[mem_key]
 
     # ── Session Cleanup ────────────────────────────────────────
+
+
+    # ── Handoff to Planning Agent ──────────────────────────────
+
+    def handoff_to_agent(
+        self,
+        session_id: str,
+        path_type: str,
+    ) -> dict[str, Any]:
+        """Hand off sandbox context to a planning agent for deep planning.
+
+        After the user sees the sandbox comparison and picks a direction,
+        this method packages all discovery context and hands it to the
+        corresponding planning agent for full follow-up and plan generation.
+
+        Args:
+            session_id: The sandbox session ID.
+            path_type: The chosen path type (e.g. "career", "graduate").
+
+        Returns:
+            Dict with agent_type, initial_question, and handoff_context.
+        """
+        session = self._sessions.get(session_id)
+        if session is None:
+            raise ValueError(f"Session not found: {session_id}")
+
+        if path_type not in SANDBOX_PATHS:
+            raise ValueError(f"Unknown path type: {path_type}. Valid: {list(SANDBOX_PATHS.keys())}")
+
+        # Build handoff context from sandbox discovery + path probe
+        handoff_context: dict[str, Any] = {
+            "source": "sandbox",
+            "sandbox_session_id": session_id,
+            "chosen_path": path_type,
+            "chosen_path_label": SANDBOX_PATHS[path_type],
+        }
+
+        # Include user profile from discovery
+        if session.user_profile:
+            handoff_context["discovery_profile"] = dict(session.user_profile)
+
+        # Include discovery conversation history
+        if session.discovery_history:
+            handoff_context["discovery_qa"] = session.discovery_history
+
+        # Include path-specific probe answers
+        probe = session.path_probe_history.get(path_type, [])
+        if probe:
+            handoff_context["path_probe_qa"] = probe
+
+        # Include sandbox comparison result if available
+        if session.path_reports and path_type in session.path_reports:
+            handoff_context["sandbox_comparison"] = session.path_reports[path_type]
+
+        # Get the planning agent to generate the first contextual question
+        try:
+            agent = self.router.get_agent(path_type)
+            # Build user profile from discovery data
+            user_profile = dict(session.user_profile) if session.user_profile else {}
+            agent.init_state(user_profile=user_profile)
+
+            # Generate the first follow-up question using the agent engine
+            from planning.state import WorkflowStep
+            first_result = agent.chat("")
+            first_question = first_result.get("message", "")
+            agent_state = first_result.get("state", {})
+        except Exception as exc:
+            logger.warning("Sandbox handoff: agent init failed: {}", exc)
+            first_question = f"基于之前的分析，让我们深入规划你的{SANDBOX_PATHS.get(path_type, path_type)}方向。能先跟我说说你的具体情况吗？"
+            agent_state = {}
+
+        logger.info(
+            "Sandbox[{}]: handed off to {} agent",
+            session_id, path_type,
+        )
+
+        return {
+            "agent_type": path_type,
+            "agent_label": SANDBOX_PATHS.get(path_type, path_type),
+            "initial_question": first_question,
+            "handoff_context": handoff_context,
+            "agent_state": agent_state,
+        }
 
     def _evict_stale_sessions(self) -> None:
         """Remove completed or errored sessions from memory.

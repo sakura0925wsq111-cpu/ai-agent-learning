@@ -1,15 +1,14 @@
 ﻿# -*- coding: utf-8 -*-
-"""PlanningAgent Framework — state management for the 8-step planning workflow.
+"""PlanningAgent Framework — state management for the 7-step planning workflow.
 
 Steps:
     1. Read user profile
-    2. Read growth diagnosis (if available)
-    3. Dynamic follow-up questions (5-7 rounds max)
-    4. Analyze user situation
-    5. Identify main problems
-    6. Set long-term goals
-    7. Decompose into 90-day action plan
-    8. Generate structured JSON output
+    2. Dynamic follow-up questions (5-7 rounds max)
+    3. Analyze user situation
+    4. Identify main problems
+    5. Set long-term goals
+    6. Decompose into 90-day action plan
+    7. Generate structured JSON output
 
 All agents share this state model — only prompts, analysis strategies,
 and output templates differ per agent type.
@@ -24,7 +23,6 @@ from typing import Any
 
 class WorkflowStep(str, Enum):
     READ_PROFILE = "read_profile"
-    READ_DIAGNOSIS = "read_diagnosis"
     FOLLOW_UP = "follow_up"
     ANALYZE = "analyze"
     IDENTIFY_PROBLEMS = "identify_problems"
@@ -37,7 +35,6 @@ class WorkflowStep(str, Enum):
 
 WORKFLOW_ORDER: list[WorkflowStep] = [
     WorkflowStep.READ_PROFILE,
-    WorkflowStep.READ_DIAGNOSIS,
     WorkflowStep.FOLLOW_UP,
     WorkflowStep.ANALYZE,
     WorkflowStep.IDENTIFY_PROBLEMS,
@@ -60,7 +57,7 @@ AMBIGUOUS_PATTERNS: frozenset[str] = frozenset({
 
 @dataclass
 class PlanningState:
-    """State machine for the PlanningAgent 8-step workflow.
+    """State machine for the PlanningAgent 7-step workflow.
 
     Tracks progress through each step, collected information,
     follow-up question rounds, and the final structured output.
@@ -74,10 +71,6 @@ class PlanningState:
     # Step 1: User profile
     user_profile: dict[str, Any] = field(default_factory=dict)
     has_profile: bool = False
-
-    # Step 2: Growth diagnosis
-    diagnosis: dict[str, Any] | None = None
-    has_diagnosis: bool = False
 
     # Step 3: Follow-up rounds
     follow_up_round: int = 0
@@ -155,10 +148,6 @@ class PlanningState:
             for k, v in self.user_profile.items():
                 parts.append(f"- {k}: {v}")
 
-        if self.has_diagnosis and self.diagnosis:
-            parts.append("\n## 成长诊断结果")
-            parts.append(str(self.diagnosis))
-
         if self.follow_up_history:
             parts.append("\n## 追问记录")
             for i, entry in enumerate(self.follow_up_history, 1):
@@ -174,7 +163,7 @@ class PlanningState:
             "step_index": self.step_index,
             "finished": self.finished,
             "has_profile": self.has_profile,
-            "has_diagnosis": self.has_diagnosis,
+            "user_profile": self.user_profile,
             "follow_up_round": self.follow_up_round,
             "follow_up_answers": self.follow_up_answers,
             "follow_up_history": self.follow_up_history,
@@ -194,8 +183,6 @@ class PlanningState:
             finished=data.get("finished", False),
             user_profile=data.get("user_profile", {}),
             has_profile=data.get("has_profile", False),
-            diagnosis=data.get("diagnosis"),
-            has_diagnosis=data.get("has_diagnosis", False),
             follow_up_round=data.get("follow_up_round", 0),
             follow_up_answers=data.get("follow_up_answers", {}),
             follow_up_history=data.get("follow_up_history", []),

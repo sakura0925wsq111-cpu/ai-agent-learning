@@ -11,7 +11,7 @@ for table in ["users", "conversations", "memories"]:
     count = cur.fetchone()[0]
     print(f"{table}: {count} records")
 
-cur.execute("SELECT id, nickname, major, grade, target FROM users")
+cur.execute("SELECT id, nickname, major, grade FROM users")
 for row in cur.fetchall():
     print(f"User: {row}")
 

@@ -21,7 +21,6 @@ class User(Base):
     avatar: Mapped[str | None] = mapped_column(String(500), nullable=True)
     major: Mapped[str | None] = mapped_column(String(200), nullable=True)
     grade: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    target: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -51,8 +51,8 @@ UNIFIED_OUTPUT_SCHEMA: dict[str, Any] = {
 class PlanningAgent(ABC):
     """Extensible base for all CampusPal growth planning agents.
 
-    Orchestrates the 8-step workflow:
-        READ_PROFILE -> READ_DIAGNOSIS -> FOLLOW_UP (3-7 rounds)
+    Orchestrates the 7-step workflow:
+        READ_PROFILE -> FOLLOW_UP (5-7 rounds)
         -> ANALYZE -> IDENTIFY_PROBLEMS -> SET_GOALS
         -> BUILD_PLAN -> GENERATE_OUTPUT
 
@@ -102,9 +102,8 @@ class PlanningAgent(ABC):
 
     # ── Workflow Engine ─────────────────────────────────────────
 
-    def init_state(self, user_profile: dict[str, Any] | None = None,
-                   diagnosis: dict[str, Any] | None = None) -> PlanningState:
-        """Initialize a fresh planning state, optionally with pre-loaded profile/diagnosis."""
+    def init_state(self, user_profile: dict[str, Any] | None = None) -> PlanningState:
+        """Initialize a fresh planning state, optionally with pre-loaded profile."""
         self.state = PlanningState(agent_type=self.agent_type)
 
         if user_profile:
@@ -112,17 +111,9 @@ class PlanningAgent(ABC):
             self.state.has_profile = True
             logger.info("PlanningAgent[{}]: profile loaded", self.agent_type)
 
-        if diagnosis:
-            self.state.diagnosis = diagnosis
-            self.state.has_diagnosis = True
-            logger.info("PlanningAgent[{}]: diagnosis loaded", self.agent_type)
-
         # Start at the appropriate step
         if self.state.has_profile:
             self.state.advance_step()  # skip READ_PROFILE
-        if self.state.has_diagnosis:
-            self.state.advance_step()  # skip READ_DIAGNOSIS
-
         return self.state
 
     def restore_state(self, saved: PlanningState) -> None:
@@ -148,7 +139,6 @@ class PlanningAgent(ABC):
 
         handlers = {
             WorkflowStep.READ_PROFILE: self._handle_read_profile,
-            WorkflowStep.READ_DIAGNOSIS: self._handle_read_diagnosis,
             WorkflowStep.FOLLOW_UP: self._handle_follow_up,
             WorkflowStep.ANALYZE: self._handle_analyze,
             WorkflowStep.IDENTIFY_PROBLEMS: self._handle_identify_problems,
@@ -186,16 +176,6 @@ class PlanningAgent(ABC):
             self.state.user_profile = {"raw_input": message}
             self.state.advance_step()
             return self._continue_workflow("")
-
-    def _handle_read_diagnosis(self, message: str) -> dict[str, Any]:
-        """Step 2: Read growth diagnosis results if available."""
-        diagnosis = self._try_parse_diagnosis(message)
-        if diagnosis:
-            self.state.diagnosis = diagnosis
-            self.state.has_diagnosis = True
-
-        self.state.advance_step()
-        return self._continue_workflow("")
 
     def _handle_follow_up(self, message: str) -> dict[str, Any]:
         """Step 3: Dynamic follow-up questions (3-7 rounds).
@@ -419,7 +399,13 @@ class PlanningAgent(ABC):
                 f"请生成一个收尾问题准备进入分析阶段。"
             )
 
+        # Build user context from profile and follow-up history
+        user_context = self.state.build_context_for_llm()
+
         prompt = f"""你是{self.agent_label}领域的专业顾问，正在通过追问了解用户情况。
+
+## 已知用户信息
+{user_context if user_context else "（暂无）"}
 
 ## 需要覆盖的话题
 {chr(10).join(f"- {t}" for t in topics)}
@@ -434,7 +420,7 @@ class PlanningAgent(ABC):
 - 只输出一个问题，不要加任何前缀、评论或 JSON
 - 问题要具体、有引导性
 - 避免"是/否"类封闭式问题
-- 根据用户的上一轮回答自然衔接
+- 根据用户已知信息自然衔接，不要重复问已知信息
 - 如果这是最后一轮，用一个总结性问题收尾"""
 
         try:
@@ -468,10 +454,6 @@ class PlanningAgent(ABC):
         except (json.JSONDecodeError, ValueError):
             pass
         return None
-
-    def _try_parse_diagnosis(self, text: str) -> dict[str, Any] | None:
-        """Try to extract diagnosis data from structured text."""
-        return self._try_parse_profile(text)  # Same logic
 
     def _get_completion_message(self) -> str:
         return f"✅ {self.agent_label}分析已完成！请查看报告。"
