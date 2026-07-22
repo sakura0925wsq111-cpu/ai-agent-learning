@@ -13,3 +13,12 @@ api.env
 *.patch
 
 *.db
+
+# Frontend
+node_modules/
+dist/
+build/
+.next/
+.env.local
+.env.production
+*.log
