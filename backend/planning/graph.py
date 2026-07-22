@@ -1,13 +1,13 @@
 ﻿# -*- coding: utf-8 -*-
 """LangGraph-powered Growth Mode orchestration graph.
 
-Provides three key capabilities:
-  1. Interrupt/Resume — SQLite-backed checkpointer persists state automatically.
-  2. Human-in-the-Loop — interrupt_before=["planning_build_report"] pauses after analysis.
-  3. Streaming — each node completion emits a state update, consumed via SSE.
-
 Graph topology:
     router -> planning_follow_up <-> (user answers) -> planning_analyze -> [INTERRUPT] -> planning_build_report -> END
+
+Capabilities:
+  1. Interrupt/Resume — InMemorySaver checkpointer (migrate to SQLite for persistence)
+  2. Human-in-the-Loop — interrupt_before=["planning_build_report"]
+  3. Streaming — graph.astream(stream_mode="updates") for SSE
 """
 
 from __future__ import annotations
@@ -17,16 +17,12 @@ import os
 from typing import Any, TypedDict
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 from loguru import logger
 
 
-# ── GrowthState ────────────────────────────────────────────────
-
 class GrowthState(TypedDict, total=False):
-    """Shared state across all graph nodes."""
-
     user_id: str
     agent_type: str
     session_id: str
@@ -48,9 +44,7 @@ class GrowthState(TypedDict, total=False):
     last_question: str
 
 
-# ── Helpers ────────────────────────────────────────────────────
-
-def _noop_continue(self: Any, msg: str) -> dict[str, Any]:
+def _noop_continue(msg: str) -> dict[str, Any]:
     return {"_noop": True}
 
 
@@ -78,26 +72,15 @@ def _save_agent_state(agent: Any) -> dict[str, Any]:
     }
 
 
-# ── Graph builder (async — needs checkpointer) ─────────────────
+async def build_growth_graph(llm_service: Any, planning_router: Any) -> StateGraph:
+    """Build and compile the Growth Mode LangGraph StateGraph."""
 
-async def build_growth_graph(
-    llm_service: Any,
-    planning_router: Any,
-) -> StateGraph:
-    """Build and compile the Growth Mode LangGraph StateGraph.
-
-    Must be called inside an async context because AsyncSqliteSaver
-    requires async connection setup.
-    """
-
-    # ── Node: router ───────────────────────────────────────────
     def _router_node(state: GrowthState) -> dict[str, Any]:
         return {"stage": state.get("stage", "questioning")}
 
     def _route_router(state: GrowthState) -> str:
         return "planning"
 
-    # ── Node: planning_follow_up ────────────────────────────────
     def _planning_follow_up_node(state: GrowthState) -> dict[str, Any]:
         agent_type: str = state.get("agent_type", "career")
         message: str = state.get("user_message", "").strip()
@@ -112,19 +95,15 @@ async def build_growth_graph(
             agent.state.ambiguous_count = 0
             question = agent._generate_dynamic_question(is_retry=False, last_answer=correction)
             updates = _save_agent_state(agent)
-            updates.update({
-                "agent_message": question, "last_question": question,
-                "stage": "questioning", "user_correction": "",
-            })
+            updates.update({"agent_message": question, "last_question": question,
+                            "stage": "questioning", "user_correction": ""})
             return updates
 
         if not message and agent.state.follow_up_round == 0:
             question = agent._generate_dynamic_question(is_retry=False, last_answer="")
             updates = _save_agent_state(agent)
-            updates.update({
-                "agent_message": question, "last_question": question,
-                "stage": "questioning", "user_correction": "",
-            })
+            updates.update({"agent_message": question, "last_question": question,
+                            "stage": "questioning", "user_correction": ""})
             return updates
 
         if message:
@@ -134,100 +113,63 @@ async def build_growth_graph(
                 agent._handle_follow_up(message)
             finally:
                 agent._continue_workflow = original
-
             updates = _save_agent_state(agent)
-
             if agent.state.follow_up_complete:
-                updates.update({
-                    "stage": "analyzing",
-                    "agent_message": "正在分析你的情况，请稍候...",
-                })
+                updates.update({"stage": "analyzing", "agent_message": "Analyzing..."})
             else:
-                last_answer = message
                 is_retry = agent.state.ambiguous_count > 0 and agent.state.retry_count > 0
-                question = agent._generate_dynamic_question(
-                    is_retry=is_retry, last_answer=last_answer,
-                )
-                updates.update({
-                    "agent_message": question, "last_question": question,
-                    "stage": "questioning",
-                })
+                question = agent._generate_dynamic_question(is_retry=is_retry, last_answer=message)
+                updates.update({"agent_message": question, "last_question": question, "stage": "questioning"})
             return updates
-
         return {}
 
     def _route_follow_up(state: GrowthState) -> str:
-        if state.get("follow_up_complete", False):
-            return "analyze"
-        return "follow_up"
+        return "analyze" if state.get("follow_up_complete", False) else "follow_up"
 
-    # ── Node: planning_analyze ──────────────────────────────────
     def _planning_analyze_node(state: GrowthState) -> dict[str, Any]:
         agent_type: str = state.get("agent_type", "career")
         correction: str = state.get("user_correction", "").strip()
-
         agent = planning_router.get_agent(agent_type)
         _restore_agent_state(agent, state)
-
         from planning.state import WorkflowStep
         agent.state.set_step(WorkflowStep.ANALYZE)
-
         if correction:
             agent.state.user_profile["_correction"] = correction
-
         original = agent._continue_workflow
         agent._continue_workflow = _noop_continue
         try:
             agent._handle_analyze_split("")
         finally:
             agent._continue_workflow = original
-
         updates = _save_agent_state(agent)
-
         analysis = agent.state.analysis
-        parts: list[str] = ["📊 **分析结果**", ""]
-
-        status_text: str = analysis.get("current_status", "")
-        if status_text:
-            parts.append(f"**现状评估：**{status_text}")
+        parts = ["📊 **Analysis Results**", ""]
+        st = analysis.get("current_status", "")
+        if st:
+            parts.append(f"**Status:** {st}")
             parts.append("")
-
-        directions: list[dict] = analysis.get("directions", [])
-        if directions:
-            parts.append("**方向评估：**")
-            for d in directions:
-                name = d.get("name", "")
-                score = d.get("match_score", 0)
-                reasoning = d.get("reasoning", "")
-                parts.append(f"- {name}（匹配度 {score}%）：{reasoning}")
+        dirs = analysis.get("directions", [])
+        if dirs:
+            parts.append("**Directions:**")
+            for d in dirs:
+                parts.append(f"- {d.get('name','')} (match {d.get('match_score',0)}%): {d.get('reasoning','')}")
             parts.append("")
-
-        advantages: list[dict] = analysis.get("advantages", [])
-        if advantages:
-            parts.append("**你的优势：**")
-            for a in advantages:
-                point = a.get("point", "")
-                detail = a.get("detail", "")
-                parts.append(f"- {point}：{detail}")
+        advs = analysis.get("advantages", [])
+        if advs:
+            parts.append("**Advantages:**")
+            for a in advs:
+                parts.append(f"- {a.get('point','')}: {a.get('detail','')}")
             parts.append("")
-
         parts.append("---")
-        parts.append("如果分析方向正确，请回复「**继续**」生成完整报告。")
-        parts.append("如果想调整方向，请告诉我你想往哪个方向发展。")
-
-        updates.update({
-            "agent_message": "\n".join(parts),
-            "stage": "analyzing", "user_correction": "", "last_question": "",
-        })
+        parts.append('Reply "continue" to generate full report, or tell me to adjust direction.')
+        updates.update({"agent_message": "\n".join(parts), "stage": "analyzing",
+                        "user_correction": "", "last_question": ""})
         return updates
 
-    # ── Node: planning_build_report ─────────────────────────────
     def _planning_build_report_node(state: GrowthState) -> dict[str, Any]:
         agent_type: str = state.get("agent_type", "career")
-
         agent = planning_router.get_agent(agent_type)
         _restore_agent_state(agent, state)
-
         original = agent._continue_workflow
         agent._continue_workflow = _noop_continue
         try:
@@ -237,48 +179,24 @@ async def build_growth_graph(
             agent._handle_generate_output_split("")
         finally:
             agent._continue_workflow = original
-
         updates = _save_agent_state(agent)
-
         report = agent.state.output
-        completion_msg = f"✅ {agent.agent_label}分析已完成！请查看报告。"
-
-        updates.update({
-            "agent_message": completion_msg,
-            "stage": "report", "finished": True,
-            "report": report, "output": report,
-        })
+        updates.update({"agent_message": f"Done! {agent.agent_label} report ready.",
+                        "stage": "report", "finished": True, "report": report, "output": report})
         return updates
 
-    # ── Assemble ────────────────────────────────────────────────
     builder = StateGraph(GrowthState)
-
     builder.add_node("router", _router_node)
     builder.add_node("planning_follow_up", _planning_follow_up_node)
     builder.add_node("planning_analyze", _planning_analyze_node)
     builder.add_node("planning_build_report", _planning_build_report_node)
-
     builder.set_entry_point("router")
-
     builder.add_conditional_edges("router", _route_router, {"planning": "planning_follow_up"})
-    builder.add_conditional_edges("planning_follow_up", _route_follow_up, {
-        "follow_up": END, "analyze": "planning_analyze",
-    })
+    builder.add_conditional_edges("planning_follow_up", _route_follow_up, {"follow_up": END, "analyze": "planning_analyze"})
     builder.add_edge("planning_analyze", "planning_build_report")
     builder.add_edge("planning_build_report", END)
 
-    # ── SQLite checkpointer ─────────────────────────────────────
-    import aiosqlite
-    db_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "data", "growth_checkpoints.db"
-    )
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    checkpointer = InMemorySaver()
+    logger.info("GrowthGraph: InMemorySaver ready")
 
-    conn = await aiosqlite.connect(db_path)
-    checkpointer = AsyncSqliteSaver(conn)
-    logger.info("GrowthGraph: AsyncSqliteSaver connected at {}", db_path)
-
-    return builder.compile(
-        checkpointer=checkpointer,
-        interrupt_before=["planning_build_report"],
-    )
+    return builder.compile(checkpointer=checkpointer, interrupt_before=["planning_build_report"])

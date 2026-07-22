@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import threading
 import json
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator
@@ -35,35 +36,33 @@ report_crud = CRUDBase[GrowthReport](GrowthReport)
 MAX_FOLLOW_UP = 7
 
 
-# ── Async bridge ───────────────────────────────────────────────
+# ── Persistent async bridge ──────────────────────────────────────
+# Single background event loop ensures AsyncSqliteSaver lock stays
+# bound to the same loop across all invocations.
 
-_RUNNING_LOOP: asyncio.AbstractEventLoop | None = None
-
-
-def _ensure_loop() -> asyncio.AbstractEventLoop:
-    global _RUNNING_LOOP
-    if _RUNNING_LOOP is None or _RUNNING_LOOP.is_closed():
-        _RUNNING_LOOP = asyncio.new_event_loop()
-        asyncio.set_event_loop(_RUNNING_LOOP)
-    return _RUNNING_LOOP
+_BG_LOOP: "asyncio.AbstractEventLoop | None" = None
 
 
-def _run_async(coro, timeout: int = 60) -> Any:
-    """Run coroutine safely from sync code."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        future = pool.submit(asyncio.run, coro)
-        return future.result(timeout=timeout)
+def _get_bg_loop() -> "asyncio.AbstractEventLoop":
+    global _BG_LOOP
+    if _BG_LOOP is None or _BG_LOOP.is_closed():
+        _BG_LOOP = asyncio.new_event_loop()
+        t = threading.Thread(target=_BG_LOOP.run_forever, daemon=True)
+        t.start()
+    return _BG_LOOP
 
 
-# ── Service ────────────────────────────────────────────────────
+def _run_async(coro, timeout: int = 60):
+    loop = _get_bg_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result(timeout=timeout)
+
+
+# ── Service ────────────────────────────────────────────────────────
 
 class GrowthService:
 
-    def __init__(self, llm_service: Any) -> None:
+    def __init__(self, llm_service):
         self.llm = llm_service
         self.router = PlanningRouter(llm_service)
         self._graph = None
@@ -73,7 +72,7 @@ class GrowthService:
             self._graph = await build_growth_graph(self.llm, self.router)
         return self._graph
 
-    async def _invoke(self, state, config) -> dict[str, Any]:
+    async def _invoke(self, state, config):
         g = await self._get_graph()
         return await g.ainvoke(state, config)
 
@@ -231,8 +230,10 @@ class GrowthService:
 
     def get_state(self, db: Session, *, user_id: str) -> GrowthStateResponse:
         sessions = session_crud.get_multi(
-            db, user_id=user_id, order_by=GrowthSession.updated_at.desc(), limit=1,
+            db, user_id=user_id,
         )
+        sessions = sorted(sessions, key=lambda s: s.updated_at or s.created_at, reverse=True)
+        sessions = sessions[:1]
         if not sessions:
             return GrowthStateResponse()
         s = sessions[0]
@@ -251,8 +252,10 @@ class GrowthService:
 
     def get_history(self, db: Session, *, user_id: str, limit: int = 20) -> GrowthHistoryResponse:
         sessions = session_crud.get_multi(
-            db, user_id=user_id, order_by=GrowthSession.created_at.desc(), limit=limit,
+            db, user_id=user_id,
         )
+        sessions = sorted(sessions, key=lambda s: s.created_at, reverse=True)
+        sessions = sessions[:limit]
         return GrowthHistoryResponse(user_id=user_id, sessions=[
             GrowthSessionSummary(
                 session_id=s.id, agent=s.agent_type, status=s.status,
