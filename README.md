@@ -1,39 +1,39 @@
-ï»¿# CampusPal â€” AI æ ¡å›­æˆé•¿åŠ©æ‰‹
+# iCampus ¡ª AI Ğ£Ô°³É³¤ÖúÊÖ
 
-CampusPal æ˜¯ä¸€ä¸ªé¢å‘å¤§å­¦ç”Ÿçš„ AI æ™ºèƒ½åŠ©æ‰‹ï¼ŒåŸºäº **FastAPI + LangGraph** æ„å»ºã€‚å®ƒèƒ½å¤Ÿç®¡ç†æ—¥å¸¸äº‹åŠ¡ï¼ˆå¾…åŠã€å¤©æ°”ï¼‰ï¼Œå¹¶é€šè¿‡é•¿æœŸè®°å¿†å’Œæ²™ç›˜æ¨æ¼”ä¸ºç”¨æˆ·æä¾›ä¸ªæ€§åŒ–çš„æˆé•¿è§„åˆ’å»ºè®®ã€‚
+iCampus ÊÇÒ»¸öÃæÏò´óÑ§ÉúµÄ AI ÖÇÄÜÖúÊÖ£¬»ùÓÚ **FastAPI + LangGraph** ¹¹½¨¡£ËüÄÜ¹»¹ÜÀíÈÕ³£ÊÂÎñ£¨´ı°ì¡¢ÌìÆø£©£¬²¢Í¨¹ı³¤ÆÚ¼ÇÒäºÍÉ³ÅÌÍÆÑİÎªÓÃ»§Ìá¹©¸öĞÔ»¯µÄ³É³¤¹æ»®½¨Òé¡£
 
-## æ ¸å¿ƒåŠŸèƒ½
+## ºËĞÄ¹¦ÄÜ
 
-- **ä»Šæ—¥æ¨¡å¼** â€” å¾…åŠç®¡ç†ã€å¤©æ°”æŸ¥è¯¢ã€æ—¥å¸¸é—®ç­”
-- **æˆé•¿æ¨¡å¼** â€” å°±ä¸š / è€ƒç ” / è€ƒå…¬ / è½¬ä¸“ä¸š å››å¤§æ–¹å‘çš„ AI è¯Šæ–­ä¸è§„åˆ’
-- **æ²™ç›˜æ¨æ¼”** â€” æ¨¡æ‹Ÿä¸åŒäººç”Ÿé€‰æ‹©ï¼Œå¯è§†åŒ–è·¯å¾„å¯¹æ¯”
-- **é•¿æœŸè®°å¿†** â€” è®°ä½ç”¨æˆ·åå¥½å’Œå†å²ï¼Œæä¾›æŒç»­é™ªä¼´å¼ä½“éªŒ
+- **½ñÈÕÄ£Ê½** ¡ª ´ı°ì¹ÜÀí¡¢ÌìÆø²éÑ¯¡¢ÈÕ³£ÎÊ´ğ
+- **³É³¤Ä£Ê½** ¡ª ¾ÍÒµ / ¿¼ÑĞ / ¿¼¹« / ×ª×¨Òµ ËÄ´ó·½ÏòµÄ AI Õï¶ÏÓë¹æ»®
+- **É³ÅÌÍÆÑİ** ¡ª Ä£Äâ²»Í¬ÈËÉúÑ¡Ôñ£¬¿ÉÊÓ»¯Â·¾¶¶Ô±È
+- **³¤ÆÚ¼ÇÒä** ¡ª ¼Ç×¡ÓÃ»§Æ«ºÃºÍÀúÊ·£¬Ìá¹©³ÖĞøÅã°éÊ½ÌåÑé
 
-## æŠ€æœ¯æ ˆ
+## ¼¼ÊõÕ»
 
-| ç±»åˆ«   | æŠ€æœ¯                      |
+| Àà±ğ   | ¼¼Êõ                      |
 | ------ | ------------------------- |
-| æ¡†æ¶   | FastAPI + Uvicorn         |
+| ¿ò¼Ü   | FastAPI + Uvicorn         |
 | AI     | LangGraph + DeepSeek      |
-| æ•°æ®åº“ | SQLite + SQLAlchemy       |
-| é…ç½®   | Pydantic Settings (.env)  |
-| æ—¥å¿—   | Loguru                    |
+| Êı¾İ¿â | SQLite + SQLAlchemy       |
+| ÅäÖÃ   | Pydantic Settings (.env)  |
+| ÈÕÖ¾   | Loguru                    |
 
-## å¿«é€Ÿå¼€å§‹
+## ¿ìËÙ¿ªÊ¼
 
-### 1. ç¯å¢ƒè¦æ±‚
+### 1. »·¾³ÒªÇó
 
 - Python 3.11+
 - pip
 
-### 2. å…‹éš†é¡¹ç›®
+### 2. ¿ËÂ¡ÏîÄ¿
 
 ```bash
 git clone https://github.com/sakura0925wsq111-cpu/ai-agent-learning.git
 cd ai-agent-learning
 ```
 
-### 3. å®‰è£…ä¾èµ–
+### 3. °²×°ÒÀÀµ
 
 ```bash
 python -m venv venv
@@ -44,72 +44,72 @@ pip install -r requirements.txt
 pip install -r backend/requirements.txt
 ```
 
-### 4. é…ç½®ç¯å¢ƒå˜é‡
+### 4. ÅäÖÃ»·¾³±äÁ¿
 
 ```bash
 copy backend\.env.example backend\.env
 ```
 
-ç¼–è¾‘ `backend/.env`ï¼Œå¡«å…¥ä½ çš„ DeepSeek API Keyï¼š
+±à¼­ `backend/.env`£¬ÌîÈëÄãµÄ DeepSeek API Key£º
 
 ```
 LLM_API_KEY=sk-xxxxxxxxxxxxxxxx
 ```
 
-> å» [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) å…è´¹ç”³è¯·
+> È¥ [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) Ãâ·ÑÉêÇë
 
-### 5. å¯åŠ¨æœåŠ¡
+### 5. Æô¶¯·şÎñ
 
 ```bash
 cd backend
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-å¯åŠ¨åè®¿é—®ï¼š
+Æô¶¯ºó·ÃÎÊ£º
 
-- API æ–‡æ¡£ï¼šhttp://127.0.0.1:8000/docs
-- ReDocï¼šhttp://127.0.0.1:8000/redoc
+- API ÎÄµµ£ºhttp://127.0.0.1:8000/docs
+- ReDoc£ºhttp://127.0.0.1:8000/redoc
 
-## API è·¯ç”±
+## API Â·ÓÉ
 
-| è·¯ç”±               | è¯´æ˜     |
+| Â·ÓÉ               | ËµÃ÷     |
 | ------------------ | -------- |
-| `GET /`            | æœåŠ¡ä¿¡æ¯ |
-| `GET /health`      | å¥åº·æ£€æŸ¥ |
-| `/api/v1/users`    | ç”¨æˆ·ç®¡ç† |
-| `/api/v1/memory`   | é•¿æœŸè®°å¿† |
-| `/api/v1/growth`   | æˆé•¿è§„åˆ’ |
-| `/api/v1/todos`    | å¾…åŠäº‹é¡¹ |
-| `/api/v1/weather`  | å¤©æ°”æŸ¥è¯¢ |
-| `/sandbox`         | æ²™ç›˜æ¨æ¼” |
+| `GET /`            | ·şÎñĞÅÏ¢ |
+| `GET /health`      | ½¡¿µ¼ì²é |
+| `/api/v1/users`    | ÓÃ»§¹ÜÀí |
+| `/api/v1/memory`   | ³¤ÆÚ¼ÇÒä |
+| `/api/v1/growth`   | ³É³¤¹æ»® |
+| `/api/v1/todos`    | ´ı°ìÊÂÏî |
+| `/api/v1/weather`  | ÌìÆø²éÑ¯ |
+| `/sandbox`         | É³ÅÌÍÆÑİ |
 
-## é¡¹ç›®ç»“æ„
+## ÏîÄ¿½á¹¹
 
 ```
 ai-agent-learning/
-â”œâ”€â”€ backend/
-â”‚   â”œâ”€â”€ app/main.py          # FastAPI å…¥å£
-â”‚   â”œâ”€â”€ app/api/v1/          # API è·¯ç”±
-â”‚   â”œâ”€â”€ core/                # é…ç½®ã€å¼‚å¸¸ã€æ—¥å¿—
-â”‚   â”œâ”€â”€ database/            # æ•°æ®åº“åˆå§‹åŒ–
-â”‚   â”œâ”€â”€ models/              # ORM æ¨¡å‹
-â”‚   â”œâ”€â”€ schemas/             # Pydantic è¯·æ±‚/å“åº”æ¨¡å‹
-â”‚   â”œâ”€â”€ services/            # ä¸šåŠ¡é€»è¾‘
-â”‚   â”œâ”€â”€ memory/              # è®°å¿†ç³»ç»Ÿ
-â”‚   â”œâ”€â”€ planning/            # LangGraph è§„åˆ’å¼•æ“
-â”‚   â”œâ”€â”€ sandbox/             # æ²™ç›˜æ¨æ¼”
-â”‚   â”œâ”€â”€ crud/                # æ•°æ®åº“æ“ä½œ
-â”‚   â”œâ”€â”€ scripts/             # å·¥å…·è„šæœ¬
-â”‚   â””â”€â”€ tests/               # æµ‹è¯•
-â”œâ”€â”€ docs/                    # äº§å“æ–‡æ¡£
-â””â”€â”€ requirements.txt         # å…¨å±€ä¾èµ–
+©À©¤©¤ backend/
+©¦   ©À©¤©¤ app/main.py          # FastAPI Èë¿Ú
+©¦   ©À©¤©¤ app/api/v1/          # API Â·ÓÉ
+©¦   ©À©¤©¤ core/                # ÅäÖÃ¡¢Òì³£¡¢ÈÕÖ¾
+©¦   ©À©¤©¤ database/            # Êı¾İ¿â³õÊ¼»¯
+©¦   ©À©¤©¤ models/              # ORM Ä£ĞÍ
+©¦   ©À©¤©¤ schemas/             # Pydantic ÇëÇó/ÏìÓ¦Ä£ĞÍ
+©¦   ©À©¤©¤ services/            # ÒµÎñÂß¼­
+©¦   ©À©¤©¤ memory/              # ¼ÇÒäÏµÍ³
+©¦   ©À©¤©¤ planning/            # LangGraph ¹æ»®ÒıÇæ
+©¦   ©À©¤©¤ sandbox/             # É³ÅÌÍÆÑİ
+©¦   ©À©¤©¤ crud/                # Êı¾İ¿â²Ù×÷
+©¦   ©À©¤©¤ scripts/             # ¹¤¾ß½Å±¾
+©¦   ©¸©¤©¤ tests/               # ²âÊÔ
+©À©¤©¤ docs/                    # ²úÆ·ÎÄµµ
+©¸©¤©¤ requirements.txt         # È«¾ÖÒÀÀµ
 ```
 
-## æ–‡æ¡£
+## ÎÄµµ
 
-- [äº§å“éœ€æ±‚æ–‡æ¡£ (PRD)](docs/CampusPal-PRD-V1.0-%E6%AD%A3%E5%BC%8F%E7%89%88.md)
-- [å‰ç«¯ API å‚è€ƒ](docs/frontend-api-reference.md)
-- [å·®è·åˆ†æ](docs/CampusPal-%E5%B7%AE%E8%B7%9D%E5%88%86%E6%9E%90.md)
+- [²úÆ·ĞèÇóÎÄµµ (PRD)](docs/iCampus-PRD-V1.0-%E6%AD%A3%E5%BC%8F%E7%89%88.md)
+- [Ç°¶Ë API ²Î¿¼](docs/frontend-api-reference.md)
+- [²î¾à·ÖÎö](docs/iCampus-%E5%B7%AE%E8%B7%9D%E5%88%86%E6%9E%90.md)
 
 ## License
 
