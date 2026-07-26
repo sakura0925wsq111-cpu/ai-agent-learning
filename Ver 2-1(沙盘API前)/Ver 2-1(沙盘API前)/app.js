@@ -31,7 +31,7 @@ App({
           if (res.statusCode === 401) {
             that.clearAuth();
             wx.reLaunch({ url: "/pages/login/login" });
-            reject(new Error("登录已过�?));
+            reject(new Error("登录已过期"));
             return;
           }
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -57,7 +57,7 @@ App({
     return new Promise(function(resolve) {
       setTimeout(function() {
         if (options.url.indexOf("/api/v1/weather") >= 0) {
-          resolve({ temp: 25, condition: "多云", location: "青岛", advice: "天气舒适，适合外出活动�? });
+          resolve({ temp: 25, condition: "多云", location: "青岛", advice: "天气舒适，适合外出活动。" });
         } else { resolve({}); }
       }, 300);
     });

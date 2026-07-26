@@ -92,6 +92,8 @@ Page({
     return `${month}月${day}日 周${weekDays[date.getDay()]}`;
   },
 
+  goToAI() { wx.navigateTo({ url: '/pages/ai/ai' }); },
+
   goToSchedule() { wx.switchTab({ url: "/pages/schedule/schedule" }); },
   goToWeather() { wx.navigateTo({ url: "/pages/weather/weather" }); },
 

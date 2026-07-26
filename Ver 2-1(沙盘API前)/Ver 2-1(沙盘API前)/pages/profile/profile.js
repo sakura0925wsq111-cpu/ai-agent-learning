@@ -1,9 +1,10 @@
-﻿const app = getApp();
+const app = getApp();
 
 Page({
   data: {
     statusBarHeight: 44, userId: "",
     userInfo: { name: "", school: "", studentId: "" },
+    stats: { dayCount: 0 },
     profileList: [
       { label: "年级", value: "" }, { label: "专业", value: "" },
       { label: "学院", value: "" }, { label: "入学年份", value: "" }
@@ -34,6 +35,7 @@ Page({
       };
       this.setData({
         userInfo: profile,
+        stats: { dayCount: 0 },
         profileList: [
           { label: "年级", value: res.grade || "" },
           { label: "专业", value: res.major || "" },
@@ -47,7 +49,7 @@ Page({
     }
   },
 
-  editName() {
+  editProfile() {
     wx.showModal({
       title: "修改姓名",
       editable: true,

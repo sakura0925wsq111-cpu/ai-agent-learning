@@ -1,4 +1,4 @@
-﻿<!-- 固定顶部区域 -->
+<!-- 固定顶部区域 -->
 <view class="fixed-header">
   <!-- 状态栏占位 -->
   <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
@@ -48,7 +48,7 @@
     <view 
       class="feature-card card-green" 
       bindtap="goDetail" 
-      data-type="employment"
+      data-type="career"
     >
       <view class="card-icon-wrap">
         <image class="card-icon-img" src="/images/icon-job.png" mode="aspectFit"></image>

@@ -26,9 +26,7 @@ Page({
 
   // 进入今日模式
   goTodayMode() {
-    wx.navigateTo({
-      url: '/pages/schedule/schedule'
-    });
+    wx.switchTab({ url: '/pages/schedule/schedule' });
   },
 
   // 进入成长模式

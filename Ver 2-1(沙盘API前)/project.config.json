@@ -1,4 +1,7 @@
 {
+  "compileType": "miniprogram",
+  "miniprogramRoot": "Ver 2-1(沙盘API前)/",
+  "appid": "wxdf4056e0c9af9526",
   "setting": {
     "es6": true,
     "postcss": true,
@@ -14,12 +17,10 @@
     "useCompilerPlugins": false,
     "minifyWXML": true
   },
-  "compileType": "miniprogram",
   "simulatorPluginLibVersion": {},
   "packOptions": {
     "ignore": [],
     "include": []
   },
-  "appid": "wxdf4056e0c9af9526",
   "editorSetting": {}
 }

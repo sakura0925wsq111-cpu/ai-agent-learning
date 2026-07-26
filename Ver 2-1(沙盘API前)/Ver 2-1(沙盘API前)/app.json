@@ -38,8 +38,8 @@
       {
         "pagePath": "pages/schedule/schedule",
         "text": "今日",
-        "iconPath": "/images/tab-calendar.png",
-        "selectedIconPath": "/images/tab-calendar-active.png"
+        "iconPath": "images/tab-calendar.png",
+        "selectedIconPath": "images/tab-calendar-active.png"
       },
       {
         "pagePath": "pages/growth/growth",

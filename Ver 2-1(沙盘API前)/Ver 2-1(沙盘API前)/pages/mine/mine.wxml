@@ -1,0 +1,26 @@
+<!--pages/mine/mine.wxml-->
+<view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+<view class="custom-nav">
+  <view class="nav-left" bindtap="goBack">
+    <text class="back-icon">&lt;</text>
+  </view>
+  <view class="nav-title">我的</view>
+</view>
+<scroll-view class="scroll-content" scroll-y>
+  <view class="user-card">
+    <image class="user-avatar" src="/images/mascot1.png" mode="aspectFit"></image>
+    <view class="user-info">
+      <view class="user-name">{{userInfo.name || '未登录'}}</view>
+      <view class="user-school">{{userInfo.school}}</view>
+    </view>
+  </view>
+  <view class="section-card">
+    <view class="section-title">常用功能</view>
+    <view class="menu-list">
+      <view class="menu-item" bindtap="goBack">
+        <text class="menu-text">返回上一页</text>
+        <text class="menu-arrow">&gt;</text>
+      </view>
+    </view>
+  </view>
+</scroll-view>

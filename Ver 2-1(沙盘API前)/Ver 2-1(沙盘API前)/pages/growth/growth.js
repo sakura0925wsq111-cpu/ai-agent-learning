@@ -1,4 +1,4 @@
-﻿const app = getApp();
+const app = getApp();
 
 Page({
   data: {
@@ -15,9 +15,9 @@ Page({
     try {
       const res = await app.request({ url: "/api/v1/growth/agents" });
       if (res.agents && res.agents.length) {
-        const icons = { graduate: "/images/icon-postgrad.png", career: "/images/icon-job.png", career: "/images/icon-job.png", civil: "/images/icon-civil.png", major: "/images/icon-transfer.png" };
-        const colors = { graduate: "#4A90D9", career: "#52C41A", career: "#52C41A", civil: "#FA8C16", major: "#722ED1" };
-        const bgs = { graduate: "#E6F2FF", career: "#E6F9ED", career: "#E6F9ED", civil: "#FFF3E6", major: "#F0E6FF" };
+        const icons = { graduate: "/images/icon-postgrad.png", career: "/images/icon-job.png", civil: "/images/icon-civil.png", major: "/images/icon-transfer.png" };
+        const colors = { graduate: "#4A90D9", career: "#52C41A", civil: "#FA8C16", major: "#722ED1" };
+        const bgs = { graduate: "#E6F2FF", career: "#E6F9ED", civil: "#FFF3E6", major: "#F0E6FF" };
         this.setData({ agents: res.agents.map(a => ({ type: a.type, name: a.name, icon: icons[a.type] || "/images/icon-postgrad.png", color: colors[a.type] || "#4A90D9", bgColor: bgs[a.type] || "#E6F2FF" })) });
       }
     } catch (err) {}
