@@ -53,12 +53,31 @@ Page({
 
   selectGrade() {
     const that = this;
+    // 先选择学历层次（6项以内）
     wx.showActionSheet({
-      itemList: ["大一", "大二", "大三", "大四", "研一", "研二", "研三"],
+      itemList: ["本科", "硕士研究生"],
       success(res) {
-        const grades = ["大一", "大二", "大三", "大四", "研一", "研二", "研三"];
-        that.setData({ grade: grades[res.tapIndex] });
-        that.checkCanSubmit();
+        if (res.tapIndex === 0) {
+          // 本科
+          wx.showActionSheet({
+            itemList: ["大一", "大二", "大三", "大四"],
+            success(r) {
+              const grades = ["大一", "大二", "大三", "大四"];
+              that.setData({ grade: grades[r.tapIndex] });
+              that.checkCanSubmit();
+            }
+          });
+        } else {
+          // 硕士研究生
+          wx.showActionSheet({
+            itemList: ["研一", "研二", "研三"],
+            success(r) {
+              const grades = ["研一", "研二", "研三"];
+              that.setData({ grade: grades[r.tapIndex] });
+              that.checkCanSubmit();
+            }
+          });
+        }
       }
     });
   },

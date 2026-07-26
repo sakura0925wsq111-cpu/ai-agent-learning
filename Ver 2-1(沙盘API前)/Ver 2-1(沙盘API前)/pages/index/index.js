@@ -103,15 +103,12 @@ Page({
     const item = list.find(t => t.id === id);
     if (!item) return;
 
-    // Three-state: pending -> done -> archived (removed)
     if (!item.done) {
-      // Mark as done
       this.setData({ todoList: list.map(t => t.id === id ? { ...t, done: true } : t) });
       try {
         await app.request({ method: "POST", url: `/api/v1/todos/${id}/toggle?user_id=${this.data.userId}` });
       } catch (err) { /* offline ok */ }
     } else {
-      // Archive (remove from list)
       this.setData({ todoList: list.filter(t => t.id !== id) });
       try {
         await app.request({ method: "POST", url: `/api/v1/todos/${id}/toggle?user_id=${this.data.userId}` });

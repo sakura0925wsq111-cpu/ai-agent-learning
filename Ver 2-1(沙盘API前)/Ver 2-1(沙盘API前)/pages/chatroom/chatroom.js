@@ -5,7 +5,7 @@ Page({
     statusBarHeight: 44, mode: "sandbox", agent: "career", sessionId: "", userId: "",
     messages: [], inputValue: "", isLoading: false, showQuickActions: true, showCards: false, cards: [], scrollToView: "",
     waitingForReady: false, waitingForTrigger: false,
-    selectingPaths: false, selectedPaths: [], 
+    selectingPaths: false, selectedPaths: [],
     quickOptions: ["转专业", "考研规划", "考公评估", "就业指导"]
   },
 
@@ -94,9 +94,8 @@ Page({
         if (res.session_id && !that.data.sessionId) that.setData({ sessionId: res.session_id });
         if (res.show_cards && res.cards && res.cards.length) {
           that.addMessage("assistant", res.report_text || res.message);
-          // Check if this is path selection (no match_score) vs result cards (has match_score)
           var isSelecting = res.phase === "path_probe" && !res.finished;
-          that.setData({ 
+          that.setData({
             showCards: true, cards: res.cards, showQuickActions: false, isLoading: false,
             selectingPaths: isSelecting, selectedPaths: []
           });
@@ -143,7 +142,6 @@ Page({
     wx.showToast({ title: "语音功能开发中", icon: "none" });
   },
 
-
   selectDirection: function(e) {
     var that = this;
     var agentType = e.currentTarget.dataset.type;
@@ -174,7 +172,7 @@ Page({
     });
   },
 
-  // ── Path selection for sandbox ──
+  // Path selection for sandbox
   togglePathCard: function(e) {
     var type = e.currentTarget.dataset.type;
     var selected = this.data.selectedPaths.slice();
@@ -197,7 +195,7 @@ Page({
     var pathNames = [];
     var nameMap = { career: "就业", graduate: "考研", civil: "考公", major: "转专业" };
     selected.forEach(function(s) { pathNames.push(nameMap[s] || s); });
-    var msg = "开始比对 " + pathNames.join("和");
+    var msg = "开始对比" + pathNames.join("和");
     this.setData({ inputValue: msg, showCards: false, selectingPaths: false, selectedPaths: [] });
     this.sendMessage();
   },

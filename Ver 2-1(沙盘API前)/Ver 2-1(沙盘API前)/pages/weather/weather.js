@@ -1,22 +1,17 @@
-Page({
-  data: {
-    statusBarHeight: 44,
-    weather: {
-      temp: 25,
-      condition: '多云',
-      icon: '/images/weather-cloudy.png',
-      advice: '天气舒适，适合外出活动，记得补充水分，保持良好状态。'
-    }
-  },
+const app = getApp();
 
+Page({
+  data: { statusBarHeight: 44, city: "青岛", weather: null, advice: "" },
   onLoad() {
     const info = wx.getSystemInfoSync();
-    this.setData({
-      statusBarHeight: info.statusBarHeight
-    });
+    this.setData({ statusBarHeight: info.statusBarHeight });
+    this.getWeather();
   },
-
-  goBack() {
-    wx.navigateBack();
-  }
+  async getWeather() {
+    try {
+      const res = await app.request({ url: "/api/v1/weather?city=" + this.data.city });
+      this.setData({ weather: res, advice: res.advice || "" });
+    } catch (err) { /* offline */ }
+  },
+  goBack() { wx.navigateBack(); }
 });

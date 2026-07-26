@@ -16,11 +16,9 @@ Page({
       if (memories.length > 0) {
         this.setData({ memories: this.formatMemories(memories) });
       } else {
-        // 记忆为空，用用户注册信息充当兜底展示
         await this.loadProfileFallback();
       }
     } catch (err) {
-      // API 失败，尝试用用户信息兜底
       await this.loadProfileFallback();
     }
     wx.hideLoading();
@@ -38,9 +36,7 @@ Page({
         { key: "grade", value: profile.grade || "", memory_type: "profile", label: "年级" },
         { key: "enroll_year", value: profile.enroll_year || "", memory_type: "profile", label: "入学年份" },
       ].filter(function(m) { return m.value; });
-      this.setData({
-        memories: this.formatMemories(fallbackMemories)
-      });
+      this.setData({ memories: this.formatMemories(fallbackMemories) });
     } catch (e) {
       this.setData({ memories: [] });
     }

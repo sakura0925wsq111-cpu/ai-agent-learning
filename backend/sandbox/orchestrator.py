@@ -385,7 +385,7 @@ class DecisionSandbox:
             if not selections:
                 # Re-show path selection cards
                 path_cards = []
-                icons = {"career": "career", "graduate": "graduate", "civil": "civil", "major": "major"}
+                icons = {"career": "/images/icon-job.png", "graduate": "/images/icon-postgrad.png", "civil": "/images/icon-civil.png", "major": "/images/icon-transfer.png"}
                 colors = {"career": "#4A90D9", "graduate": "#7B68EE", "civil": "#E8913A", "major": "#50C878"}
                 bg_colors = {"career": "#EBF3FB", "graduate": "#F0EDFC", "civil": "#FDF3E8", "major": "#E8F8EF"}
                 time_labels = {"career": "3-6个月准备", "graduate": "6-12个月备考", "civil": "6-12个月备考", "major": "1-2个学期"}
@@ -899,8 +899,8 @@ class DecisionSandbox:
         scores = matrix.get("scores", {})
 
         card_icons = {
-            "career": "icon-work", "graduate": "icon-graduate",
-            "civil": "icon-government", "major": "icon-transfer",
+            "career": "/images/icon-job.png", "graduate": "/images/icon-postgrad.png",
+            "civil": "/images/icon-civil.png", "major": "/images/icon-transfer.png",
         }
         card_colors = {
             "career": "#52C41A", "graduate": "#4A90D9",
@@ -943,7 +943,7 @@ class DecisionSandbox:
             cards.append({
                 "type": pt,
                 "name": label,
-                "icon": card_icons.get(pt, "icon-graduate"),
+                "icon": card_icons.get(pt, "/images/icon-postgrad.png"),
                 "color": card_colors.get(pt, "#4A90D9"),
                 "bgColor": card_bgs.get(pt, "#E6F2FF"),
                 "match_score": match_score,

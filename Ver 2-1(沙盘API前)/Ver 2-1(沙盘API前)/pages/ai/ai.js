@@ -5,34 +5,22 @@ Page({
 
   onLoad() {
     const info = wx.getSystemInfoSync();
-    this.setData({
-      statusBarHeight: info.statusBarHeight
-    });
+    this.setData({ statusBarHeight: info.statusBarHeight });
   },
 
-  // 返回首页
   goBack() {
-    wx.switchTab({
-      url: '/pages/index/index'
-    });
+    wx.switchTab({ url: '/pages/index/index' });
   },
 
-  // 历史记录
   goHistory() {
-    wx.navigateTo({
-      url: '/pages/history/history'
-    });
+    wx.navigateTo({ url: '/pages/history/history' });
   },
 
-  // 进入今日模式
   goTodayMode() {
     wx.switchTab({ url: '/pages/schedule/schedule' });
   },
 
-  // 进入成长模式
   goGrowthMode() {
-    wx.navigateTo({
-      url: '/pages/growth/growth'
-    });
+    wx.navigateTo({ url: '/pages/growth/growth' });
   }
 });
