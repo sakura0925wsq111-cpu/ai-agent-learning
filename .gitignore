@@ -22,3 +22,4 @@ build/
 .env.local
 .env.production
 *.log
+natapp.exe
