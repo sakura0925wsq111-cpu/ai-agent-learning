@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """DecisionSandbox — orchestrator for the multi-path comparison system.
 
 Phases:
@@ -201,15 +201,32 @@ class DecisionSandbox:
                 result = self._handle_parallel_sim(session)
             elif session.current_phase == SandboxPhase.PROJECTION:
                 result = self._handle_projection(session)
+            elif session.current_phase == SandboxPhase.COMPLETED:
+                result = self._build_response(
+                    session, "",
+                    extra={"finished": True, "projection_result": session.projection_result},
+                )
             else:
                 result = self._build_response(
-                    session, "系统状态异常，请重新开始。",
+                    session, "?????????????",
                     extra={"error": True},
                 )
 
             # Persist memory after each interaction
             if self.memory and db_session:
                 self._persist_memory(session, db_session)
+
+            # Fire async LLM-based memory extraction from this turn
+            if message.strip():
+                try:
+                    from services.memory_service import memory_service
+                    memory_service.extract_from_turn_async(
+                        user_id=session.user_id,
+                        user_message=message,
+                        assistant_message=result.get("message", ""),
+                    )
+                except Exception:
+                    pass  # Non-blocking
 
             return result
 
@@ -366,11 +383,29 @@ class DecisionSandbox:
         if not session.path_selections:
             selections = self._parse_path_selections(message)
             if not selections:
-                path_list = SANDBOX_PATH_LIST_STR
-                return self._build_response(
-                    session, f"我没能识别出你想对比的方向。请从以下选择：{path_list}。可以说多个。",
+                # Re-show path selection cards
+                path_cards = []
+                icons = {"career": "career", "graduate": "graduate", "civil": "civil", "major": "major"}
+                colors = {"career": "#4A90D9", "graduate": "#7B68EE", "civil": "#E8913A", "major": "#50C878"}
+                bg_colors = {"career": "#EBF3FB", "graduate": "#F0EDFC", "civil": "#FDF3E8", "major": "#E8F8EF"}
+                time_labels = {"career": "3-6个月准备", "graduate": "6-12个月备考", "civil": "6-12个月备考", "major": "1-2个学期"}
+                risk_labels = {"career": "竞争激烈", "graduate": "录取率不确定", "civil": "上岸难度大", "major": "学分转换风险"}
+                for pt, label in SANDBOX_PATHS.items():
+                    path_cards.append({
+                        "type": pt, "name": label, "icon": icons.get(pt, "default"),
+                        "color": colors.get(pt, "#333"), "bgColor": bg_colors.get(pt, "#F5F5F5"),
+                        "match_score": 0, "insight": f"探索{label}方向的可能性",
+                        "time_label": time_labels.get(pt, ""), "risk_label": risk_labels.get(pt, ""),
+                        "recommended": False,
+                    })
+                resp = self._build_response(
+                    session, "请点击上方卡片选择你想对比的方向（可多选），然后说【开始比对】。",
                     extra={"selecting_paths": True},
                 )
+                resp["show_cards"] = True
+                resp["cards"] = path_cards
+                resp["report_text"] = "请选择对比方向"
+                return resp
             session.path_selections = selections
             logger.info("Sandbox[{}]: selected paths: {}", session.session_id, selections)
 
@@ -690,15 +725,237 @@ class DecisionSandbox:
         # Save session state
         self._sessions[session.session_id] = session
 
+        # Build rich report and card data
+        report_text = self._format_rich_report(result, session)
+        cards = self._build_card_data(result, session)
+
         return self._build_response(
             session,
-            "🎉 多路径对比分析已完成！以下是分析结果：",
+            report_text,
             extra={
                 "finished": True,
                 "projection_result": result,
+                "show_cards": True,
+                "cards": cards,
+                "report_text": report_text,
             },
         )
 
+
+    def _format_rich_report(
+        self,
+        projection: dict,
+        session: "SandboxSession",
+    ) -> str:
+        """Build a rich, human-readable comparison report from projection data."""
+        from sandbox.state import SANDBOX_PATHS
+
+        projections = projection.get("projections", [])
+        summary = projection.get("summary", "")
+        decision_guide = projection.get("decision_guide", {})
+        questions = decision_guide.get("questions_to_ask_yourself", [])
+        if_then = decision_guide.get("if_you_value_X_then_Y", [])
+        matrix = projection.get("comparison_matrix", {})
+
+        lines_out = []
+
+        # Header
+        lines_out.append("========================================\n")
+        lines_out.append("      MULTI-PATH COMPARISON REPORT       \n")
+        lines_out.append("========================================\n")
+        lines_out.append("\n")
+
+        # Summary
+        if summary:
+            lines_out.append("--- OVERVIEW ---\n")
+            lines_out.append(summary + "\n\n")
+
+        # Per-path detail
+        path_labels = SANDBOX_PATHS
+        scores = matrix.get("scores", {})
+        match_idx = 5  # match degree in comparison_matrix dimensions
+
+        for idx, proj in enumerate(projections):
+            pt = proj.get("path_type", "")
+            label = path_labels.get(pt, pt)
+            insight = proj.get("core_insight", "")
+            time_proj = proj.get("time_projection", {})
+            strengths = proj.get("strengths", [])
+            challenges = proj.get("challenges", [])
+            best_for = proj.get("best_for", "")
+            deal_breakers = proj.get("deal_breakers", "")
+
+            # Match score
+            match_pct = ""
+            if pt in scores:
+                score_list = scores[pt]
+                if isinstance(score_list, list) and len(score_list) > match_idx:
+                    match_pct = str(int(score_list[match_idx] * 10)) + "%"
+
+            # Divider
+            if idx > 0:
+                lines_out.append("----------------------------------------\n\n")
+
+            # Title
+            title = ">>> " + label
+            if match_pct:
+                title += " (Match: " + match_pct + ")"
+            lines_out.append(title + "\n")
+            lines_out.append("\n")
+
+            # Core insight
+            if insight:
+                lines_out.append(insight + "\n\n")
+
+            # Time projection
+            if time_proj:
+                short = time_proj.get("short_term", "")
+                mid_term = time_proj.get("mid_term", "")
+                long_term = time_proj.get("long_term", "")
+                milestones = time_proj.get("key_milestones", [])
+                lines_out.append("Timeline:\n")
+                if short:
+                    lines_out.append("  Short (3mo):  " + short + "\n")
+                if mid_term:
+                    lines_out.append("  Mid  (1yr):   " + mid_term + "\n")
+                if long_term:
+                    lines_out.append("  Long (2-3yr): " + long_term + "\n")
+                if milestones:
+                    lines_out.append("  Milestones: " + ", ".join(milestones) + "\n")
+                lines_out.append("\n")
+
+            # Strengths
+            if strengths:
+                lines_out.append("Your Strengths:\n")
+                for s in strengths[:3]:
+                    factor = s.get("factor", "") if isinstance(s, dict) else str(s)
+                    detail = s.get("detail", "") if isinstance(s, dict) else ""
+                    if detail:
+                        lines_out.append("  + " + factor + ": " + detail + "\n")
+                    else:
+                        lines_out.append("  + " + factor + "\n")
+                lines_out.append("\n")
+
+            # Challenges
+            if challenges:
+                lines_out.append("Challenges:\n")
+                for c in challenges[:3]:
+                    factor = c.get("factor", "") if isinstance(c, dict) else str(c)
+                    severity = c.get("severity", "") if isinstance(c, dict) else ""
+                    detail = c.get("detail", "") if isinstance(c, dict) else ""
+                    sev_tag = " [" + severity.upper() + "]" if severity else ""
+                    line = "  - " + factor + sev_tag
+                    if detail:
+                        line += ": " + detail
+                    lines_out.append(line + "\n")
+                lines_out.append("\n")
+
+            # Best for / Deal breakers
+            if best_for:
+                lines_out.append("Best For: " + best_for + "\n")
+            if deal_breakers:
+                lines_out.append("Think Twice If: " + deal_breakers + "\n")
+            lines_out.append("\n")
+
+        # Decision guide
+        lines_out.append("========================================\n")
+        lines_out.append("           DECISION GUIDE               \n")
+        lines_out.append("========================================\n\n")
+
+        if if_then:
+            lines_out.append("Conditional Recommendations:\n")
+            for item in if_then[:5]:
+                cond = item.get("condition", "") if isinstance(item, dict) else ""
+                rec = item.get("recommendation", "") if isinstance(item, dict) else str(item)
+                reason = item.get("reason", "") if isinstance(item, dict) else ""
+                lines_out.append("  * If you value [" + cond + "]: " + rec + "\n")
+                if reason:
+                    lines_out.append("    (" + reason + ")\n")
+            lines_out.append("\n")
+
+        if questions:
+            lines_out.append("Questions to Reflect On:\n")
+            for i, q in enumerate(questions[:5], 1):
+                lines_out.append("  " + str(i) + ". " + q + "\n")
+            lines_out.append("\n")
+
+        lines_out.append("----------------------------------------\n")
+        lines_out.append("Which direction would you like to explore in depth?\n")
+        lines_out.append("Tap one of the cards below to start your personalized planning journey.\n")
+        lines_out.append("\n")
+
+        return "".join(lines_out)
+
+    def _build_card_data(
+        self,
+        projection: dict,
+        session: "SandboxSession",
+    ) -> list:
+        """Build structured card data for inline UI rendering from projection result."""
+        from sandbox.state import SANDBOX_PATHS
+
+        projections = projection.get("projections", [])
+        matrix = projection.get("comparison_matrix", {})
+        scores = matrix.get("scores", {})
+
+        card_icons = {
+            "career": "icon-work", "graduate": "icon-graduate",
+            "civil": "icon-government", "major": "icon-transfer",
+        }
+        card_colors = {
+            "career": "#52C41A", "graduate": "#4A90D9",
+            "civil": "#FA8C16", "major": "#722ED1",
+        }
+        card_bgs = {
+            "career": "#E6F9ED", "graduate": "#E6F2FF",
+            "civil": "#FFF3E6", "major": "#F0E6FF",
+        }
+
+        cards = []
+        high_score = -1
+        for proj in projections:
+            pt = proj.get("path_type", "")
+            score_list = scores.get(pt, [])
+            match_score = 0
+            if isinstance(score_list, list) and len(score_list) > 5:
+                match_score = int(score_list[5] * 10)
+            if match_score > high_score:
+                high_score = match_score
+
+        for proj in projections:
+            pt = proj.get("path_type", "")
+            label = SANDBOX_PATHS.get(pt, pt)
+            insight = proj.get("core_insight", "")
+            time_proj = proj.get("time_projection", {})
+            challenges = proj.get("challenges", [])
+
+            score_list = scores.get(pt, [])
+            match_score = 0
+            if isinstance(score_list, list) and len(score_list) > 5:
+                match_score = int(score_list[5] * 10)
+
+            time_label = time_proj.get("short_term", "") if time_proj else ""
+            risk_label = ""
+            if challenges and isinstance(challenges, list) and len(challenges) > 0:
+                c = challenges[0]
+                risk_label = c.get("factor", "") if isinstance(c, dict) else str(c)
+
+            cards.append({
+                "type": pt,
+                "name": label,
+                "icon": card_icons.get(pt, "icon-graduate"),
+                "color": card_colors.get(pt, "#4A90D9"),
+                "bgColor": card_bgs.get(pt, "#E6F2FF"),
+                "match_score": match_score,
+                "recommended": (match_score == high_score and high_score > 0),
+                "insight": insight[:80] if insight else "",
+                "time_label": time_label[:50] if time_label else "See full report",
+                "risk_label": risk_label[:30] if risk_label else "See full report",
+            })
+
+        # Sort: recommended first, then by score desc
+        cards.sort(key=lambda c: (not c["recommended"], -c["match_score"]))
+        return cards
     def _build_fallback_projection(self, session: SandboxSession) -> dict[str, Any]:
         """Build a minimal fallback projection when LLM analysis fails."""
         from sandbox.projection import _build_fallback_result
@@ -768,6 +1025,30 @@ class DecisionSandbox:
                             len(items), session.user_id)
             except Exception as exc:
                 logger.warning("Sandbox: failed to persist memory: {}", exc)
+
+        # ── Also fire async LLM extraction from conversation ─────
+        # The orchestrator.chat() passes the user message through
+        # but _persist_memory doesn't receive it directly.
+        # We extract the last user message from session.discovery_history
+        # or from the most recent interaction.
+        last_user_msg = ""
+        if session.discovery_history:
+            last_user_msg = session.discovery_history[-1].get("user", "")
+        if not last_user_msg and session.path_probe_history:
+            for msgs in session.path_probe_history.values():
+                if msgs:
+                    last_user_msg = msgs[-1].get("user", "")
+                    if last_user_msg:
+                        break
+        if last_user_msg:
+            try:
+                from services.memory_service import memory_service
+                memory_service.extract_from_turn_async(
+                    user_id=session.user_id,
+                    user_message=last_user_msg,
+                )
+            except Exception:
+                pass  # Non-blocking
 
     def _format_memory(self, session: SandboxSession) -> str:
         """Format memory snapshot as a string for prompt injection."""
@@ -877,9 +1158,18 @@ class DecisionSandbox:
             session_id, path_type,
         )
 
+        AGENT_GREETINGS = {
+            "career": "准备好开始规划你的职业道路了吗？",
+            "graduate": "准备好一起制定你的考研计划了吗？",
+            "civil": "准备好规划你的考公之路了吗？",
+            "major": "准备好探索新的专业方向了吗？",
+        }
+        greeting = AGENT_GREETINGS.get(path_type, "准备好开始规划了吗？")
+
         return {
             "agent_type": path_type,
             "agent_label": SANDBOX_PATHS.get(path_type, path_type),
+            "greeting": greeting,
             "initial_question": first_question,
             "handoff_context": handoff_context,
             "agent_state": agent_state,

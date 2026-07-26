@@ -148,6 +148,9 @@ class SandboxChatResponse(BaseModel):
     path_selections: list[str] = Field(default_factory=list)
     path_reports: dict[str, dict[str, Any]] | None = None
     projection_result: ProjectionResult | None = None
+    show_cards: bool = False
+    cards: list[dict[str, Any]] = Field(default_factory=list)
+    report_text: str = ""
     state: dict[str, Any] | None = None
     error: str | None = None
 

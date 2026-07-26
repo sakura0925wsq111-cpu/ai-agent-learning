@@ -1,0 +1,37 @@
+<!-- 固定顶部区域 -->
+<view class="fixed-header">
+  <!-- 状态栏占位 -->
+  <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+  
+  <!-- 自定义导航栏 -->
+  <view class="custom-nav">
+    <view class="nav-left" bindtap="goBack">
+      <text class="back-icon">‹</text>
+    </view>
+    <view class="nav-title">天气</view>
+    <view class="nav-right"></view>
+  </view>
+</view>
+
+<!-- 天气内容区 -->
+<view class="weather-content">
+  
+  <!-- 温度显示 -->
+  <view class="temp-section">
+    <view class="temp-num">{{weather.temp}}</view>
+    <view class="temp-unit">°C</view>
+  </view>
+  
+  <!-- 天气状况 -->
+  <view class="condition-section">
+    <image class="condition-icon" src="{{weather.icon}}" mode="aspectFit"></image>
+    <text class="condition-text">{{weather.condition}}</text>
+  </view>
+  
+  <!-- 生活建议卡片 -->
+  <view class="advice-card">
+    <view class="advice-title">生活建议</view>
+    <view class="advice-content">{{weather.advice}}</view>
+  </view>
+  
+</view>

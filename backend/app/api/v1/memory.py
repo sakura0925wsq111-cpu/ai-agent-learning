@@ -62,40 +62,6 @@ def get_user_memories(
     )
 
 
-@router.get("/{user_id}/{key}", response_model=APIResponse[MemoryResponse])
-def get_user_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
-    """Get a specific memory entry by key."""
-    result = memory_service.get_memory(db, user_id=user_id, key=key)
-    if result is None:
-        raise NotFoundException(f"Memory key '{key}' not found for user {user_id}")
-    return APIResponse.ok(data=result)
-
-
-@router.put("/{user_id}/{key}", response_model=APIResponse[MemoryResponse])
-def update_memory_by_key(
-    user_id: str, key: str, payload: MemoryUpdate, db: Session = Depends(get_db),
-):
-    """Update a specific memory entry by key."""
-    result = memory_service.update_memory(db, user_id=user_id, key=key, data=payload)
-    return APIResponse.ok(data=result)
-
-
-@router.delete("/{user_id}/{key}", response_model=APIResponse[dict])
-def delete_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
-    """Delete a specific memory entry by key."""
-    memory_service.delete_memory(db, user_id=user_id, key=key)
-    return APIResponse.ok(data={"deleted": {"user_id": user_id, "key": key}})
-
-
-# === Memory Panel endpoints (P3) ======================================
-
-
-class MemoryPanelUpdate(BaseModel):
-    """Payload for updating a memory via the panel."""
-    value: str = Field(..., min_length=1, description="New memory value")
-    memory_type: str = Field(default="fact", pattern=r"^(profile|goal|action|fact)$", description="Memory type")
-
-
 @router.get("/panel/{user_id}", response_model=APIResponse[dict])
 def get_memory_panel(
     user_id: str,
@@ -143,6 +109,40 @@ def delete_memory_panel_item(user_id: str, key: str, db: Session = Depends(get_d
     """Delete a single memory entry from the panel by key."""
     memory_service.delete_memory(db, user_id=user_id, key=key)
     return APIResponse.ok(data={"deleted": {"user_id": user_id, "key": key}})
+
+def get_user_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
+    """Get a specific memory entry by key."""
+    result = memory_service.get_memory(db, user_id=user_id, key=key)
+    if result is None:
+        raise NotFoundException(f"Memory key '{key}' not found for user {user_id}")
+    return APIResponse.ok(data=result)
+
+@router.get("/{user_id}/{key}", response_model=APIResponse[MemoryResponse])
+# === Memory Panel endpoints (P3) ======================================
+
+
+class MemoryPanelUpdate(BaseModel):
+    """Payload for updating a memory via the panel."""
+    value: str = Field(..., min_length=1, description="New memory value")
+    memory_type: str = Field(default="fact", pattern=r"^(profile|goal|action|fact)$", description="Memory type")
+
+
+
+@router.put("/{user_id}/{key}", response_model=APIResponse[MemoryResponse])
+def update_memory_by_key(
+    user_id: str, key: str, payload: MemoryUpdate, db: Session = Depends(get_db),
+):
+    """Update a specific memory entry by key."""
+    result = memory_service.update_memory(db, user_id=user_id, key=key, data=payload)
+    return APIResponse.ok(data=result)
+
+
+@router.delete("/{user_id}/{key}", response_model=APIResponse[dict])
+def delete_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
+    """Delete a specific memory entry by key."""
+    memory_service.delete_memory(db, user_id=user_id, key=key)
+    return APIResponse.ok(data={"deleted": {"user_id": user_id, "key": key}})
+
 
 
 @router.patch("/panel/{user_id}/{key:path}", response_model=APIResponse[MemoryResponse])

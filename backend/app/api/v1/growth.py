@@ -55,7 +55,7 @@ async def growth_chat(
     logger.info("POST /growth/chat user={}, agent={}", request.user_id, request.agent)
     llm = get_llm_service()
     service = get_growth_service(llm)
-    result = service.chat(db, request=request)
+    result = await service.chat(db, request=request)
     return APIResponse.ok(data=result).model_dump()
 
 
@@ -71,7 +71,7 @@ async def growth_start(
     logger.info("POST /growth/start user={}, agent={}", request.user_id, request.agent)
     llm = get_llm_service()
     service = get_growth_service(llm)
-    result = service.start_session(db, request=request)
+    result = await service.start_session(db, request=request)
     return APIResponse.ok(data=result).model_dump()
 
 
@@ -191,7 +191,7 @@ async def growth_correct(
     logger.info("POST /growth/correct session={}, correction={}", request.session_id, request.correction[:50])
     llm = get_llm_service()
     service = get_growth_service(llm)
-    result = service.correct_analysis(
+    result = await service.correct_analysis(
         db, session_id=request.session_id,
         user_id=request.user_id, correction=request.correction,
     )
@@ -211,7 +211,7 @@ async def growth_approve(
     logger.info("POST /growth/approve session={}", request.session_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
-    result = service.approve_analysis(
+    result = await service.approve_analysis(
         db, session_id=request.session_id,
         user_id=request.user_id,
     )

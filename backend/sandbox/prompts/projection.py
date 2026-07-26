@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Projection Agent Prompt — multi-path comparison and timeline projection.
 
 The ProjectionAgent receives N planning reports and a user profile,

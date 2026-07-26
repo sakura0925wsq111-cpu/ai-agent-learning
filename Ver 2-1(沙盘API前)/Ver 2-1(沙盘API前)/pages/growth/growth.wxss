@@ -1,0 +1,234 @@
+page {
+  background: #F5F7FA;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, '.萍方-简', 'Microsoft YaHei', sans-serif;
+}
+
+/* 固定顶部区域 */
+.fixed-header {
+  flex-shrink: 0;
+  background: #FFFFFF;
+  width: 100%;
+}
+
+.status-bar {
+  width: 100%;
+}
+
+.custom-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 0 20rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.back-icon {
+  font-size: 48rpx;
+  color: #1A1A1A;
+  padding: 0 16rpx;
+}
+
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.more-icon {
+  font-size: 40rpx;
+  padding: 0 16rpx;
+}
+
+/* 可滚动内容区 */
+.scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 隐藏滚动条 */
+.scroll-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* 标题区 */
+.growth-header {
+  padding: 32rpx 0 24rpx;
+  width: 100%;
+}
+
+.growth-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.growth-subtitle {
+  font-size: 26rpx;
+  color: #999999;
+  margin-top: 12rpx;
+}
+
+/* 功能网格 */
+.feature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  width: 100%;
+}
+
+/* 卡片基础样式 */
+.feature-card {
+  border-radius: 32rpx;
+  padding: 32rpx 24rpx 24rpx;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 淡蓝色卡片 - 考研规划 */
+.card-blue {
+  background: #F0F7FF;
+  box-shadow: 0 8rpx 32rpx rgba(74, 144, 217, 0.12);
+}
+
+.card-blue .card-icon-wrap {
+  background: #E8F4FD;
+}
+
+.card-blue .arrow-icon {
+  color: #4A90D9;
+}
+
+/* 淡绿色卡片 - 就业指导 */
+.card-green {
+  background: #F0FBF0;
+  box-shadow: 0 8rpx 32rpx rgba(82, 196, 26, 0.12);
+}
+
+.card-green .card-icon-wrap {
+  background: #E6F7E6;
+}
+
+.card-green .arrow-icon {
+  color: #52C41A;
+}
+
+/* 淡橙色卡片 - 考公评估 */
+.card-orange {
+  background: #FFF8F0;
+  box-shadow: 0 8rpx 32rpx rgba(250, 140, 22, 0.12);
+}
+
+.card-orange .card-icon-wrap {
+  background: #FFF2E8;
+}
+
+.card-orange .arrow-icon {
+  color: #FA8C16;
+}
+
+/* 淡紫色卡片 - 转专业分析 */
+.card-purple {
+  background: #F9F5FF;
+  box-shadow: 0 8rpx 32rpx rgba(114, 46, 209, 0.12);
+}
+
+.card-purple .card-icon-wrap {
+  background: #F6F0FF;
+}
+
+.card-purple .arrow-icon {
+  color: #722ED1;
+}
+
+.card-icon-wrap {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20rpx;
+}
+
+.card-icon-img {
+  width: 128rpx;
+  height: 128rpx;
+}
+
+.card-name {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin-bottom: 16rpx;
+}
+
+.card-desc {
+  font-size: 24rpx;
+  color: #999999;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.card-bottom-arrow {
+  margin-top: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arrow-icon {
+  font-size: 32rpx;
+}
+
+/* 底部引导 */
+.help-card {
+  display: flex;
+  align-items: center;
+  background: #EBF5FF;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  margin-top: 24rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.help-mascot {
+  width: 80rpx;
+  height: 80rpx;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+}
+
+.help-text {
+  flex: 1;
+}
+
+.help-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.help-desc {
+  font-size: 26rpx;
+  color: #666666;
+  margin-top: 8rpx;
+}
+
+.help-arrow {
+  font-size: 32rpx;
+  color: #999999;
+}

@@ -14,11 +14,17 @@ class CRUDUser(CRUDBase[User]):
     def __init__(self) -> None:
         super().__init__(User)
 
+    def get_by_student_id(self, db: Session, *, student_id: str) -> Optional[User]:
+        """Find a user by student_id."""
+        from sqlalchemy import select
+
+        return db.scalars(select(User).where(User.student_id == student_id)).first()
+
     def get_by_nickname(self, db: Session, *, nickname: str) -> Optional[User]:
         """Find a user by nickname (case-sensitive)."""
-        return db.scalars(
-            __import__("sqlalchemy").select(User).where(User.nickname == nickname)
-        ).first()
+        from sqlalchemy import select
+
+        return db.scalars(select(User).where(User.nickname == nickname)).first()
 
     def get_multi_by_ids(self, db: Session, *, ids: list[str]) -> Sequence[User]:
         """Get multiple users by their IDs."""

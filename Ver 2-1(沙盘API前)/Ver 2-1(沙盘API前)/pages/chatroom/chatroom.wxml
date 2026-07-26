@@ -1,0 +1,152 @@
+<!-- 状态栏占位 -->
+<view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+
+<!-- 自定义导航栏 -->
+<view class="custom-nav">
+  <view class="nav-left" bindtap="goBack">
+    <text class="back-icon">&lt;</text>
+  </view>
+  <view class="nav-title">决策教练</view>
+  <view class="nav-right">
+    <text class="more-icon">...</text>
+  </view>
+</view>
+
+<!-- 消息列表 -->
+<scroll-view 
+  class="message-list" 
+  scroll-y 
+  scroll-into-view="{{scrollToView}}"
+  enhanced
+  show-scrollbar="{{false}}"
+>
+  <view 
+    class="message-item {{item.role}}" 
+    wx:for="{{messages}}" 
+    wx:key="id"
+    id="msg-{{item.id}}"
+  >
+    <!-- AI消息 -->
+    <block wx:if="{{item.role === 'assistant'}}">
+      <image 
+        class="avatar ai-avatar" 
+        src="/images/icon-avatar.png"
+      ></image>
+      <view class="message-bubble assistant">
+        <text class="message-text">{{item.content}}</text>
+      </view>
+    </block>
+    
+    <!-- 用户消息 -->
+    <block wx:if="{{item.role === 'user'}}">
+      <view class="message-bubble user">
+        <text class="message-text">{{item.content}}</text>
+      </view>
+      <view class="avatar user-avatar">
+        <text>我</text>
+      </view>
+    </block>
+  </view>
+  
+  <!-- 加载中 -->
+  <view wx:if="{{isLoading}}" class="loading-item">
+    <image class="loading-avatar" src="/images/icon-avatar.png"></image>
+    <view class="loading-bubble">
+      <view class="loading-dot"></view>
+      <view class="loading-dot"></view>
+      <view class="loading-dot"></view>
+    </view>
+  </view>
+  
+  <!-- 底部占位 -->
+  <view id="bottom-anchor" style="height: 20rpx;"></view>
+</scroll-view>
+
+<!-- 路径多选卡片（沙盘选择对比路径） -->
+<view wx:if="{{showCards && selectingPaths}}" class="cards-section">
+  <view class="cards-title">选择你想对比的方向（可多选）</view>
+  <view
+    class="direction-card {{selectedPaths.indexOf(item.type) >= 0 ? 'card-selected' : ''}}"
+    wx:for="{{cards}}"
+    wx:key="type"
+    style="border-color: {{item.color}}; background: {{item.bgColor}}"
+    data-type="{{item.type}}"
+    bindtap="togglePathCard"
+  >
+    <view class="card-checkbox">
+      <text wx:if="{{selectedPaths.indexOf(item.type) >= 0}}">&#x2705;</text>
+      <text wx:else>&#x25CB;</text>
+    </view>
+    <view class="card-body">
+      <view class="card-header">
+        <text class="card-name">{{item.name}}</text>
+        <text class="card-score" style="color: {{item.color}}">{{item.time_label}}</text>
+      </view>
+      <text class="card-insight">{{item.insight}}</text>
+      <view class="card-meta">
+        <text class="card-meta-item">⚠️ {{item.risk_label}}</text>
+      </view>
+    </view>
+  </view>
+  <button class="confirm-path-btn" bindtap="confirmPathSelection" wx:if="{{selectedPaths.length > 0}}">
+    开始对比 (已选{{selectedPaths.length}}个方向)
+  </button>
+</view>
+
+<!-- 内联方向卡片（沙盘完成后自动弹出） -->
+<view wx:if="{{showCards && !selectingPaths}}" class="cards-section">
+  <view class="cards-title">选择一个方向，开始深度规划</view>
+  <view
+    class="direction-card {{item.recommended ? 'card-recommended' : ''}}"
+    wx:for="{{cards}}"
+    wx:key="type"
+    style="border-color: {{item.recommended ? item.color : 'transparent'}}; background: {{item.bgColor}}"
+    data-type="{{item.type}}"
+    bindtap="selectDirection"
+  >
+    <image class="card-icon-img" src="/images/{{item.icon}}.png" mode="aspectFit"></image>
+    <view class="card-body">
+      <view class="card-header">
+        <text class="card-name">{{item.name}}</text>
+        <text class="card-score" style="color: {{item.color}}">{{item.match_score}}% 匹配</text>
+      </view>
+      <text class="card-insight">{{item.insight}}</text>
+      <view class="card-meta">
+        <text class="card-meta-item">{{item.time_label}}</text>
+        <text class="card-meta-item">⚠️ {{item.risk_label}}</text>
+      </view>
+    </view>
+    <text class="card-arrow" style="color: {{item.color}}">&rarr;</text>
+  </view>
+</view>
+
+<!-- 快捷选项 -->
+<view class="quick-actions" wx:if="{{showQuickActions}}">
+  <view 
+    class="quick-tag" 
+    wx:for="{{quickOptions}}" 
+    wx:key="index"
+    bindtap="sendQuickMessage"
+    data-text="{{item}}"
+  >
+    {{item}}
+  </view>
+</view>
+
+<!-- 输入区 -->
+<view class="input-area">
+  <view class="input-box">
+    <image class="input-avatar" src="/images/icon-avatar.png"></image>
+    <input 
+      class="message-input"
+      placeholder="有什么想聊的吗？"
+      value="{{inputValue}}"
+      bindinput="onInput"
+      bindconfirm="sendMessage"
+      confirm-type="send"
+    />
+    <view class="voice-btn" bindtap="startVoice">
+      <text class="mic-icon">&#x1F3A4;</text>
+    </view>
+  </view>
+</view>

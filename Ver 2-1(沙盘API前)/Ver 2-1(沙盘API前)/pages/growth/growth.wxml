@@ -1,0 +1,113 @@
+﻿<!-- 固定顶部区域 -->
+<view class="fixed-header">
+  <!-- 状态栏占位 -->
+  <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+  
+  <!-- 自定义导航栏 -->
+  <view class="custom-nav">
+    <view class="nav-left" bindtap="goBack">
+      <text class="back-icon">‹</text>
+    </view>
+    <view class="nav-title">成长模式</view>
+    <view class="nav-right">
+      <text class="more-icon">⋯</text>
+    </view>
+  </view>
+</view>
+
+<!-- 可滚动内容区 -->
+<scroll-view class="scroll-content" scroll-y>
+
+  <!-- 标题区 -->
+  <view class="growth-header">
+    <view class="growth-title">探索你的未来方向</view>
+    <view class="growth-subtitle">选择一个方向，AI将为你提供个性化建议</view>
+  </view>
+
+  <!-- 功能网格 -->
+  <view class="feature-grid">
+    
+    <!-- 考研规划 -->
+    <view 
+      class="feature-card card-blue" 
+      bindtap="goDetail" 
+      data-type="graduate"
+    >
+      <view class="card-icon-wrap">
+        <image class="card-icon-img" src="/images/icon-postgrad.png" mode="aspectFit"></image>
+      </view>
+      <view class="card-name">考研规划</view>
+      <view class="card-desc">院校选择、备考规划</view>
+      <view class="card-desc">复试模拟、资料推荐</view>
+      <view class="card-bottom-arrow">
+        <text class="arrow-icon">→</text>
+      </view>
+    </view>
+
+    <!-- 就业指导 -->
+    <view 
+      class="feature-card card-green" 
+      bindtap="goDetail" 
+      data-type="employment"
+    >
+      <view class="card-icon-wrap">
+        <image class="card-icon-img" src="/images/icon-job.png" mode="aspectFit"></image>
+      </view>
+      <view class="card-name">就业指导</view>
+      <view class="card-desc">职业测评、简历优化</view>
+      <view class="card-desc">面试模拟、岗位推荐</view>
+      <view class="card-bottom-arrow">
+        <text class="arrow-icon">→</text>
+      </view>
+    </view>
+
+    <!-- 考公评估 -->
+    <view 
+      class="feature-card card-orange" 
+      bindtap="goDetail" 
+      data-type="civil"
+    >
+      <view class="card-icon-wrap">
+        <image class="card-icon-img" src="/images/icon-civil.png" mode="aspectFit"></image>
+      </view>
+      <view class="card-name">考公评估</view>
+      <view class="card-desc">岗位匹配、备考规划</view>
+      <view class="card-desc">真题练习、上岸路径</view>
+      <view class="card-bottom-arrow">
+        <text class="arrow-icon">→</text>
+      </view>
+    </view>
+
+    <!-- 转专业分析 -->
+    <view 
+      class="feature-card card-purple" 
+      bindtap="goDetail" 
+      data-type="major"
+    >
+      <view class="card-icon-wrap">
+        <image class="card-icon-img" src="/images/icon-transfer.png" mode="aspectFit"></image>
+      </view>
+      <view class="card-name">转专业分析</view>
+      <view class="card-desc">转专业条件、成功率</view>
+      <view class="card-desc">课程差异、风险评估</view>
+      <view class="card-bottom-arrow">
+        <text class="arrow-icon">→</text>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- 底部引导 -->
+  <view class="help-card" bindtap="goChat">
+    <image class="help-mascot" src="/images/mascotsmall.png" mode="aspectFit"></image>
+    <view class="help-text">
+      <view class="help-title">不知道怎么选？</view>
+      <view class="help-desc">和我聊聊你的困惑吧</view>
+    </view>
+    <text class="help-arrow">→</text>
+  </view>
+
+  <!-- 底部留白 -->
+  <view style="height: 40rpx;"></view>
+
+</scroll-view>

@@ -1,16 +1,12 @@
-﻿# -*- coding: utf-8 -*-
-"""Growth Service — LangGraph-powered Growth Agent orchestration.
+# -*- coding: utf-8 -*-
+"""Growth Service -- LangGraph-powered Growth Agent orchestration. (async-native)
 
-SQLite-backed checkpointer → interrupt/resume
-interrupt_before → human-in-the-loop
-graph.astream() → SSE streaming
+Runs entirely on FastAPI/Uvicorn event loop. No thread-pool bridges needed.
+AsyncSqliteSaver for persistent interrupt/resume across server restarts.
 """
 
 from __future__ import annotations
 
-import asyncio
-import concurrent.futures
-import threading
 import json
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator
@@ -33,46 +29,24 @@ from crud.user import user as user_crud
 session_crud = CRUDBase[GrowthSession](GrowthSession)
 conv_crud = CRUDBase[GrowthConversation](GrowthConversation)
 report_crud = CRUDBase[GrowthReport](GrowthReport)
-MAX_FOLLOW_UP = 7
+MAX_FOLLOW_UP = 5
 
-
-# ── Persistent async bridge ──────────────────────────────────────
-# Single background event loop ensures AsyncSqliteSaver lock stays
-# bound to the same loop across all invocations.
-
-_BG_LOOP: "asyncio.AbstractEventLoop | None" = None
-
-
-def _get_bg_loop() -> "asyncio.AbstractEventLoop":
-    global _BG_LOOP
-    if _BG_LOOP is None or _BG_LOOP.is_closed():
-        _BG_LOOP = asyncio.new_event_loop()
-        t = threading.Thread(target=_BG_LOOP.run_forever, daemon=True)
-        t.start()
-    return _BG_LOOP
-
-
-def _run_async(coro, timeout: int = 60):
-    loop = _get_bg_loop()
-    future = asyncio.run_coroutine_threadsafe(coro, loop)
-    return future.result(timeout=timeout)
-
-
-# ── Service ────────────────────────────────────────────────────────
 
 class GrowthService:
+    """Orchestrates Growth Agent conversations via LangGraph (async-native)."""
 
-    def __init__(self, llm_service):
+    def __init__(self, llm_service: Any, sandbox: Any = None) -> None:
         self.llm = llm_service
         self.router = PlanningRouter(llm_service)
+        self._sandbox = sandbox
         self._graph = None
 
     async def _get_graph(self):
         if self._graph is None:
-            self._graph = await build_growth_graph(self.llm, self.router)
+            self._graph = await build_growth_graph(self.llm, self.router, self._sandbox)
         return self._graph
 
-    async def _invoke(self, state, config):
+    async def _invoke(self, state, config) -> dict[str, Any]:
         g = await self._get_graph()
         return await g.ainvoke(state, config)
 
@@ -81,9 +55,9 @@ class GrowthService:
         async for event in g.astream(state, config, stream_mode="updates"):
             yield event
 
-    # ── REST API ──────────────────────────────────────────────
+    # ── REST API (all async) ──────────────────────────────────
 
-    def start_session(self, db: Session, *, request: GrowthStartRequest) -> GrowthChatResponse:
+    async def start_session(self, db: Session, *, request: GrowthStartRequest) -> GrowthChatResponse:
         agent_type = _norm(request.agent)
         user = user_crud.get(db, id=request.user_id)
         profile: dict[str, str] = {}
@@ -92,31 +66,71 @@ class GrowthService:
             if user.major: profile["major"] = user.major
             if user.grade: profile["grade"] = user.grade
 
+        # Load memory DB for cross-session continuity
+        # Only profile-type memories (school/college/major/grade/enroll_year).
+        # Action/goal memories from previous planning sessions are NOT loaded
+        # to avoid the agent referencing old conversations in new sessions.
+        try:
+            from services.memory_service import memory_service
+            memories = memory_service.load_memory(db, user_id=request.user_id, as_dict=True, memory_type="profile")
+            if isinstance(memories, dict) and memories:
+                # Map memory keys to profile fields (same mapping as sandbox)
+                key_mapping = {
+                    "school": "school",
+                    "college": "college",
+                    "enroll_year": "enroll_year",
+                }
+                for mem_key, field in key_mapping.items():
+                    if mem_key in memories and field not in profile:
+                        profile[field] = str(memories[mem_key])
+
+                logger.info("Growth: loaded {} profile memories for user {}",
+                            len(memories), request.user_id)
+        except Exception as exc:
+            logger.warning("Growth: failed to load memories: {}", exc)
+
+        # Load sandbox context if provided (gap 1 fix)
+        sandbox_profile: dict[str, str] = {}
+        sandbox_history: list[dict[str, str]] = []
+        if request.sandbox_session_id:
+            try:
+                from app.api.v1.sandbox import get_sandbox
+                sb = get_sandbox()
+                sb_sess = sb.get_session(request.sandbox_session_id)
+                if sb_sess:
+                    # Merge sandbox user_profile
+                    for k, v in sb_sess.user_profile.items():
+                        if v and k not in profile:
+                            profile[k] = str(v)
+                    # Capture discovery history for pre-filling
+                    sandbox_history = sb_sess.discovery_history
+                    logger.info("Growth: loaded sandbox context for user {}, {} profile fields, {} history items",
+                                request.user_id, len(profile), len(sandbox_history))
+            except Exception as exc:
+                logger.warning("Growth: failed to load sandbox context: {}", exc)
         db_sess = session_crud.create(db, obj_in={
             "user_id": request.user_id, "agent_type": agent_type,
             "status": "active", "stage": "questioning",
             "current_step": 0, "total_steps": MAX_FOLLOW_UP,
             "state_json": "{}", "progress": 0.0,
         })
-        initial = _make_initial(agent_type, db_sess.id, request.user_id, profile)
+        initial = _make_initial(agent_type, db_sess.id, request.user_id, profile, sandbox_history)
         config = {"configurable": {"thread_id": db_sess.id}}
-
-        result = _run_async(self._invoke(initial, config))
+        result = await self._invoke(initial, config)
         _flush(db_sess, result)
         conv_crud.create(db, obj_in={
             "session_id": db_sess.id, "user_id": request.user_id,
-            "role": "system",
-            "content": f"Growth session started: {agent_type}",
+            "role": "system", "content": f"Growth session started: {agent_type}",
             "step": 0, "stage": "questioning",
         })
         db.commit()
         logger.info("Growth: session {} started", db_sess.id)
         return _to_response(db_sess.id, agent_type, result)
 
-    def chat(self, db: Session, *, request: GrowthChatRequest) -> GrowthChatResponse:
+    async def chat(self, db: Session, *, request: GrowthChatRequest) -> GrowthChatResponse:
         agent_type = _norm(request.agent)
         if not request.session_id:
-            start = self.start_session(db, request=GrowthStartRequest(
+            start = await self.start_session(db, request=GrowthStartRequest(
                 user_id=request.user_id, agent=request.agent,
             ))
             if not request.message.strip():
@@ -126,8 +140,7 @@ class GrowthService:
         db_sess = _get_sess(db, request.session_id)
         state = _state_from_db(db_sess, request)
         config = {"configurable": {"thread_id": db_sess.id}}
-
-        result = _run_async(self._invoke(state, config))
+        result = await self._invoke(state, config)
         _flush(db_sess, result)
 
         if request.message.strip():
@@ -146,30 +159,47 @@ class GrowthService:
                 "stage": result.get("stage", "questioning"),
             })
         if result.get("finished") and result.get("report"):
-            _save_rpt(db, db_sess, result["report"])
+            self._save_report(db, db_sess, result["report"])
+            await self._save_memory(db, db_sess, result["report"])
         db.commit()
+
+        # ── Per-turn async memory extraction ──────────────────
+        if request.message.strip():
+            try:
+                from services.memory_service import memory_service
+                memory_service.extract_from_turn_async(
+                    user_id=request.user_id,
+                    user_message=request.message,
+                    assistant_message=msg,
+                )
+            except Exception:
+                pass  # Non-blocking; extraction runs in background thread
+
         return _to_response(db_sess.id, agent_type, result)
 
     # ── Human-in-the-loop ─────────────────────────────────────
 
-    def correct_analysis(self, db: Session, *, session_id: str, user_id: str, correction: str) -> GrowthChatResponse:
+    async def correct_analysis(self, db: Session, *, session_id: str, user_id: str, correction: str) -> GrowthChatResponse:
         from langgraph.types import Command
         db_sess = _get_sess(db, session_id)
         config = {"configurable": {"thread_id": session_id}}
-        cmd = Command(goto="planning_analyze", update={"user_correction": correction})
-        result = _run_async(self._invoke(cmd, config))
+        result = await self._invoke(
+            Command(goto="planning_analyze", update={"user_correction": correction}),
+            config,
+        )
         _flush(db_sess, result)
         db.commit()
         return _to_response(session_id, db_sess.agent_type, result)
 
-    def approve_analysis(self, db: Session, *, session_id: str, user_id: str) -> GrowthChatResponse:
+    async def approve_analysis(self, db: Session, *, session_id: str, user_id: str) -> GrowthChatResponse:
         from langgraph.types import Command
         db_sess = _get_sess(db, session_id)
         config = {"configurable": {"thread_id": session_id}}
-        result = _run_async(self._invoke(Command(resume="continue"), config))
+        result = await self._invoke(Command(resume="continue"), config)
         _flush(db_sess, result)
         if result.get("finished") and result.get("report"):
-            _save_rpt(db, db_sess, result["report"])
+            self._save_report(db, db_sess, result["report"])
+            await self._save_memory(db, db_sess, result["report"])
         db.commit()
         return _to_response(session_id, db_sess.agent_type, result)
 
@@ -210,8 +240,7 @@ class GrowthService:
                 node_name = list(event.keys())[0] if event else "unknown"
                 node_data = event.get(node_name, {})
                 yield _sse(node_name, {
-                    "session_id": session_id,
-                    "stage": node_data.get("stage", ""),
+                    "session_id": session_id, "stage": node_data.get("stage", ""),
                     "finished": node_data.get("finished", False),
                     "message": node_data.get("agent_message", ""),
                     "report": node_data.get("report"),
@@ -220,7 +249,8 @@ class GrowthService:
                 if node_data:
                     _flush(db_sess, node_data)
                     if node_data.get("finished") and node_data.get("report"):
-                        _save_rpt(db, db_sess, node_data["report"])
+                        self._save_report(db, db_sess, node_data["report"])
+                        await self._save_memory(db, db_sess, node_data["report"])
                 db.commit()
         except Exception as exc:
             logger.exception("Growth stream error: {}", exc)
@@ -229,11 +259,8 @@ class GrowthService:
     # ── State / History / Report ──────────────────────────────
 
     def get_state(self, db: Session, *, user_id: str) -> GrowthStateResponse:
-        sessions = session_crud.get_multi(
-            db, user_id=user_id,
-        )
+        sessions = session_crud.get_multi(db, user_id=user_id)
         sessions = sorted(sessions, key=lambda s: s.updated_at or s.created_at, reverse=True)
-        sessions = sessions[:1]
         if not sessions:
             return GrowthStateResponse()
         s = sessions[0]
@@ -251,11 +278,8 @@ class GrowthService:
         )
 
     def get_history(self, db: Session, *, user_id: str, limit: int = 20) -> GrowthHistoryResponse:
-        sessions = session_crud.get_multi(
-            db, user_id=user_id,
-        )
-        sessions = sorted(sessions, key=lambda s: s.created_at, reverse=True)
-        sessions = sessions[:limit]
+        sessions = session_crud.get_multi(db, user_id=user_id)
+        sessions = sorted(sessions, key=lambda s: s.created_at, reverse=True)[:limit]
         return GrowthHistoryResponse(user_id=user_id, sessions=[
             GrowthSessionSummary(
                 session_id=s.id, agent=s.agent_type, status=s.status,
@@ -280,6 +304,64 @@ class GrowthService:
             report=data, created_at=r.created_at,
         )
 
+    # ── Memory integration ────────────────────────────────────
+
+    async def _save_memory(self, db: Session, session: GrowthSession, report: dict[str, Any]) -> None:
+        """Write key findings to Memory system for cross-session continuity."""
+        try:
+            from services.memory_service import memory_service
+            uid = session.user_id
+
+            # Save goal
+            goal_text = report.get("goal", "")
+            if goal_text:
+                memory_service.save_memory(db, data=__import__("schemas.memory", fromlist=["MemoryCreate"]).MemoryCreate(
+                    user_id=uid, key="current_goal",
+                    value=goal_text[:500], memory_type="goal",
+                    importance=5, confidence=0.9,
+                    source=f"growth_report:{session.id}",
+                ))
+
+            # Save profile snapshot
+            summary = report.get("summary", "")
+            status = report.get("current_status", "")
+            if summary or status:
+                profile_text = f"{status}\n{summary}".strip()[:500]
+                memory_service.save_memory(db, data=__import__("schemas.memory", fromlist=["MemoryCreate"]).MemoryCreate(
+                    user_id=uid, key="latest_analysis",
+                    value=profile_text, memory_type="profile",
+                    importance=4, confidence=0.85,
+                    source=f"growth_report:{session.id}",
+                ))
+
+            logger.info("Growth: memory saved for user={}", uid)
+        except Exception as exc:
+            logger.warning("Growth: failed to save memory: {}", exc)
+
+    # ── Internal ──────────────────────────────────────────────
+
+    def _save_report(self, db: Session, session: GrowthSession, report: dict[str, Any]) -> None:
+        existing = report_crud.get_multi(db, session_id=session.id, limit=1)
+        rj = json.dumps(report, ensure_ascii=False)
+        obj_in = {
+            "full_report_json": rj,
+            "profile_json": json.dumps({"current_status": report.get("current_status", "")}, ensure_ascii=False),
+            "analysis_json": json.dumps({"summary": report.get("summary", ""), "main_problem": report.get("main_problem", ""), "goal": report.get("goal", "")}, ensure_ascii=False),
+            "advantages_json": json.dumps(report.get("advantages", []), ensure_ascii=False),
+            "risks_json": json.dumps(report.get("risks", []), ensure_ascii=False),
+            "recommendations_json": json.dumps(report.get("action_plan", []), ensure_ascii=False),
+            "plan_json": json.dumps(report.get("action_plan", []), ensure_ascii=False),
+        }
+        if existing:
+            report_crud.update(db, db_obj=existing[0], obj_in=obj_in)
+        else:
+            report_crud.create(db, obj_in={
+                "session_id": session.id, "user_id": session.user_id,
+                "agent_type": session.agent_type,
+                "report_type": f"{session.agent_type}_report",
+                **obj_in,
+            })
+
 
 # ── Module helpers ─────────────────────────────────────────────
 
@@ -295,13 +377,22 @@ def _get_sess(db: Session, sid: str) -> GrowthSession:
 
 
 def _make_initial(agent_type: str, session_id: str, user_id: str,
-                  profile: dict[str, str]) -> GrowthState:
+                  profile: dict[str, str], sandbox_history: list | None = None) -> GrowthState:
     from planning.state import PlanningState
     ps = PlanningState(agent_type=agent_type)
     if profile:
         ps.user_profile = profile
         ps.has_profile = True
         ps.advance_step()
+    if sandbox_history:
+        for qa in sandbox_history:
+            q = qa.get("q", "")
+            a = qa.get("a", "")
+            if q and a:
+                ps.record_follow_up(q, a)
+        # Mark follow-up as complete if we have enough context from sandbox
+        if len(sandbox_history) >= 3:
+            ps.follow_up_complete = True
     return {
         "user_id": user_id, "agent_type": agent_type, "session_id": session_id,
         "user_message": "", "user_correction": "",
@@ -340,8 +431,7 @@ def _state_from_db(db_sess: GrowthSession, req: GrowthChatRequest) -> GrowthStat
 
 def _flush(db_sess: GrowthSession, result: dict[str, Any]) -> None:
     now = datetime.now(timezone.utc)
-    if result.get("stage"):
-        db_sess.stage = result["stage"]
+    if result.get("stage"): db_sess.stage = result["stage"]
     if result.get("finished"):
         db_sess.finished = True
         db_sess.status = "completed"
@@ -364,10 +454,30 @@ def _flush(db_sess: GrowthSession, result: dict[str, Any]) -> None:
     if result.get("report"):
         db_sess.report_json = json.dumps(result["report"], ensure_ascii=False)
         db_sess.progress = 100.0
+        # Record growth memory
+        try:
+            from services.memory_service import memory_service
+            agent_label = {"career": "就业规划", "graduate": "考研规划", "civil": "考公规划", "major": "转专业规划"}.get(db_sess.agent_type, db_sess.agent_type)
+            goal = result.get("long_term_goal", "") or result.get("output", {}).get("goal", "")
+            action_plan = result.get("action_plan", []) or result.get("output", {}).get("action_plan", [])
+            memories = [
+                {"key": f"last_{db_sess.agent_type}_plan", "value": f"于{now.strftime('%Y-%m-%d')}完成{agent_label}", "memory_type": "action", "importance": 8, "confidence": 1.0, "source": "growth_session"},
+            ]
+            if goal:
+                memories.append({"key": f"{db_sess.agent_type}_goal", "value": goal, "memory_type": "goal", "importance": 9, "confidence": 0.9, "source": "growth_session"})
+            if action_plan and len(action_plan) > 0:
+                plan_summary = "; ".join([p.get("phase", "") or p.get("title", "") for p in action_plan[:4] if p.get("phase") or p.get("title")])
+                if plan_summary:
+                    memories.append({"key": f"{db_sess.agent_type}_action_plan", "value": plan_summary, "memory_type": "action", "importance": 7, "confidence": 0.9, "source": "growth_session"})
+            memory_service.save_batch(db_sess, user_id=db_sess.user_id, items=memories)
+        except Exception:
+            pass  # Memory recording is non-critical
     elif result.get("stage") == "analyzing":
-        db_sess.progress = 50.0
+        db_sess.progress = 40.0
+    elif result.get("stage") == "report":
+        db_sess.progress = 90.0
     elif result.get("follow_up_round", 0) > 0:
-        db_sess.progress = min(45.0, (result["follow_up_round"] / MAX_FOLLOW_UP) * 45.0)
+        db_sess.progress = min(35.0, (result["follow_up_round"] / MAX_FOLLOW_UP) * 35.0)
     db_sess.updated_at = now
 
 
@@ -391,29 +501,6 @@ def _to_response(session_id: str, agent_type: str, result: dict[str, Any]) -> Gr
     )
 
 
-def _save_rpt(db: Session, session: GrowthSession, report: dict[str, Any]) -> None:
-    existing = report_crud.get_multi(db, session_id=session.id, limit=1)
-    rj = json.dumps(report, ensure_ascii=False)
-    obj_in = {
-        "full_report_json": rj,
-        "profile_json": json.dumps({"current_status": report.get("current_status", "")}, ensure_ascii=False),
-        "analysis_json": json.dumps({"summary": report.get("summary", ""), "main_problem": report.get("main_problem", ""), "goal": report.get("goal", "")}, ensure_ascii=False),
-        "advantages_json": json.dumps(report.get("advantages", []), ensure_ascii=False),
-        "risks_json": json.dumps(report.get("risks", []), ensure_ascii=False),
-        "recommendations_json": json.dumps(report.get("action_plan", []), ensure_ascii=False),
-        "plan_json": json.dumps(report.get("action_plan", []), ensure_ascii=False),
-    }
-    if existing:
-        report_crud.update(db, db_obj=existing[0], obj_in=obj_in)
-    else:
-        report_crud.create(db, obj_in={
-            "session_id": session.id, "user_id": session.user_id,
-            "agent_type": session.agent_type,
-            "report_type": f"{session.agent_type}_report",
-            **obj_in,
-        })
-
-
 def _sse(event: str, data: dict[str, Any]) -> str:
     return "data: {}\n\n".format(
         json.dumps({"step": event, "status": "done", "data": data}, ensure_ascii=False)
@@ -425,11 +512,18 @@ def _sse(event: str, data: dict[str, Any]) -> str:
 _growth_service: GrowthService | None = None
 
 
-def get_growth_service(llm_service: Any | None = None) -> GrowthService:
+def get_growth_service(llm_service: Any | None = None, sandbox: Any = None) -> GrowthService:
     global _growth_service
     if _growth_service is None:
         if llm_service is None:
             from services.llm_service import get_llm_service
             llm_service = get_llm_service()
-        _growth_service = GrowthService(llm_service)
+        if sandbox is None:
+            try:
+                from app.api.v1.sandbox import get_sandbox
+                sandbox = get_sandbox()
+            except Exception:
+                pass
+        _growth_service = GrowthService(llm_service, sandbox)
     return _growth_service
+

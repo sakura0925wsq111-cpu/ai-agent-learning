@@ -1,0 +1,114 @@
+<!-- 状态栏占位 -->
+<view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+
+<!-- 自定义导航栏 -->
+<view class="custom-nav">
+  <view class="nav-left" bindtap="goBack">
+    <text class="back-icon">‹</text>
+  </view>
+  <view class="nav-title">规划报告</view>
+  <view class="nav-right">
+    <view class="share-btn" bindtap="shareReport">
+      <text class="share-icon">↗</text>
+    </view>
+  </view>
+</view>
+
+<scroll-view class="report-container" scroll-y enhanced show-scrollbar="{{false}}">
+  <!-- 报告头部 -->
+  <view class="report-header">
+    <view class="report-badge">AI 生成</view>
+    <text class="report-title">{{reportTitle}}</text>
+    <text class="report-date">生成于 {{createTime}}</text>
+    
+    <!-- 下载/分享操作 -->
+    <view class="report-actions">
+      <view class="action-btn" bindtap="downloadPDF">
+        <text class="action-icon">📄</text>
+        <text class="action-label">下载 PDF</text>
+      </view>
+      <view class="action-btn" bindtap="saveToAlbum">
+        <text class="action-icon">🖼</text>
+        <text class="action-label">保存长图</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 执行摘要 -->
+  <view class="report-section">
+    <view class="section-header">
+      <view class="section-line" style="background: {{themeColor}}"></view>
+      <text class="section-name">执行摘要</text>
+    </view>
+    <view class="summary-box" style="background: {{themeColor}}08">
+      <text class="summary-text">{{summary}}</text>
+    </view>
+  </view>
+
+  <!-- 详细内容：动态区块 -->
+  <view 
+    class="report-section"
+    wx:for="{{sections}}"
+    wx:key="title"
+  >
+    <view class="section-header">
+      <view class="section-line" style="background: {{themeColor}}"></view>
+      <text class="section-name">{{item.title}}</text>
+    </view>
+    
+    <!-- 文本内容 -->
+    <block wx:if="{{item.type === 'text'}}">
+      <text class="section-text">{{item.content}}</text>
+    </block>
+    
+    <!-- 列表内容 -->
+    <block wx:if="{{item.type === 'list'}}">
+      <view class="list-item" wx:for="{{item.items}}" wx:for-item="li" wx:key="*this">
+        <view class="list-bullet" style="background: {{themeColor}}"></view>
+        <text class="list-text">{{li}}</text>
+      </view>
+    </block>
+    
+    <!-- 时间线 -->
+    <block wx:if="{{item.type === 'timeline'}}">
+      <view class="timeline">
+        <view class="timeline-item" wx:for="{{item.events}}" wx:for-item="ev" wx:key="time">
+          <view class="timeline-dot" style="border-color: {{themeColor}}"></view>
+          <view class="timeline-content">
+            <text class="timeline-time">{{ev.time}}</text>
+            <text class="timeline-desc">{{ev.description}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+    
+    <!-- 数据卡片 -->
+    <block wx:if="{{item.type === 'stats'}}">
+      <view class="stats-grid">
+        <view class="stat-card" wx:for="{{item.stats}}" wx:for-item="st" wx:key="label">
+          <text class="stat-value" style="color: {{themeColor}}">{{st.value}}</text>
+          <text class="stat-label">{{st.label}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 底部提示 -->
+  <view class="report-footer">
+    <image class="footer-logo" src="/images/logo-small.png"></image>
+    <text class="footer-text">本报告由 iCampus AI 生成，仅供参考</text>
+  </view>
+
+  <!-- 安全区域 -->
+  <view style="height: 48rpx;"></view>
+</scroll-view>
+
+<!-- 底部固定按钮 -->
+<view class="bottom-bar">
+  <view class="btn-secondary" bindtap="viewHistory">
+    <text>历史记录</text>
+  </view>
+  <view class="btn-primary" bindtap="startNewPlan">
+    <text>制定新规划</text>
+  </view>
+</view>

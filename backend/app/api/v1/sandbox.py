@@ -1,0 +1,362 @@
+# -*- coding: utf-8 -*-
+"""Sandbox API — FastAPI routes for the DecisionSandbox multi-path comparison system.
+
+Endpoints:
+    GET  /sandbox/paths          — list all available comparison paths
+    POST /sandbox/start          — start a new sandbox session
+    POST /sandbox/chat           — send a message during a sandbox session
+    POST /sandbox/resume         — resume a session with saved state
+    GET  /sandbox/result/{id}    — get the final projection result
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
+from loguru import logger
+
+from sandbox.orchestrator import DecisionSandbox
+from sandbox.schemas import (
+    SandboxStartRequest,
+    SandboxChatRequest,
+    SandboxChatResponse,
+    SandboxResumeRequest,
+    SandboxResultResponse,
+    SandboxPathListResponse,
+    SandboxPathInfo,
+    ProjectionResult,
+)
+from database.session import get_db
+from sqlalchemy.orm import Session
+
+router = APIRouter(prefix="/sandbox", tags=["sandbox"])
+
+# ── Sandbox singleton ──────────────────────────────────────────
+_sandbox: DecisionSandbox | None = None
+
+
+def get_sandbox() -> DecisionSandbox:
+    """Dependency: get the DecisionSandbox singleton."""
+    global _sandbox
+    if _sandbox is None:
+        from services.llm_service import get_llm_service
+        from planning.router import PlanningRouter
+        from services.memory_service import memory_service
+
+        _sandbox = DecisionSandbox(
+            llm_service=get_llm_service(),
+            planning_router=PlanningRouter(get_llm_service()),
+            memory_service=memory_service,
+        )
+        logger.info("Sandbox singleton initialized")
+    return _sandbox
+
+
+# ── Session store ──────────────────────────────────────────────
+# Session helpers — sessions live in DecisionSandbox._sessions only.
+# The API layer accesses them through sandbox methods with auth checks.
+
+
+def _load_session(sandbox, session_id, user_id=""):
+    session = sandbox.get_session(session_id)
+    if session is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Session not found")
+    if user_id and session.user_id != user_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Access denied")
+    return session
+
+
+# ── Helper: build projection result ────────────────────────────
+
+def _build_projection(raw: dict[str, Any] | None) -> ProjectionResult | None:
+    """Build a ProjectionResult from raw dict, gracefully handling missing fields."""
+    if not raw:
+        return None
+    try:
+        return ProjectionResult(**raw)
+    except Exception as exc:
+        logger.warning("ProjectionResult validation failed: {}", exc)
+        return None
+
+
+# ── Endpoints ──────────────────────────────────────────────────
+
+@router.get("/paths", response_model=SandboxPathListResponse)
+async def list_paths(sandbox: DecisionSandbox = Depends(get_sandbox)):
+    """List all available paths for comparison."""
+    paths = sandbox.list_available_paths()
+    return SandboxPathListResponse(
+        paths=[SandboxPathInfo(**p) for p in paths]
+    )
+
+
+@router.post("/start", response_model=SandboxChatResponse)
+async def start_session(
+    request: SandboxStartRequest,
+    sandbox: DecisionSandbox = Depends(get_sandbox),
+    db: Session = Depends(get_db),
+):
+    """Start a new sandbox session.
+
+    Creates a fresh session, loads user memories, and starts the discovery phase.
+    If paths are pre-selected, they're set in the session.
+    """
+    # Start session with memory loading
+    session = sandbox.start_session(
+        user_id=request.user_id,
+        db_session=db,
+    )
+
+
+    # Pre-set paths if specified
+    if request.paths:
+        session.path_selections = [p.value for p in request.paths]
+        logger.info(
+            "Sandbox[{}]: pre-selected paths: {}",
+            session.session_id, session.path_selections,
+        )
+
+    # Kick off discovery phase
+    result = sandbox.chat(session, "开始", db_session=db)
+
+    # Persist session
+
+    return SandboxChatResponse(
+        session_id=session.session_id,
+        user_id=session.user_id,
+        phase=result["phase"],
+        finished=result.get("finished", False),
+        message=result["message"],
+        discovery_round=result.get("discovery_round", 0),
+        max_discovery_rounds=result.get("max_discovery_rounds", 7),
+        path_selections=result.get("path_selections", []),
+        projection_result=_build_projection(result.get("projection_result")),
+        state=result.get("state"),
+        error=result.get("error"),
+    )
+
+
+@router.post("/chat", response_model=SandboxChatResponse)
+async def chat(
+    request: SandboxChatRequest,
+    sandbox: DecisionSandbox = Depends(get_sandbox),
+    db: Session = Depends(get_db),
+):
+    """Send a message during a sandbox session.
+
+    The message is processed through the current phase of the workflow.
+    """
+    session = _load_session(sandbox, request.session_id, request.user_id)
+
+    if session.finished:
+        # Session already complete — return cached result
+        return SandboxChatResponse(
+            session_id=session.session_id,
+            user_id=session.user_id,
+            phase=session.current_phase.value,
+            finished=True,
+            message="本次分析已完成。可以查看对比结果。",
+            path_selections=session.path_selections,
+            path_reports=session.path_reports if session.path_reports else None,
+            projection_result=_build_projection(session.projection_result),
+            state=session.to_dict(),
+        )
+
+    if not request.message.strip():
+        # Empty message — return current state without advancing
+        last_q = "请继续。"
+        if session.discovery_history:
+            last_q = session.discovery_history[-1]["q"]
+        return SandboxChatResponse(
+            session_id=session.session_id,
+            user_id=session.user_id,
+            phase=session.current_phase.value,
+            finished=False,
+            message=last_q,
+            discovery_round=session.discovery_round,
+            max_discovery_rounds=7,
+            path_selections=session.path_selections,
+            state=session.to_dict(),
+        )
+
+    result = sandbox.chat(session, request.message, db_session=db)
+
+    # Persist session
+
+    return SandboxChatResponse(
+        session_id=session.session_id,
+        user_id=session.user_id,
+        phase=result["phase"],
+        finished=result.get("finished", False),
+        message=result["message"],
+        discovery_round=result.get("discovery_round", 0),
+        max_discovery_rounds=result.get("max_discovery_rounds", 7),
+        path_selections=result.get("path_selections", []),
+        path_reports=result.get("path_reports"),
+        projection_result=_build_projection(result.get("projection_result")),
+        show_cards=result.get("show_cards", False),
+        cards=result.get("cards", []),
+        report_text=result.get("report_text", ""),
+        state=result.get("state"),
+        error=result.get("error"),
+    )
+
+
+@router.post("/resume", response_model=SandboxChatResponse)
+async def resume_session(
+    request: SandboxResumeRequest,
+    sandbox: DecisionSandbox = Depends(get_sandbox),
+    db: Session = Depends(get_db),
+):
+    """Resume a sandbox session with previously saved state.
+
+    Used when the client has persisted the session state and wants to continue.
+    """
+    # Restore from the provided state
+    from sandbox.state import SandboxSession
+    session = SandboxSession.from_dict(request.state)
+    sandbox._sessions[session.session_id] = session
+
+    if session.finished:
+        return SandboxChatResponse(
+            session_id=session.session_id,
+            user_id=session.user_id,
+            phase=session.current_phase.value,
+            finished=True,
+            message="本次分析已完成。可以查看对比结果。",
+            path_selections=session.path_selections,
+            path_reports=session.path_reports if session.path_reports else None,
+            projection_result=_build_projection(session.projection_result),
+            state=session.to_dict(),
+        )
+
+    if not request.message.strip():
+        return SandboxChatResponse(
+            session_id=session.session_id,
+            user_id=session.user_id,
+            phase=session.current_phase.value,
+            finished=False,
+            message="请继续。已恢复上次的会话状态。",
+            discovery_round=session.discovery_round,
+            max_discovery_rounds=7,
+            path_selections=session.path_selections,
+            state=session.to_dict(),
+        )
+
+    result = sandbox.chat(session, request.message, db_session=db)
+
+    # Persist session
+
+    return SandboxChatResponse(
+        session_id=session.session_id,
+        user_id=session.user_id,
+        phase=result["phase"],
+        finished=result.get("finished", False),
+        message=result["message"],
+        discovery_round=result.get("discovery_round", 0),
+        max_discovery_rounds=result.get("max_discovery_rounds", 7),
+        path_selections=result.get("path_selections", []),
+        path_reports=result.get("path_reports"),
+        projection_result=_build_projection(result.get("projection_result")),
+        show_cards=result.get("show_cards", False),
+        cards=result.get("cards", []),
+        report_text=result.get("report_text", ""),
+        state=result.get("state"),
+        error=result.get("error"),
+    )
+
+
+
+@router.get("/handoff")
+async def handoff_to_agent(
+    session_id: str = __import__("fastapi").Query(..., description="Sandbox session ID"),
+    path_type: str = __import__("fastapi").Query(..., description="Chosen path type (career/graduate/civil/major)"),
+    sandbox: DecisionSandbox = Depends(get_sandbox),
+):
+    """Hand off sandbox context to a planning agent.
+
+    After the user sees the sandbox comparison and picks a direction,
+    this endpoint packages all discovery context and returns the first
+    planning agent question. The frontend should then switch to the
+    growth/chat flow with the returned agent_state.
+
+    Returns:
+        - agent_type: the chosen planning agent type
+        - agent_label: Chinese label
+        - initial_question: first follow-up question from the agent
+        - handoff_context: all discovery data for the frontend to pass to growth/start
+        - agent_state: initial PlanningState for growth/chat
+    """
+    try:
+        result = sandbox.handoff_to_agent(
+            session_id=session_id,
+            path_type=path_type,
+        )
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Sandbox handoff failed: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@router.get("/result/{session_id}")
+async def get_result(
+    session_id: str,
+    sandbox: DecisionSandbox = Depends(get_sandbox),
+):
+    """Get the final projection result for a completed session."""
+    session = sandbox.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Extract match scores from projection_result
+    matches = []
+    proj = session.projection_result or {}
+    projections = proj.get("projections", [])
+    matrix = proj.get("comparison_matrix", {})
+    matrix_scores = matrix.get("scores", {})
+    
+    # Try to find "???" dimension index
+    match_dim_idx = None
+    dims = matrix.get("dimensions", [])
+    for i, d in enumerate(dims):
+        if "??" in str(d):
+            match_dim_idx = i
+            break
+    
+    for p in projections:
+        pt = p.get("path_type", "")
+        score = None
+        
+        # First: use explicit match_score from projection
+        if "match_score" in p and isinstance(p["match_score"], (int, float)):
+            score = p["match_score"]
+        # Fallback: extract from comparison_matrix scores
+        elif match_dim_idx is not None and pt in matrix_scores:
+            dim_scores = matrix_scores[pt]
+            if isinstance(dim_scores, list) and match_dim_idx < len(dim_scores):
+                score = dim_scores[match_dim_idx] * 10  # convert 1-10 to percentage
+        
+        if score is not None:
+            matches.append({
+                "type": pt,
+                "score": score / 100.0 if score > 1 else score,
+                "recommended": score >= 80,
+            })
+    
+    # Sort by score descending
+    matches.sort(key=lambda m: m["score"], reverse=True)
+
+    return {
+        "session_id": session.session_id,
+        "user_id": session.user_id,
+        "finished": session.finished,
+        "path_selections": session.path_selections,
+        "path_reports": session.path_reports if session.path_reports else None,
+        "projection_result": session.projection_result if session.projection_result else None,
+        "matches": matches,
+        "summary": proj.get("summary", ""),
+    }

@@ -23,7 +23,7 @@ def _serialize_value(value: Any) -> str:
 def _build_conflict_history(old_value: str, timestamp: datetime) -> str:
     """Build a history note when a memory value changes."""
     ts_str = timestamp.strftime("%Y-%m-%d %H:%M")
-    return f"[鏃у€? {old_value} (鏇存柊浜?{ts_str})]"
+    return f"[旧值: {old_value} (更新于 {ts_str})]"
 
 
 def history_note_in_source(source: str) -> bool:

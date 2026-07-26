@@ -1,0 +1,157 @@
+page {
+  background: #FFFFFF;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;
+}
+
+.status-bar {
+  width: 100%;
+}
+
+.nav-back {
+  padding: 20rpx 32rpx;
+}
+
+.back-icon {
+  font-size: 48rpx;
+  color: #1A1A1A;
+}
+
+.register-content {
+  padding: 0 48rpx 60rpx;
+}
+
+.header-section {
+  margin-top: 20rpx;
+}
+
+.title {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #1A1A1A;
+  display: flex;
+  align-items: center;
+}
+
+.star {
+  font-size: 36rpx;
+  margin-left: 8rpx;
+}
+
+.subtitle {
+  font-size: 28rpx;
+  color: #666666;
+  margin-top: 16rpx;
+}
+
+.mascot {
+  width: 180rpx;
+  height: 180rpx;
+  display: block;
+  margin: 20rpx 0 20rpx auto;
+}
+
+.form-section {
+  margin-top: 20rpx;
+}
+
+.form-item {
+  margin-bottom: 28rpx;
+}
+
+.form-label {
+  font-size: 30rpx;
+  color: #1A1A1A;
+  font-weight: 500;
+  margin-bottom: 16rpx;
+}
+
+.required {
+  color: #FA8C16;
+}
+
+.input-wrap {
+  display: flex;
+  align-items: center;
+  background: #F8F9FA;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+  border: 2rpx solid transparent;
+}
+
+.input-wrap:focus-within {
+  border-color: #FA8C16;
+  background: #FFFFFF;
+}
+
+.input-icon {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.input-icon image {
+  width: 100%;
+  height: 100%;
+}
+
+.form-input {
+  flex: 1;
+  font-size: 30rpx;
+  color: #1A1A1A;
+  min-width: 0;
+}
+
+.form-input:disabled {
+  color: #1A1A1A;
+  background: transparent;
+}
+
+.arrow-down {
+  font-size: 32rpx;
+  color: #999999;
+  transform: rotate(90deg);
+}
+
+.submit-btn {
+  width: 100%;
+  height: 96rpx;
+  line-height: 96rpx;
+  background: #FDBA8C;
+  color: #FFFFFF;
+  font-size: 32rpx;
+  font-weight: 600;
+  border-radius: 48rpx;
+  border: none;
+  margin-top: 40rpx;
+}
+
+.submit-btn.active {
+  background: #FA8C16;
+}
+
+.submit-btn::after {
+  border: none;
+}
+
+.agreement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 32rpx;
+  font-size: 24rpx;
+}
+
+.agree-check {
+  transform: scale(0.7);
+  margin-right: 4rpx;
+}
+
+.agree-text {
+  color: #999999;
+}
+
+.agree-link {
+  color: #4A90D9;
+}

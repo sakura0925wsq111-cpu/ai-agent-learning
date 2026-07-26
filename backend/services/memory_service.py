@@ -389,5 +389,65 @@ class MemoryService:
         return memory_crud.count_by_user(db, user_id=user_id)
 
 
+
+    # ── Per-message async extraction (for growth + sandbox modes) ─────────
+
+    def extract_from_turn_async(
+        self,
+        user_id: str,
+        user_message: str,
+        assistant_message: str = "",
+    ) -> None:
+        """Fire a background thread to extract memories from the latest turn.
+
+        Called after each user message in growth mode and sandbox mode.
+        The extraction runs asynchronously so it never blocks the chat response.
+
+        Args:
+            user_id: The user's ID.
+            user_message: The user's latest message text.
+            assistant_message: The assistant's response (optional, for context).
+        """
+        if not user_message.strip():
+            return
+
+        # Build minimal message list for extraction
+        messages: list[dict[str, str]] = [
+            {"role": "user", "content": user_message[:2000]},
+        ]
+        if assistant_message.strip():
+            messages.append({"role": "assistant", "content": assistant_message[:2000]})
+
+        thread = threading.Thread(
+            target=self._run_per_turn_extraction,
+            args=(user_id, messages),
+            daemon=True,
+            name=f"mem-extract-{user_id[:8]}",
+        )
+        thread.start()
+        logger.debug("Memory: fired async extraction for user={}", user_id)
+
+    def _run_per_turn_extraction(
+        self,
+        user_id: str,
+        messages: list[dict[str, str]],
+    ) -> None:
+        """Background thread: extract memories and save to DB."""
+        from database.session import SessionLocal
+        db = SessionLocal()
+        try:
+            result = self.extract_and_save(
+                db, user_id=user_id, messages=messages,
+            )
+            logger.info(
+                "Memory: async extraction saved {} items for user={}",
+                len(result), user_id,
+            )
+        except Exception as exc:
+            logger.warning("Memory: async extraction failed for user={}: {}", user_id, exc)
+        finally:
+            db.close()
+
+
 # Singleton
 memory_service = MemoryService()

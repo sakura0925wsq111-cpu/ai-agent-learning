@@ -100,10 +100,10 @@ CAREER_TASK_FILL_PROMPT = """你是大学生就业规划顾问。为用户的学
 
 CAREER_ANALYSIS_STRATEGY: dict = {
     "focus_dimensions": [
-        "专业匹配度分析",
-        "职业兴趣评估",
-        "技能差距诊断",
-        "行业前景判断",
+        "技术基础评估",
+        "项目经历分析",
+        "英语能力评估",
+        "职业目标明确度",
         "城市就业环境",
         "竞争态势评估",
         "时间规划合理性",
@@ -123,6 +123,10 @@ CAREER_ANALYSIS_STRATEGY: dict = {
         "期望的工作城市和环境",
         "对薪资和工作强度的预期",
         "最大的求职顾虑是什么",
+    ],
+    "topic_order": [
+        "professional_bg", "motivation", "career_direction", "skills_projects",
+        "location", "salary_expectations", "concerns"
     ],
 }
 

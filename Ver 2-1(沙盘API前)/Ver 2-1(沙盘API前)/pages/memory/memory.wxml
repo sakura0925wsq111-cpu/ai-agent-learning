@@ -1,0 +1,62 @@
+<!-- 状态栏占位 -->
+<view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+
+<!-- 自定义导航栏 -->
+<view class="custom-nav">
+  <view class="nav-left" bindtap="goBack">
+    <text class="back-icon">‹</text>
+  </view>
+  <view class="nav-title">记忆面板</view>
+  <view class="nav-right">
+    <text class="more-icon">⋯</text>
+  </view>
+</view>
+
+<scroll-view class="memory-container" scroll-y enhanced show-scrollbar="{{false}}">
+  
+  <!-- 记忆摘要 -->
+  <view class="memory-summary">
+    <view class="summary-header">
+      <image class="summary-avatar" src="/images/ai-avatar.png"></image>
+      <view class="summary-info">
+        <text class="summary-title">AI 记住的你</text>
+        <text class="summary-count">共 {{memories.length}} 条记忆</text>
+      </view>
+    </view>
+    <text class="summary-desc">这些记忆帮助 AI 更好地理解你，提供个性化建议</text>
+  </view>
+
+  <!-- 记忆列表 -->
+  <view class="memory-list">
+    <view 
+      class="memory-item"
+      wx:for="{{memories}}"
+      wx:key="key"
+      data-key="{{item.key}}"
+      bindtap="editMemory"
+      bindlongpress="deleteMemory"
+    >
+      <view class="memory-header">
+        <view class="memory-tag" style="background: {{item.color}}20; color: {{item.color}}">
+          {{item.category}}
+        </view>
+        <text class="memory-time">{{item.updated_at}}</text>
+      </view>
+      <text class="memory-key">{{item.label}}</text>
+      <text class="memory-value">{{item.value}}</text>
+      <view class="memory-edit-hint">
+        <text class="edit-icon">✎</text>
+        <text>点击编辑，长按删除</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加记忆 -->
+  <view class="add-memory-btn" bindtap="addMemory">
+    <text class="add-icon">+</text>
+    <text>添加新记忆</text>
+  </view>
+
+  <!-- 底部留白 -->
+  <view style="height: 48rpx;"></view>
+</scroll-view>

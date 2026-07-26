@@ -1,5 +1,5 @@
-﻿# -*- coding: utf-8 -*-
-"""PlanningAgent Framework — state management for the 7-step planning workflow.
+# -*- coding: utf-8 -*-
+"""PlanningAgent Framework ? state management for the 7-step planning workflow.
 
 Steps:
     1. Read user profile
@@ -10,7 +10,7 @@ Steps:
     6. Decompose into 90-day action plan
     7. Generate structured JSON output
 
-All agents share this state model — only prompts, analysis strategies,
+All agents share this state model ? only prompts, analysis strategies,
 and output templates differ per agent type.
 """
 
@@ -24,6 +24,7 @@ from typing import Any
 class WorkflowStep(str, Enum):
     READ_PROFILE = "read_profile"
     FOLLOW_UP = "follow_up"
+    AWAIT_TRIGGER = "await_trigger"
     ANALYZE = "analyze"
     IDENTIFY_PROBLEMS = "identify_problems"
     SET_GOALS = "set_goals"
@@ -36,6 +37,7 @@ class WorkflowStep(str, Enum):
 WORKFLOW_ORDER: list[WorkflowStep] = [
     WorkflowStep.READ_PROFILE,
     WorkflowStep.FOLLOW_UP,
+    WorkflowStep.AWAIT_TRIGGER,
     WorkflowStep.ANALYZE,
     WorkflowStep.IDENTIFY_PROBLEMS,
     WorkflowStep.SET_GOALS,
@@ -43,7 +45,7 @@ WORKFLOW_ORDER: list[WorkflowStep] = [
     WorkflowStep.GENERATE_OUTPUT,
 ]
 
-MAX_FOLLOW_UP_ROUNDS: int = 7
+MAX_FOLLOW_UP_ROUNDS: int = 5
 MIN_FOLLOW_UP_ROUNDS: int = 5
 MAX_RETRIES_PER_QUESTION: int = 2
 
@@ -54,13 +56,13 @@ AMBIGUOUS_PATTERNS: frozenset[str] = frozenset({
     "都差不多", "都可以", "再说吧", "还没考虑",
 })
 
-# ── 方案 B: 计划阶段固定模板 ──────────────────────────────────
+# ?? ?? B: ???????? ??????????????????????????????????
 
 PLAN_PHASE_TEMPLATE: list[dict[str, Any]] = [
-    {"phase": "第1-2周", "tasks_count": 3, "key": "phase_1"},
-    {"phase": "第3-4周", "tasks_count": 3, "key": "phase_2"},
-    {"phase": "第5-8周", "tasks_count": 4, "key": "phase_3"},
-    {"phase": "第9-12周", "tasks_count": 4, "key": "phase_4"},
+    {"phase": "?1-2?", "tasks_count": 3, "key": "phase_1"},
+    {"phase": "?3-4?", "tasks_count": 3, "key": "phase_2"},
+    {"phase": "?5-8?", "tasks_count": 4, "key": "phase_3"},
+    {"phase": "?9-12?", "tasks_count": 4, "key": "phase_4"},
 ]
 
 MIN_ADVANTAGES: int = 3
@@ -93,7 +95,7 @@ class PlanningState:
     retry_count: int = 0
     follow_up_complete: bool = False
 
-    # Step 3: Analyze (方案 B: LLM 输出 → parsed into this)
+    # Step 3: Analyze (?? B: LLM ?? ? parsed into this)
     analysis_raw: str = ""
     analysis: dict[str, Any] = field(default_factory=dict)
     # Expected shape:
@@ -103,24 +105,24 @@ class PlanningState:
     #     "advantages": [{"point": "...", "detail": "..."}],
     # }
 
-    # Step 4: Identified problems (方案 B: 代码计算, no longer LLM)
+    # Step 4: Identified problems (?? B: ????, no longer LLM)
     identified_problems: list[dict[str, Any]] = field(default_factory=list)
     # Expected shape:
-    # [{"skill": "Redis缓存", "status": "缺失", "priority": "high"}, ...]
+    # [{"skill": "Redis??", "status": "??", "priority": "high"}, ...]
 
-    # Step 5: Long-term goal (方案 B: LLM generates text only)
+    # Step 5: Long-term goal (?? B: LLM generates text only)
     long_term_goal: str = ""
 
-    # Step 6: Action plan (方案 B: 代码骨架 + LLM per phase)
+    # Step 6: Action plan (?? B: ???? + LLM per phase)
     action_plan: list[dict[str, Any]] = field(default_factory=list)
 
-    # Step 7: Final unified output (方案 B: 100% 代码组装)
+    # Step 7: Final unified output (?? B: 100% ????)
     output: dict[str, Any] = field(default_factory=dict)
 
     # Error tracking
     error_message: str = ""
 
-    # ── Step Helpers ──────────────────────────────────────────
+    # ?? Step Helpers ??????????????????????????????????????????
 
     def advance_step(self) -> WorkflowStep:
         """Move to the next workflow step."""
@@ -150,7 +152,9 @@ class PlanningState:
         """Record a follow-up Q&A pair."""
         self.follow_up_answers[question] = answer
         self.follow_up_history.append({"q": question, "a": answer})
-        self.follow_up_round += 1
+        # Only count if it is not an ambiguous/non-answer
+        if not self.is_ambiguous(answer):
+            self.follow_up_round += 1
 
     def should_continue_follow_up(self) -> bool:
         """Determine if more follow-up questions are needed.
@@ -207,7 +211,7 @@ class PlanningState:
 
         return skills
 
-    # ── Serialization ─────────────────────────────────────────
+    # ?? Serialization ?????????????????????????????????????????
 
     def to_dict(self) -> dict[str, Any]:
         return {

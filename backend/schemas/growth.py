@@ -44,6 +44,7 @@ class GrowthStartRequest(BaseModel):
     user_id: str = Field(..., description="User ID")
     agent: AgentTypeEnum = Field(AgentTypeEnum.CAREER, description="Agent type")
 
+    sandbox_session_id: str | None = Field(None, description="Sandbox session ID for context inheritance")
 
 # Response Models
 

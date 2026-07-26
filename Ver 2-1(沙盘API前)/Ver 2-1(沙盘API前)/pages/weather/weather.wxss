@@ -1,0 +1,122 @@
+page {
+  background: #FFFFFF;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+/* 固定顶部区域 */
+.fixed-header {
+  flex-shrink: 0;
+  background: #FFFFFF;
+  width: 100%;
+}
+
+.status-bar {
+  width: 100%;
+}
+
+.custom-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 0 20rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.back-icon {
+  font-size: 48rpx;
+  color: #1A1A1A;
+  padding: 0 16rpx;
+}
+
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.nav-right {
+  width: 80rpx;
+}
+
+/* 天气内容区 */
+.weather-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 120rpx;
+}
+
+/* 温度显示 */
+.temp-section {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.temp-num {
+  font-size: 200rpx;
+  font-weight: 300;
+  color: #1A1A1A;
+  line-height: 1;
+  letter-spacing: -8rpx;
+}
+
+.temp-unit {
+  font-size: 48rpx;
+  font-weight: 300;
+  color: #1A1A1A;
+  margin-top: 20rpx;
+  margin-left: 8rpx;
+}
+
+/* 天气状况 */
+.condition-section {
+  display: flex;
+  align-items: center;
+  margin-top: 60rpx;
+}
+
+.condition-icon {
+  width: 80rpx;
+  height: 80rpx;
+  margin-right: 16rpx;
+}
+
+.condition-text {
+  font-size: 40rpx;
+  color: #1A1A1A;
+}
+
+/* 生活建议卡片 */
+.advice-card {
+  position: absolute;
+  bottom: 160rpx;
+  left: 40rpx;
+  right: 40rpx;
+  background: #FAFAFA;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  text-align: center;
+}
+
+.advice-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin-bottom: 20rpx;
+}
+
+.advice-content {
+  font-size: 28rpx;
+  color: #666666;
+  line-height: 1.6;
+}
+
+/*BY: Santian Humphrey NEVE241 */

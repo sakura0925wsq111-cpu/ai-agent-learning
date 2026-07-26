@@ -63,6 +63,7 @@ class PlanningAgent(ABC):
     def __init__(self, llm_service: Any) -> None:
         self.llm = llm_service
         self.state: PlanningState
+        self._last_asked_question: str = ""
 
     # ── Abstract: subclasses MUST implement ─────────────────────
 
@@ -138,6 +139,7 @@ class PlanningAgent(ABC):
         handlers = {
             WorkflowStep.READ_PROFILE: self._handle_read_profile,
             WorkflowStep.FOLLOW_UP: self._handle_follow_up,
+            WorkflowStep.AWAIT_TRIGGER: self._handle_await_trigger,
             WorkflowStep.ANALYZE: (
                 self._handle_analyze_split if self.use_split_workflow
                 else self._handle_analyze_legacy
@@ -183,19 +185,37 @@ class PlanningAgent(ABC):
             return self._continue_workflow("")
 
     def _handle_follow_up(self, message: str) -> dict[str, Any]:
-        """Step 2: Dynamic follow-up questions (5-7 rounds)."""
+        """Step 2: Dynamic follow-up questions (3-7 rounds).
+
+        Records user answers and advances the conversation. The LLM-generated
+        response (via _generate_dynamic_question) now includes acknowledgment,
+        info confirmation, and the next question."""
         is_ambiguous = self.state.is_ambiguous(message)
 
-        current_q_id = f"follow_up_{self.state.follow_up_round + 1}"
-        self.state.record_follow_up(current_q_id, message)
+        # —— Skip detection: user wants to jump to analysis ——
+        skip_keywords = ["开始规划", "开始分析", "直接规划", "跳过", "不用问了", "可以了"]
+        if any(kw in message for kw in skip_keywords) and self.state.follow_up_round >= 2:
+            self.state.follow_up_complete = True
+            self.state.advance_step()
+            logger.info("PlanningAgent[{}]: user skipped follow-up at round {}", self.agent_type, self.state.follow_up_round)
+            trigger_msg = "好的，信息收集得差不多了，可以开始规划了。准备好了就说【开始规划】吧！"
+            return self._build_response(
+                step="awaiting", finished=False, message=trigger_msg,
+                follow_up_round=self.state.follow_up_round,
+            )
+
+        # Store the previous question (the one the user just answered)
+        prev_q = self._last_asked_question or f"follow_up_{self.state.follow_up_round + 1}"
+        self.state.record_follow_up(prev_q, message)
 
         if is_ambiguous:
             self.state.ambiguous_count += 1
             if self.state.retry_count < MAX_RETRIES_PER_QUESTION:
                 self.state.retry_count += 1
-                next_q = self._generate_dynamic_question(is_retry=True, last_answer=message)
+                next_msg = self._generate_dynamic_question(is_retry=True, last_answer=message)
+                self._last_asked_question = next_msg
                 return self._build_response(
-                    step="follow_up", finished=False, message=next_q,
+                    step="follow_up", finished=False, message=next_msg,
                     follow_up_round=self.state.follow_up_round,
                 )
             self.state.retry_count = 0
@@ -203,17 +223,40 @@ class PlanningAgent(ABC):
             self.state.retry_count = 0
 
         if self.state.should_continue_follow_up():
-            next_q = self._generate_dynamic_question(is_retry=False, last_answer=message)
+            next_msg = self._generate_dynamic_question(is_retry=False, last_answer=message)
+            self._last_asked_question = next_msg
             return self._build_response(
-                step="follow_up", finished=False, message=next_q,
+                step="follow_up", finished=False, message=next_msg,
                 follow_up_round=self.state.follow_up_round,
             )
 
         self.state.follow_up_complete = True
         self.state.advance_step()
-        logger.info("PlanningAgent[{}]: follow-up complete after {} rounds",
+        logger.info("PlanningAgent[{}]: follow-up complete after {} rounds, awaiting trigger",
                     self.agent_type, self.state.follow_up_round)
-        return self._continue_workflow(message)
+        trigger_msg = "信息收集完毕，可以开始规划了。准备好了就说\"开始规划\"吧！"
+        return self._build_response(
+            step="awaiting",
+            finished=False,
+            message=trigger_msg,
+            follow_up_round=self.state.follow_up_round,
+        )
+
+    # ── Await Trigger (between FOLLOW_UP and ANALYZE) ──────────
+
+    def _handle_await_trigger(self, message: str) -> dict[str, Any]:
+        """Wait for user to say '开始规划' before starting analysis."""
+        trigger_keywords = ["开始规划", "开始", "规划", "好的", "可以", "行", "嗯", "好", "生成", "来吧", "ok", "yes", "go", "开始分析"]
+        if any(kw in message for kw in trigger_keywords):
+            self.state.advance_step()
+            logger.info("PlanningAgent[{}]: trigger confirmed, advancing to ANALYZE", self.agent_type)
+            return self._continue_workflow("")
+        else:
+            return self._build_response(
+                step="awaiting",
+                finished=False,
+                message="准备好了就说\"开始规划\"，我们马上开始！",
+            )
 
     # ── 方案 B: 5-Step Split Handlers ──────────────────────────
 
@@ -624,62 +667,104 @@ class PlanningAgent(ABC):
     # ── Dynamic Question Generation (unchanged) ─────────────────
 
     def _generate_dynamic_question(self, is_retry: bool, last_answer: str) -> str:
-        """Generate the next dynamic follow-up question via LLM."""
+        """Generate the next dynamic follow-up question via LLM.
+
+        Uses a clean system prompt (role + style) and a focused user prompt
+        (context + instruction) for higher-quality, human-like responses.
+        """
         strategy = self.build_analysis_strategy()
         topics = strategy.get("question_topics", [])
         history = self.state.follow_up_history
 
+        # Only keep recent 5 rounds to control context length
+        recent_history = history[-5:] if len(history) > 5 else history
         history_text = "\n".join(
-            f"Q: {h['q']}\nA: {h['a']}" for h in history
-        ) if history else "（尚无追问记录）"
+            f"Q: {h['q']}\nA: {h['a']}" for h in recent_history
+        ) if recent_history else "尚无追问记录"
+        if len(history) > 5:
+            history_text = f"（更早的{len(history)-5}轮对话已省略）\n{history_text}"
 
         if is_retry:
-            instruction = f"用户刚才的回答「{last_answer}」比较模糊。请换个角度追问，帮助用户更具体地表达。"
+            instruction = (
+                f"用户刚才的回答「{last_answer}」比较简短，"
+                f"请换一个角度温和地引导用户说得更具体一些。"
+            )
         else:
             covered = len(history)
             remaining = MAX_FOLLOW_UP_ROUNDS - covered
-            instruction = (
-                f"当前是第{covered}轮追问，还剩{remaining}轮。"
-                f"请根据已有信息，提出下一个最有价值的问题。"
-                f"如果信息已经足够（至少覆盖了{len(topics) // 2}个维度），"
-                f"请生成一个收尾问题准备进入分析阶段。"
-            )
+            if remaining <= 1:
+                instruction = (
+                    f"当前已是第{covered}轮追问，接近尾声。"
+                    f"请用一个收尾性的问题，为进入分析阶段做准备。"
+                )
+            else:
+                instruction = (
+                    f"当前是第{covered}轮追问，还剩{remaining}轮。"
+                    f"请根据已有信息和尚未覆盖的话题，提出下一个最有价值的问题。"
+                )
 
         user_context = self.state.build_context_for_llm()
+        today = __import__("datetime").date.today().strftime("%Y年%m月%d日")
 
-        prompt = f"""你是{self.agent_label}领域的专业顾问，正在通过追问了解用户情况。
+        # System prompt: stable persona + style rules
+        system_prompt = f"""你是{self.agent_label}领域的专业顾问，同时也是一位温暖、善于倾听的学长/学姐。
 
-## 已知用户信息
+## 聊天风格
+- 先简短回应对方上一句话，让对方感到被认真倾听
+- 然后自然地过渡到下一个问题，像朋友聊天一样流畅
+- 每次只问一个问题，不要一次抛出多个问题
+- 回复长度控制在 80‑200 字，简洁有温度
+
+## 行为准则
+- 追问阶段你的工作就是倾听和提问，把分析留给后续的报告生成阶段
+- 结合用户已透露的信息来追问，体现你在认真跟进
+- 不问用户已经明确回答过的问题
+- 如果用户回答模糊，温和地引导对方展开，而不是直接跳到下一个话题"""
+
+        # User prompt: current context and specific instruction
+        user_prompt = f"""当前日期：{today}
+
+已知用户信息：
 {user_context if user_context else "（暂无）"}
 
-## 需要覆盖的话题
+本轮需要覆盖的话题方向：
 {chr(10).join(f"- {t}" for t in topics)}
 
-## 已完成的问答
+已完成的对话：
 {history_text}
 
-## 本轮指令
+本轮任务：
 {instruction}
 
-## 规则
-- 只输出一个问题，不要加任何前缀、评论或 JSON
-- 问题要具体、有引导性
-- 避免"是/否"类封闭式问题
-- 根据用户已知信息自然衔接，不要重复问已知信息
-- 如果这是最后一轮，用一个总结性问题收尾"""
+请直接输出你的回复（纯文本，不要 JSON，不要 Markdown）。"""
 
         try:
             response = self.llm.chat(
-                user_message=prompt, temperature=0.8, max_tokens=256,
+                user_message=user_prompt,
+                system_prompt=system_prompt,
+                temperature=0.65,
+                max_tokens=700,
             )
             return response.strip()
         except Exception:
             if is_retry:
-                return "可以再具体说说吗？比如有没有特别在意的方向或限制条件？"
+                return "我理解你可能还在思考。没关系，我们可以换个角度——你目前最关心的是什么？"
             elif len(history) >= 5:
-                return "好的，我已经了解了你的基本情况。还有什么特别想补充的吗？"
+                return "感谢你的分享，我已经对你的情况有了比较全面的了解。在进入分析之前，还有什么想补充的吗？"
             else:
-                return "接下来我想了解你的具体情况，能详细说说吗？"
+                return "我明白了。接下来我想更深入地了解你的具体情况，方便的话可以详细说说吗？"
+    def _build_confirmed_summary(self) -> str:
+        """Build a summary of confirmed information from follow-up history."""
+        items: list[str] = []
+        history = self.state.follow_up_history
+        # Extract key information from each Q&A pair
+        for entry in history:
+            answer = entry.get("a", "").strip()
+            if answer and len(answer) < 50:
+                items.append(answer)
+        if items:
+            return "\n".join(f"✓ {item}" for item in items)
+        return ""
 
     # ── Helpers ─────────────────────────────────────────────────
 
@@ -717,7 +802,6 @@ class PlanningAgent(ABC):
             "follow_up_round": follow_up_round,
             "max_follow_up_rounds": MAX_FOLLOW_UP_ROUNDS,
             "report": report,
-            "state": self.state.to_dict(),
         }
 
     def _build_error(self, message: str) -> dict[str, Any]:

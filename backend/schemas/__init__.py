@@ -1,13 +1,9 @@
 ﻿"""Pydantic schemas — request/response data models."""
 
 from schemas.response import APIResponse
-from schemas.user import UserCreate, UserUpdate, UserResponse
-from schemas.conversation import (
-    ConversationCreate,
-    ConversationResponse,
-    ConversationListResponse,
-    ConversationBatchCreate,
-    ConversationMessageItem,
+from schemas.user import (
+    UserCreate, UserUpdate, UserResponse,
+    LoginRequest, LoginResponse,
 )
 from schemas.memory import (
     MemoryCreate,
@@ -23,12 +19,9 @@ __all__ = [
     "UserCreate",
     "UserUpdate",
     "UserResponse",
-    "ConversationCreate",
-    "ConversationResponse",
-    "ConversationListResponse",
-    "ConversationBatchCreate",
-    "ConversationMessageItem",
-    "MemoryCreate",
+    "LoginRequest",
+    "LoginResponse",
+                "MemoryCreate",
     "MemoryUpdate",
     "MemoryResponse",
     "MemoryListResponse",

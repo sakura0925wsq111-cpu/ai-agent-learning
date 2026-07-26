@@ -1,4 +1,4 @@
-﻿"""LLM service — unified interface to language model APIs.
+"""LLM service — unified interface to language model APIs.
 
 Supports any OpenAI-compatible provider (DeepSeek, Qwen, OpenAI, etc.)
 by switching LLM_BASE_URL / LLM_API_KEY / LLM_MODEL in .env.
@@ -24,6 +24,26 @@ class LLMService:
         )
         self._model = settings.llm_model
 
+    @staticmethod
+    def _sanitize(text: str) -> str:
+        """Clean LLM output: fix encoding artifacts, strip garbled markers."""
+        if not text:
+            return text
+        # Replace common encoding corruption patterns
+        text = text.replace("\ufffd", "")  # Unicode replacement char
+        text = text.replace("\x00", "")     # Null bytes
+        # If the text is mostly ???, return empty to trigger fallback
+        question_count = text.count("?") + text.count("\uff1f")
+        total = max(len(text.replace(" ", "")), 1)
+        if question_count / total > 0.6:
+            return ""
+        # Ensure valid UTF-8 round-trip
+        try:
+            text.encode("utf-8").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            return text.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+        return text.strip()
+
     def chat(
         self,
         user_message: str,
@@ -31,20 +51,7 @@ class LLMService:
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> str:
-        """Send a single-turn message to the LLM and return the reply.
-
-        Args:
-            user_message: The user's input text.
-            system_prompt: Optional system-level instruction.
-            temperature: Sampling temperature (0.0-2.0).
-            max_tokens: Max tokens in the response.
-
-        Returns:
-            The model's text response.
-
-        Raises:
-            RuntimeError: If the API call fails or returns empty content.
-        """
+        """Send a single-turn message to the LLM and return the reply."""
         messages: list[dict[str, str]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -60,6 +67,9 @@ class LLMService:
         content = response.choices[0].message.content
         if not content:
             raise RuntimeError("LLM returned empty response.")
+        content = LLMService._sanitize(content)
+        if not content:
+            raise RuntimeError("LLM returned empty or garbled response.")
         return content
 
     def chat_multi_turn(
@@ -68,20 +78,7 @@ class LLMService:
         temperature: float = 0.3,
         max_tokens: int = 2048,
     ) -> str:
-        """Send a multi-turn conversation to the LLM.
-
-        Args:
-            messages: List of {"role": "...", "content": "..."} dicts.
-                      Must include at least one message.
-            temperature: Sampling temperature (lower for structured output).
-            max_tokens: Max tokens in the response.
-
-        Returns:
-            The model's text response.
-
-        Raises:
-            RuntimeError: If the API call fails or returns empty content.
-        """
+        """Send a multi-turn conversation to the LLM."""
         if not messages:
             raise ValueError("messages must not be empty")
 
@@ -95,6 +92,9 @@ class LLMService:
         content = response.choices[0].message.content
         if not content:
             raise RuntimeError("LLM returned empty response.")
+        content = LLMService._sanitize(content)
+        if not content:
+            raise RuntimeError("LLM returned empty or garbled response.")
         return content
 
 

@@ -1,0 +1,92 @@
+<!-- 固定顶部区域 -->
+<view class="fixed-header">
+  <!-- 状态栏占位 -->
+  <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+</view>
+
+<!-- 可滚动内容区 -->
+<scroll-view class="scroll-content" scroll-y>
+
+  <!-- 用户信息卡片 -->
+  <view class="user-card" bindtap="editProfile">
+    <image class="user-avatar" src="/images/mascot1.png" mode="aspectFit"></image>
+    <view class="user-info">
+      <view class="user-name-wrap">
+        <text class="user-name">{{userInfo.name}}</text>
+        <text class="user-star">✨</text>
+      </view>
+      <view class="user-school">{{userInfo.school}}</view>
+      <view class="user-tags">
+        <view class="user-tag">
+          <image class="tag-icon" src="/images/icon-avatar.png" mode="aspectFit"></image>
+          <text class="tag-text">学号 {{userInfo.studentId}}</text>
+        </view>
+        <view class="user-tag">
+          <image class="tag-icon" src="/images/icon-calendar.png" mode="aspectFit"></image>
+          <text class="tag-text">已连续使用{{stats.dayCount}}天</text>
+        </view>
+      </view>
+    </view>
+    <text class="user-arrow">›</text>
+  </view>
+
+  <!-- 个人信息 -->
+  <view class="section-card">
+    <view class="section-header">
+      <text class="section-title">个人信息</text>
+    </view>
+    <view class="info-list">
+      <view class="info-item" wx:for="{{profileList}}" wx:key="label">
+        <view class="info-left">
+          <text class="info-label">{{item.label}}</text>
+        </view>
+        <view class="info-right">
+          <text class="info-value">{{item.value}}</text>
+          <text class="info-arrow">›</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 我的功能 -->
+  <view class="section-card">
+    <view class="section-header">
+      <text class="section-title">我的功能</text>
+    </view>
+    <view class="function-grid">
+      <view 
+        class="function-item" 
+        wx:for="{{functionList}}" 
+        wx:key="name"
+        data-index="{{index}}"
+        data-url="{{item.url}}"
+        bindtap="navigateTo"
+      >
+        <view class="function-icon-wrap" style="background: {{item.bgColor}};">
+          <image class="function-icon" src="{{item.icon}}" mode="aspectFit"></image>
+        </view>
+        <text class="function-name">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 关于我们 -->
+  <view class="section-card">
+    <view class="section-header">
+      <text class="section-title">关于我们</text>
+    </view>
+    <view class="info-list">
+      <view class="info-item" wx:for="{{aboutList}}" wx:key="label">
+        <view class="info-left">
+          <text class="info-label">{{item.label}}</text>
+        </view>
+        <view class="info-right">
+          <text class="info-arrow">›</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部留白 -->
+  <view style="height: 40rpx;"></view>
+</scroll-view>

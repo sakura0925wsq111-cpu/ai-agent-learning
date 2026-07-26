@@ -1,23 +1,119 @@
-﻿"""User REST API — CRUD endpoints for /api/v1/users."""
+"""User REST API — CRUD endpoints for /api/v1/users."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from loguru import logger
 
 from database.session import get_db
 from schemas.response import APIResponse
-from schemas.user import UserCreate, UserUpdate, UserResponse
+from schemas.user import (
+    UserCreate, UserUpdate, UserResponse,
+    LoginRequest, LoginResponse,
+)
 from crud.user import user as user_crud
 from core.exceptions import NotFoundException
+from core.config import settings
+from utils.auth import hash_password, verify_password, create_token
+from services.memory_service import memory_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("", response_model=APIResponse[UserResponse], status_code=201)
+def _sync_user_to_memory(db: Session, user_id: str, user_data: dict) -> None:
+    """Sync user profile fields into the memory system."""
+    memory_items = []
+    field_map = {
+        "school": "school",
+        "college": "college",
+        "major": "major",
+        "enroll_year": "enroll_year",
+        "grade": "grade",
+    }
+    for mem_key, data_key in field_map.items():
+        value = user_data.get(data_key, "")
+        if value:
+            memory_items.append({
+                "key": mem_key,
+                "value": str(value),
+                "memory_type": "profile",
+                "importance": 7,
+                "confidence": 1.0,
+                "source": "user_registration",
+            })
+
+    if memory_items:
+        try:
+            memory_service.save_batch(db, user_id=user_id, items=memory_items)
+            logger.info(f"Synced {len(memory_items)} profile fields to memory for user {user_id}")
+        except Exception as exc:
+            logger.warning(f"Memory sync failed (non-fatal): {exc}")
+
+
+@router.post("/login", response_model=APIResponse[LoginResponse])
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    """Login with student_id and password."""
+    user_obj = user_crud.get_by_student_id(db, student_id=payload.student_id)
+    if user_obj is None:
+        raise HTTPException(status_code=401, detail="Invalid student_id or password")
+    if not user_obj.password_hash:
+        raise HTTPException(status_code=401, detail="Invalid student_id or password")
+    if not verify_password(payload.password, user_obj.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid student_id or password")
+
+    token = create_token(user_obj.id)
+    user_resp = UserResponse.model_validate(user_obj)
+
+    # Sync existing profile data into memory (ensures memory is up to date)
+    _sync_user_to_memory(db, user_obj.id, {
+        "name": user_obj.name,
+        "student_id": user_obj.student_id,
+        "school": user_obj.school,
+        "college": user_obj.college,
+        "major": user_obj.major,
+        "enroll_year": user_obj.enroll_year,
+        "grade": user_obj.grade,
+    })
+
+    logger.info(f"User login: {user_obj.student_id}")
+    return APIResponse.ok(data=LoginResponse(token=token, user_id=user_obj.id, user=user_resp))
+
+
+@router.post("", response_model=APIResponse[LoginResponse], status_code=201)
 def create_user(payload: UserCreate, db: Session = Depends(get_db)):
-    """Create a new user."""
-    data = payload.model_dump(exclude_unset=True)
+    """Create a new user (register). Returns token + user info."""
+    # Check duplicate student_id
+    existing = user_crud.get_by_student_id(db, student_id=payload.student_id)
+    if existing:
+        raise HTTPException(status_code=409, detail="Student ID already registered")
+
+    data = {
+        "student_id": payload.student_id,
+        "name": payload.name,
+        "nickname": payload.nickname or payload.name,
+        "password_hash": hash_password(payload.password),
+        "school": payload.school,
+        "college": payload.college,
+        "major": payload.major,
+        "enroll_year": payload.enroll_year,
+        "grade": payload.grade or "",
+    }
     obj = user_crud.create(db, obj_in=data)
-    return APIResponse.ok(data=UserResponse.model_validate(obj))
+    token = create_token(obj.id)
+    user_resp = UserResponse.model_validate(obj)
+
+    # Sync profile fields to memory
+    _sync_user_to_memory(db, obj.id, {
+        "name": obj.name,
+        "student_id": obj.student_id,
+        "school": obj.school,
+        "college": obj.college,
+        "major": obj.major,
+        "enroll_year": obj.enroll_year,
+        "grade": obj.grade,
+    })
+
+    logger.info(f"User registered: {obj.student_id}")
+    return APIResponse.ok(data=LoginResponse(token=token, user_id=obj.id, user=user_resp))
 
 
 @router.get("/{user_id}", response_model=APIResponse[UserResponse])
@@ -37,6 +133,20 @@ def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db)
         raise NotFoundException(f"User {user_id} not found")
     update_data = payload.model_dump(exclude_unset=True)
     obj = user_crud.update(db, db_obj=obj, obj_in=update_data)
+
+    # Sync updated fields to memory
+    changed = {k: v for k, v in update_data.items() if v is not None}
+    if changed:
+        _sync_user_to_memory(db, obj.id, {
+            "name": obj.name,
+            "student_id": obj.student_id,
+            "school": obj.school,
+            "college": obj.college,
+            "major": obj.major,
+            "enroll_year": obj.enroll_year,
+            "grade": obj.grade,
+        })
+
     return APIResponse.ok(data=UserResponse.model_validate(obj))
 
 

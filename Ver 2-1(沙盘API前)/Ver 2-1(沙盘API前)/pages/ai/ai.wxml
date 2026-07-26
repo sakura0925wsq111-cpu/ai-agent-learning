@@ -1,0 +1,60 @@
+<!-- 状态栏占位 -->
+<view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+
+<!-- 自定义导航栏 -->
+<view class="custom-nav">
+  <view class="nav-left" bindtap="goBack">
+    <text class="back-icon">‹</text>
+  </view>
+  <view class="nav-title">AI 助手</view>
+  <view class="nav-right" bindtap="goHistory">
+    <text class="history-icon">⏱</text>
+  </view>
+</view>
+
+<!-- 主内容 -->
+<view class="ai-content">
+  
+  <!-- 标题区 -->
+  <view class="ai-header">
+    <view class="ai-title">你想从哪个模式开始？</view>
+    <view class="ai-subtitle">选择你的专属陪伴方式</view>
+  </view>
+  
+  <!-- IP形象 -->
+  <view class="mascot-wrap">
+    <image class="mascot" src="/images/mascot1.png" mode="aspectFit"></image>
+  </view>
+  
+  <!-- 模式选择卡片 -->
+  <view class="mode-list">
+    
+    <!-- 今日模式 -->
+    <view class="mode-card" bindtap="goTodayMode">
+      <view class="mode-icon-wrap" style="background: #E8F4FD;">
+        <text class="mode-icon">📅</text>
+      </view>
+      <view class="mode-info">
+        <view class="mode-name">今日模式</view>
+        <view class="mode-desc">聚焦今日安排与校园生活</view>
+        <view class="mode-detail">课程、任务、通知，帮你高效规划每一天</view>
+      </view>
+      <text class="mode-arrow">›</text>
+    </view>
+    
+    <!-- 成长模式 -->
+    <view class="mode-card" bindtap="goGrowthMode">
+      <view class="mode-icon-wrap" style="background: #E6F7E6;">
+        <text class="mode-icon">🌱</text>
+      </view>
+      <view class="mode-info">
+        <view class="mode-name">成长模式</view>
+        <view class="mode-desc">探索未来方向与成长路径</view>
+        <view class="mode-detail">考研、就业、考公、转专业，为你的未来出谋划策</view>
+      </view>
+      <text class="mode-arrow">›</text>
+    </view>
+    
+  </view>
+  
+</view>

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """CampusPal - AI Decision Coach for university students.
 
 FastAPI application entry point.
@@ -13,10 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
 from app.api.v1.users import router as users_router_v1
-from app.api.v1.conversation import router as conversation_router_v1
 from app.api.v1.memory import router as memory_router_v1
 from app.api.v1.growth import router as growth_router_v1
-from api.sandbox import router as sandbox_router
+from app.api.v1.weather import router as weather_router_v1
+from app.api.v1.sandbox import router as sandbox_router
+from app.api.v1.todos import router as todos_router_v1
 from core.config import settings
 from core.exceptions import (
     AppException,
@@ -77,9 +78,10 @@ app.add_exception_handler(Exception, general_exception_handler)
 # Routers
 app.include_router(health_router)
 app.include_router(users_router_v1, prefix="/api/v1")
-app.include_router(conversation_router_v1, prefix="/api/v1")
 app.include_router(memory_router_v1, prefix="/api/v1")
 app.include_router(growth_router_v1, prefix="/api/v1")
+app.include_router(weather_router_v1, prefix="/api/v1")
+app.include_router(todos_router_v1, prefix="/api/v1")
 app.include_router(sandbox_router)
 
 
