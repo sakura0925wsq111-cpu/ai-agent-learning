@@ -3,7 +3,7 @@ page {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: -apple-system, BlinkMacSystemFont, '.萍方-简', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, '.钀嶆柟-绠€', 'Microsoft YaHei', sans-serif;
 }
 
 .status-bar {
@@ -38,7 +38,7 @@ page {
   padding: 0 16rpx;
 }
 
-/* 消息列表 */
+/* 娑堟伅鍒楄〃 */
 .message-list {
   flex: 1;
   padding: 24rpx;
@@ -47,7 +47,7 @@ page {
   width: 100%;
 }
 
-/* 消息项 */
+/* 娑堟伅椤?*/
 .message-item {
   display: flex;
   margin-bottom: 32rpx;
@@ -64,7 +64,7 @@ page {
   justify-content: flex-end;
 }
 
-/* 头像 */
+/* 澶村儚 */
 .avatar {
   width: 72rpx;
   height: 72rpx;
@@ -86,7 +86,7 @@ page {
   font-size: 28rpx;
 }
 
-/* 气泡 */
+/* 姘旀场 */
 .message-bubble {
   max-width: 70%;
   padding: 24rpx;
@@ -111,7 +111,7 @@ page {
   line-height: 1.6;
 }
 
-/* 加载中 */
+/* 鍔犺浇涓?*/
 .loading-item {
   display: flex;
   align-items: flex-start;
@@ -157,7 +157,7 @@ page {
   40% { transform: scale(1); opacity: 1; }
 }
 
-/* 快捷选项 */
+/* 蹇嵎閫夐」 */
 .quick-actions {
   display: flex;
   flex-wrap: wrap;
@@ -178,7 +178,7 @@ page {
   box-sizing: border-box;
 }
 
-/* 输入区 */
+/* 杈撳叆鍖?*/
 .input-area {
   background: #FFFFFF;
   padding: 16rpx 24rpx 32rpx;
@@ -227,7 +227,7 @@ page {
   font-size: 36rpx;
 }
 
-/* 内联方向卡片 */
+/* 鍐呰仈鏂瑰悜鍗＄墖 */
 .cards-section {
   padding: 16rpx 24rpx;
   flex-shrink: 0;
@@ -315,7 +315,7 @@ page {
   flex-shrink: 0;
 }
 
-/* 路径多选卡片 */
+/* 璺緞澶氶€夊崱鐗?*/
 .card-checkbox {
   font-size: 36rpx;
   margin-right: 16rpx;
@@ -342,3 +342,27 @@ page {
   text-align: center;
   width: 100%;
 }
+
+.analysis-card-section {
+  background: #FFFFFF;
+  margin: 16rpx 24rpx;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  border: 2rpx solid #E8F4FD;
+}
+.analysis-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.analysis-card-icon { font-size: 40rpx; margin-right: 12rpx; }
+.analysis-card-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; }
+.analysis-card-desc { font-size: 26rpx; color: #666666; margin-bottom: 20rpx; }
+.analysis-card-actions { display: flex; gap: 16rpx; }
+.analysis-btn {
+  flex: 1; height: 72rpx; line-height: 72rpx; text-align: center;
+  border-radius: 36rpx; font-size: 28rpx; font-weight: 500; border: none;
+}
+.analysis-btn::after { border: none; }
+.correct-btn { background: #F5F5F5; color: #666666; }
+.approve-btn { background: linear-gradient(135deg, #4A90D9, #667EEA); color: #FFFFFF; }

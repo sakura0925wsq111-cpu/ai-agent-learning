@@ -208,7 +208,7 @@ class DecisionSandbox:
                 )
             else:
                 result = self._build_response(
-                    session, "?????????????",
+                    session, "抱歉，出了点问题，请重试",
                     extra={"error": True},
                 )
 

@@ -1,0 +1,24 @@
+<view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+<view class="nav-bar">
+  <view class="nav-back" bindtap="goBack"><text class="back-icon">&lt; 返回</text></view>
+  <view class="nav-title">{{type === "privacy" ? "隐私政策" : "用户协议"}}</view>
+  <view class="nav-placeholder"></view>
+</view>
+<scroll-view class="content" scroll-y>
+  <view class="text-block" wx:if="{{type === 'user'}}">
+    <view class="title">iCampus 用户协议</view>
+    <view class="para">欢迎使用 iCampus！本协议是您与 iCampus 之间关于使用本小程序服务的法律协议。</view>
+    <view class="para">1. 服务说明：iCampus 是面向大学生的 AI 校园助手，提供课程管理、成长规划、职业指导等服务。</view>
+    <view class="para">2. 用户责任：您应保证所提供的信息真实、准确。不得利用本服务从事违法活动。</view>
+    <view class="para">3. 隐私保护：我们重视您的隐私，详见隐私政策。</view>
+    <view class="para">4. 免责声明：AI 生成内容仅供参考，不构成专业建议。</view>
+  </view>
+  <view class="text-block" wx:if="{{type === 'privacy'}}">
+    <view class="title">iCampus 隐私政策</view>
+    <view class="para">我们重视您的隐私。本政策说明我们如何收集、使用和保护您的个人信息。</view>
+    <view class="para">1. 信息收集：我们收集您主动提供的学号、姓名、专业等信息，用于提供个性化服务。</view>
+    <view class="para">2. 信息使用：您的信息仅用于改进服务质量，不会出售给第三方。</view>
+    <view class="para">3. 信息安全：我们采用行业标准安全措施保护您的数据。</view>
+    <view class="para">4. 您的权利：您可以随时查看、修改或删除您的个人信息。</view>
+  </view>
+</scroll-view>

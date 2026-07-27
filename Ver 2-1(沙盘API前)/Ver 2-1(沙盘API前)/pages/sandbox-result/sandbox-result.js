@@ -5,9 +5,9 @@ Page({
     statusBarHeight: 44, sessionId: "", sandboxSessionId: "", isDebug: false,
     summary: "", messageCount: 0, insights: [], recommendation: null,
     directions: [
-      { type: "graduate", name: "考研规划", icon: "/images/icon-graduate.png", color: "#4A90D9", bgColor: "#E6F2FF", description: "院校选择、备考规划、复试模拟、资料推荐", matchScore: 0, recommended: false },
-      { type: "career", name: "就业指导", icon: "/images/icon-work.png", color: "#52C41A", bgColor: "#E6F9ED", description: "职业测评、简历优化、面试模拟、岗位推荐", matchScore: 0, recommended: false },
-      { type: "civil", name: "考公评估", icon: "/images/icon-government.png", color: "#FA8C16", bgColor: "#FFF3E6", description: "岗位匹配、备考规划、真题练习、上岸路径", matchScore: 0, recommended: false },
+      { type: "graduate", name: "考研规划", icon: "/images/icon-postgrad.png", color: "#4A90D9", bgColor: "#E6F2FF", description: "院校选择、备考规划、复试模拟、资料推荐", matchScore: 0, recommended: false },
+      { type: "career", name: "就业指导", icon: "/images/icon-job.png", color: "#52C41A", bgColor: "#E6F9ED", description: "职业测评、简历优化、面试模拟、岗位推荐", matchScore: 0, recommended: false },
+      { type: "civil", name: "考公评估", icon: "/images/icon-civil.png", color: "#FA8C16", bgColor: "#FFF3E6", description: "岗位匹配、备考规划、真题练习、上岸路径", matchScore: 0, recommended: false },
       { type: "major", name: "转专业分析", icon: "/images/icon-transfer.png", color: "#722ED1", bgColor: "#F0E6FF", description: "转专业条件、成功率、课程差异、风险评估", matchScore: 0, recommended: false }
     ]
   },
@@ -25,10 +25,10 @@ Page({
     try {
       const res = await app.request({ url: "/sandbox/paths" });
       if (res.paths && res.paths.length) {
-        const icons = { graduate: "/images/icon-graduate.png", employment: "/images/icon-work.png", career: "/images/icon-work.png", civil: "/images/icon-government.png", major: "/images/icon-transfer.png" };
+        const icons = { graduate: "/images/icon-postgrad.png", employment: "/images/icon-job.png", career: "/images/icon-job.png", civil: "/images/icon-civil.png", major: "/images/icon-transfer.png" };
         const colors = { graduate: "#4A90D9", employment: "#52C41A", career: "#52C41A", civil: "#FA8C16", major: "#722ED1" };
         const bgs = { graduate: "#E6F2FF", employment: "#E6F9ED", career: "#E6F9ED", civil: "#FFF3E6", major: "#F0E6FF" };
-        this.setData({ directions: res.paths.map(p => ({ type: p.type, name: p.name, icon: icons[p.type] || "/images/icon-graduate.png", color: colors[p.type] || "#4A90D9", bgColor: bgs[p.type] || "#E6F2FF", description: p.description || "", matchScore: 0, recommended: false })) });
+        this.setData({ directions: res.paths.map(p => ({ type: p.type, name: p.name, icon: icons[p.type] || "/images/icon-postgrad.png", color: colors[p.type] || "#4A90D9", bgColor: bgs[p.type] || "#E6F2FF", description: p.description || "", matchScore: 0, recommended: false })) });
       }
     } catch (err) {}
   },

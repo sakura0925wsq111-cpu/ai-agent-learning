@@ -23,12 +23,78 @@ def _serialize_value(value: Any) -> str:
 def _build_conflict_history(old_value: str, timestamp: datetime) -> str:
     """Build a history note when a memory value changes."""
     ts_str = timestamp.strftime("%Y-%m-%d %H:%M")
-    return f"[旧值: {old_value} (更新于 {ts_str})]"
+    return f"[鏃у€? {old_value} (鏇存柊浜?{ts_str})]"
+
+
+
+# ── Key normalization: Chinese↔English synonym dedup ──────────────
+
+# Maps common key synonyms to a canonical form.
+# Canonical keys use English short names for compactness and unambiguity.
+KEY_NORMALIZATION_MAP: dict[str, str] = {
+    # Normalize Chinese synonyms to canonical form
+    "专业": "专业",
+    "年级": "年级",
+    "性格": "性格",
+    "性格特质": "性格",
+    "兴趣": "兴趣",
+    "爱好": "兴趣",
+    "职业方向": "职业",
+    "职业": "职业",
+    "姓名": "姓名",
+    "地域": "地域",
+    "地域偏好": "地域",
+    "城市": "地域",
+    "优势": "优势",
+    "劣势": "劣势",
+    "学习能力": "学习能力",
+    "执行力": "执行力",
+    "学校": "学校",
+    "大学": "学校",
+    # Goal
+    "目标": "目标",
+    "计划": "目标",
+    "截止日期": "截止日期",
+    "考研": "目标详情",
+    "就业": "目标详情",
+    "出国": "目标详情",
+    "考公": "目标详情",
+    # Action
+    "任务": "任务",
+    "行动": "行动",
+    "完成": "完成",
+    "反馈": "反馈",
+    "学习任务": "学习任务",
+    # General
+    "当前困惑": "当前困惑",
+    "困惑": "当前困惑",
+    "技能": "技能",
+}
+
+
+def normalize_key(key: str) -> str:
+    """Normalize a memory key to its canonical Chinese form.
+
+    Maps synonyms like "职业方向" → "职业", "性格特质" → "性格".
+    Keys not in the map pass through unchanged.
+    Handles compound keys like "技能-Python".
+    """
+    if not key:
+        return key
+    stripped = key.strip()
+    if stripped in KEY_NORMALIZATION_MAP:
+        return KEY_NORMALIZATION_MAP[stripped]
+    for sep in ("-", "_"):
+        if sep in stripped:
+            prefix, rest = stripped.split(sep, 1)
+            if prefix in KEY_NORMALIZATION_MAP:
+                return f"{KEY_NORMALIZATION_MAP[prefix]}{sep}{rest}"
+    return stripped
 
 
 def history_note_in_source(source: str) -> bool:
     """Check if source already contains a conflict history note."""
-    return "[旧值:" in source
+    return "[鏃у€?" in source
 
 
 class CRUDMemory(CRUDBase[Memory]):
@@ -106,6 +172,8 @@ class CRUDMemory(CRUDBase[Memory]):
         Auto-serializes list/dict values to JSON strings.
         """
         serialized_value = _serialize_value(value)
+        # Normalize key to prevent Chinese/English synonym duplicates
+        key = normalize_key(key)
         existing = self.get_by_key(db, user_id=user_id, key=key)
         now = datetime.now(timezone.utc)
 

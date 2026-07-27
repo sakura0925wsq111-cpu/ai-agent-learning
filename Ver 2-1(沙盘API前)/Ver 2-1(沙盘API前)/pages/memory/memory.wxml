@@ -17,7 +17,7 @@
   <!-- 记忆摘要 -->
   <view class="memory-summary">
     <view class="summary-header">
-      <image class="summary-avatar" src="/images/ai-avatar.png"></image>
+      <image class="summary-avatar" src="/images/icon-avatar.png"></image>
       <view class="summary-info">
         <text class="summary-title">AI 记住的你</text>
         <text class="summary-count">共 {{memories.length}} 条记忆</text>

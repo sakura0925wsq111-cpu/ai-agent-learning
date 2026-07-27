@@ -56,13 +56,13 @@ AMBIGUOUS_PATTERNS: frozenset[str] = frozenset({
     "都差不多", "都可以", "再说吧", "还没考虑",
 })
 
-# ?? ?? B: ???????? ??????????????????????????????????
+# -- Phase template for 90-day action plan --
 
 PLAN_PHASE_TEMPLATE: list[dict[str, Any]] = [
-    {"phase": "?1-2?", "tasks_count": 3, "key": "phase_1"},
-    {"phase": "?3-4?", "tasks_count": 3, "key": "phase_2"},
-    {"phase": "?5-8?", "tasks_count": 4, "key": "phase_3"},
-    {"phase": "?9-12?", "tasks_count": 4, "key": "phase_4"},
+    {"phase": "第1-2周", "tasks_count": 3, "key": "phase_1"},
+    {"phase": "第3-4周", "tasks_count": 3, "key": "phase_2"},
+    {"phase": "第5-8周", "tasks_count": 4, "key": "phase_3"},
+    {"phase": "第9-12周", "tasks_count": 4, "key": "phase_4"},
 ]
 
 MIN_ADVANTAGES: int = 3

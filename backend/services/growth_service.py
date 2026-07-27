@@ -306,6 +306,22 @@ class GrowthService:
 
     # ── Memory integration ────────────────────────────────────
 
+
+    def get_conversation(self, db: Session, *, session_id: str) -> list[dict[str, Any]]:
+        """Get all messages for a growth session."""
+        convs = conv_crud.get_multi(db, session_id=session_id)
+        convs = sorted(convs, key=lambda c: c.created_at)
+        return [
+            {
+                "role": c.role,
+                "content": c.content,
+                "step": c.step,
+                "stage": c.stage,
+                "created_at": c.created_at.isoformat() if c.created_at else "",
+            }
+            for c in convs
+        ]
+
     async def _save_memory(self, db: Session, session: GrowthSession, report: dict[str, Any]) -> None:
         """Write key findings to Memory system for cross-session continuity."""
         try:

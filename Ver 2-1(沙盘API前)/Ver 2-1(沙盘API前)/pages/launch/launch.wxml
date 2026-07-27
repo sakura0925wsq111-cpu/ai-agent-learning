@@ -1,7 +1,7 @@
 ﻿<view class="launch-page">
   <!-- Logo区域 -->
   <view class="logo-section">
-    <image class="logo" src="/images/logo.png" mode="aspectFit"></image>
+    <image class="logo" src="/images/mascot.png" mode="aspectFit"></image>
     <view class="app-name">iCampus</view>
     <view class="app-slogan">你的校园AI伙伴</view>
   </view>

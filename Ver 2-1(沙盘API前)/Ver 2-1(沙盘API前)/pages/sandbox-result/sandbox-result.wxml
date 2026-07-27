@@ -16,7 +16,7 @@
   <!-- 顶部总结卡片 -->
   <view class="summary-card">
     <view class="summary-header">
-      <image class="summary-avatar" src="/images/ai-avatar.png"></image>
+      <image class="summary-avatar" src="/images/icon-avatar.png"></image>
       <view class="summary-title-wrap">
         <text class="summary-title">你的决策画像</text>
         <text class="summary-subtitle">基于 {{messageCount}} 轮对话生成</text>

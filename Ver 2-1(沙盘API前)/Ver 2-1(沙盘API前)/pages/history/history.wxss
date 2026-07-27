@@ -1,243 +1,109 @@
 page {
   background: #F5F7FA;
-  font-family: -apple-system, BlinkMacSystemFont, '.萍方-简', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Microsoft YaHei', sans-serif;
 }
 
-.status-bar {
-  background: #FFFFFF;
-}
+.status-bar { background: #FFFFFF; }
 
 .custom-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #FFFFFF;
-  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 88rpx; padding: 0 24rpx; background: #FFFFFF; flex-shrink: 0;
 }
 
-.back-icon {
-  font-size: 48rpx;
-  color: #1A1A1A;
-  padding: 0 16rpx;
-}
+.back-icon { font-size: 48rpx; color: #1A1A1A; padding: 0 16rpx; }
 
-.nav-title {
-  font-size: 34rpx;
-  font-weight: 600;
-  color: #1A1A1A;
-}
+.nav-title { font-size: 34rpx; font-weight: 600; color: #1A1A1A; }
 
 .filter-btn {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 12rpx 20rpx;
-  background: #F5F5F5;
-  border-radius: 12rpx;
-  font-size: 26rpx;
-  color: #666666;
+  display: flex; align-items: center; gap: 8rpx;
+  padding: 12rpx 20rpx; background: #F5F5F5;
+  border-radius: 12rpx; font-size: 26rpx; color: #666666;
 }
 
-.filter-arrow {
-  font-size: 20rpx;
-}
+.filter-arrow { font-size: 20rpx; }
 
-/* 标签栏 */
-.tab-bar {
-  display: flex;
-  background: #FFFFFF;
-  border-bottom: 2rpx solid #F0F0F0;
-}
+.tab-bar { display: flex; background: #FFFFFF; border-bottom: 2rpx solid #F0F0F0; }
 
 .tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 24rpx 0;
-  position: relative;
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 24rpx 0; position: relative;
 }
 
-.tab-item text {
-  font-size: 30rpx;
-  color: #999999;
-}
-
-.tab-item.active text {
-  color: #1A1A1A;
-  font-weight: 600;
-}
+.tab-item text { font-size: 30rpx; color: #999999; }
+.tab-item.active text { color: #1A1A1A; font-weight: 600; }
 
 .tab-line {
-  position: absolute;
-  bottom: 0;
-  width: 48rpx;
-  height: 4rpx;
-  background: #667EEA;
-  border-radius: 2rpx;
+  position: absolute; bottom: 0; width: 48rpx; height: 4rpx;
+  background: #667EEA; border-radius: 2rpx;
 }
 
-/* 历史列表 */
 .history-container {
-  padding: 0 32rpx;
-  height: calc(100vh - 88rpx - 44rpx - 88rpx);
-  box-sizing: border-box;
-  overflow-x: hidden;
+  padding: 0 32rpx; height: calc(100vh - 88rpx - 44rpx - 88rpx);
+  box-sizing: border-box; overflow-x: hidden;
 }
 
-.history-list {
-  margin-top: 24rpx;
-}
+.history-list { margin-top: 24rpx; }
 
 .history-card {
-  background: #FFFFFF;
-  border-radius: 20rpx;
-  padding: 28rpx;
-  margin-bottom: 16rpx;
+  background: #FFFFFF; border-radius: 20rpx; padding: 28rpx; margin-bottom: 16rpx;
 }
 
 .history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16rpx;
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx;
 }
 
 .history-type-tag {
-  font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-  font-weight: 500;
+  font-size: 22rpx; padding: 6rpx 16rpx; border-radius: 8rpx; font-weight: 500;
 }
 
-.history-status {
-  font-size: 22rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 6rpx;
-}
+.history-status { font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
 
-.history-status.completed {
-  color: #52C41A;
-  background: #E6F9ED;
-}
+.history-status.completed { color: #52C41A; background: #E6F9ED; }
+.history-status.in_progress { color: #FA8C16; background: #FFF3E6; }
+.history-status.abandoned { color: #999999; background: #F0F0F0; }
 
-.history-status.in_progress {
-  color: #FA8C16;
-  background: #FFF3E6;
-}
-
-.history-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #1A1A1A;
-  display: block;
-  margin-bottom: 12rpx;
-}
+.history-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 12rpx; }
 
 .history-desc {
-  font-size: 26rpx;
-  color: #666666;
-  line-height: 1.5;
-  display: block;
-  margin-bottom: 20rpx;
+  font-size: 26rpx; color: #666666; line-height: 1.5; display: block; margin-bottom: 20rpx;
 }
 
 .history-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 20rpx;
-  border-top: 2rpx solid #F0F0F0;
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 20rpx; border-top: 2rpx solid #F0F0F0;
 }
 
-.history-date {
-  font-size: 24rpx;
-  color: #999999;
-}
+.history-date { font-size: 24rpx; color: #999999; }
+.history-arrow { font-size: 28rpx; color: #999999; }
 
-.history-arrow {
-  font-size: 28rpx;
-  color: #999999;
-}
+.chat-card { padding: 24rpx 28rpx; }
 
-/* 对话卡片 */
-.chat-card {
-  padding: 24rpx 28rpx;
-}
-
-.chat-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16rpx;
-}
+.chat-header { display: flex; align-items: center; margin-bottom: 16rpx; }
 
 .chat-avatar {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  margin-right: 20rpx;
-  background: #E6F2FF;
+  width: 64rpx; height: 64rpx; border-radius: 50%; margin-right: 20rpx; background: #E6F2FF;
 }
 
-.chat-info {
-  flex: 1;
-}
+.chat-info { flex: 1; }
 
-.chat-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #1A1A1A;
-  display: block;
-}
-
-.chat-date {
-  font-size: 22rpx;
-  color: #999999;
-  margin-top: 4rpx;
-  display: block;
-}
+.chat-title { font-size: 30rpx; font-weight: 500; color: #1A1A1A; display: block; }
+.chat-date { font-size: 22rpx; color: #999999; margin-top: 4rpx; display: block; }
 
 .chat-count {
-  font-size: 22rpx;
-  color: #999999;
-  background: #F5F5F5;
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+  font-size: 22rpx; color: #999999; background: #F5F5F5;
+  padding: 6rpx 16rpx; border-radius: 8rpx;
 }
 
 .chat-preview {
-  font-size: 26rpx;
-  color: #666666;
-  line-height: 1.5;
-  display: block;
-  padding-left: 84rpx;
+  font-size: 26rpx; color: #666666; line-height: 1.5; display: block; padding-left: 84rpx;
 }
 
-/* 空状态 */
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 120rpx 40rpx;
+  display: flex; flex-direction: column; align-items: center; padding: 120rpx 40rpx;
 }
 
-.empty-icon {
-  width: 200rpx;
-  height: 200rpx;
-  margin-bottom: 32rpx;
-  opacity: 0.5;
-}
+.empty-icon-text { font-size: 80rpx; margin-bottom: 24rpx; }
 
-.empty-title {
-  font-size: 32rpx;
-  color: #999999;
-  margin-bottom: 12rpx;
-}
+.empty-title { font-size: 32rpx; color: #999999; margin-bottom: 12rpx; }
 
-.empty-desc {
-  font-size: 26rpx;
-  color: #BBBBBB;
-  text-align: center;
-}
+.empty-desc { font-size: 26rpx; color: #BBBBBB; text-align: center; }

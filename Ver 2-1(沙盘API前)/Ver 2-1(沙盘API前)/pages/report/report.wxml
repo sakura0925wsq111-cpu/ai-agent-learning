@@ -95,7 +95,7 @@
 
   <!-- 底部提示 -->
   <view class="report-footer">
-    <image class="footer-logo" src="/images/logo-small.png"></image>
+    <image class="footer-logo" src="/images/mascotsmall.png"></image>
     <text class="footer-text">本报告由 iCampus AI 生成，仅供参考</text>
   </view>
 

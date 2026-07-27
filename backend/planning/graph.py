@@ -7,7 +7,7 @@ Graph topology (FULL):
 
 Capabilities:
   1. SQLite persistence (AsyncSqliteSaver) — survives server restart
-  2. Human-in-the-Loop — interrupt_before=["planning_build_report"]
+  2. Auto-complete — analysis flows directly into report generation
   3. Intelligent routing — ambiguous → sandbox, clear goal → planning
   4. Sandbox integration — discovery → projection → handoff to planning
 """
@@ -22,7 +22,6 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.types import Command
 from loguru import logger
-
 
 class GrowthState(TypedDict, total=False):
     user_id: str
@@ -51,12 +50,10 @@ class GrowthState(TypedDict, total=False):
     # Await trigger (between FOLLOW_UP and ANALYZE)
     awaiting_trigger: bool
 
-
 # ── Helpers ────────────────────────────────────────────────────
 
 def _noop_continue(msg: str) -> dict[str, Any]:
     return {"_noop": True}
-
 
 def _restore_agent_state(agent: Any, state: GrowthState) -> None:
     ps_json = state.get("planning_state_json", "")
@@ -66,7 +63,6 @@ def _restore_agent_state(agent: Any, state: GrowthState) -> None:
         agent.restore_state(ps)
     else:
         agent.init_state()
-
 
 def _save_agent_state(agent: Any) -> dict[str, Any]:
     return {
@@ -81,36 +77,7 @@ def _save_agent_state(agent: Any) -> dict[str, Any]:
         "finished": agent.state.finished,
     }
 
-
 # ── Intent detection for router ────────────────────────────────
-
-_FUZZY_KEYWORDS: frozenset[str] = frozenset({
-    # English
-    "lost", "confused", "unsure", "dont know", "not sure",
-    "what should", "which one", "compare", "help me decide",
-    "any", "whatever", "either", "maybe",
-    # Chinese
-
-    "不知道", "迷茫", "困惑", "不确定", "怎么办", "选什么",
-    "都行", "随便", "无所谓", "没想好", "不清楚", "纠结",
-    "犹豫", "拿不准", "不知", "帮我看", "建议", "推荐",
-    "哪个好", "怎么选", "比较",
-})
-
-
-def _detect_intent(message: str) -> str:
-    """Detect user intent: 'fuzzy' → sandbox, 'clear' → planning."""
-    if not message or not message.strip():
-        return "clear"  # First turn, let follow_up ask
-    msg = message.strip()
-    if len(msg) < 2:
-        return "fuzzy"
-    for kw in _FUZZY_KEYWORDS:
-        if kw in msg:
-            return "fuzzy"
-    return "clear"
-
-
 
 # ── Professional Report Formatter ────────────────────────────────────────
 
@@ -215,21 +182,11 @@ async def build_growth_graph(
 
     # ── Node: router ───────────────────────────────────────────
     def _router_node(state: GrowthState) -> dict[str, Any]:
-        msg = state.get("user_message", "")
-        intent = _detect_intent(msg)
-        logger.debug("Router: intent={} for message={}", intent, msg[:50])
+        """Pass-through: sandbox and planning have separate entry points."""
         return {"stage": state.get("stage", "questioning")}
 
     def _route_router(state: GrowthState) -> str:
-        # If user already chose a specific path (agent_type is set & non-empty),
-        # skip sandbox routing entirely - go straight to planning.
-        agent = state.get("agent_type", "").strip()
-        if agent and agent != "sandbox":
-            return "planning"
-        msg = state.get("user_message", "")
-        intent = _detect_intent(msg)
-        if intent == "fuzzy" and sandbox_orchestrator is not None:
-            return "sandbox"
+        """Always route to planning ? sandbox has its own entry point."""
         return "planning"
 
     # ── Node: planning_follow_up ────────────────────────────────
@@ -585,5 +542,4 @@ async def build_growth_graph(
 
     return builder.compile(
         checkpointer=checkpointer,
-        interrupt_before=["planning_build_report"],
     )

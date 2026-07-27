@@ -4,20 +4,31 @@ Page({
   data: {
     statusBarHeight: 44, mode: "sandbox", agent: "career", sessionId: "", userId: "",
     messages: [], inputValue: "", isLoading: false, showQuickActions: true, showCards: false, cards: [], scrollToView: "",
-    waitingForReady: false, waitingForTrigger: false,
+    waitingForReady: false, waitingForTrigger: false, showAnalysisCard: false,
     selectingPaths: false, selectedPaths: [],
     quickOptions: ["转专业", "考研规划", "考公评估", "就业指导"]
   },
 
   onLoad: function(options) {
     var info = wx.getSystemInfoSync();
+    var userId = wx.getStorageSync("userId") || app.globalData.userId || "";
+    var mode = options.mode || "sandbox";
+    var sessionId = options.session_id || "";
+    var agent = options.agent || "career";
+
     this.setData({
       statusBarHeight: info.statusBarHeight,
-      mode: options.mode || "sandbox",
-      agent: options.agent || "career",
-      sessionId: options.session_id || "",
-      userId: wx.getStorageSync("userId") || app.globalData.userId || ""
+      mode: mode,
+      agent: agent,
+      sessionId: sessionId,
+      userId: userId
     });
+
+    if (mode === "resume") {
+      this.loadConversationHistory(sessionId);
+      return;
+    }
+
     var agentGreetings = {
       career: "准备好开始规划你的职业道路了吗？",
       employment: "准备好开始规划你的职业道路了吗？",
@@ -26,13 +37,36 @@ Page({
       major: "准备好探索新的专业方向了吗？"
     };
     var welcome;
-    if (this.data.mode === "sandbox") {
+    if (mode === "sandbox") {
       welcome = "你好呀！我是你的决策教练，聊聊你的困惑，找到更好的选择吧！";
     } else {
-      welcome = agentGreetings[this.data.agent] || "准备好开始规划了吗？";
+      welcome = agentGreetings[agent] || "准备好开始规划了吗？";
       this.setData({ waitingForReady: true, showQuickActions: false });
     }
     this.addMessage("assistant", welcome);
+  },
+
+  async loadConversationHistory(sessionId) {
+    wx.showLoading({ title: "加载对话..." });
+    try {
+      var res = await app.request({ url: "/api/v1/growth/conversation/" + sessionId });
+      var messages = [];
+      var list = res || [];
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i];
+        var id = "hist-" + i;
+        messages.push({
+          id: id,
+          role: m.role,
+          content: m.content,
+          time: m.created_at ? m.created_at.slice(11, 16) : ""
+        });
+      }
+      this.setData({ messages: messages, scrollToView: "", showQuickActions: false });
+    } catch (err) {
+      this.addMessage("assistant", "无法加载对话记录");
+    }
+    wx.hideLoading();
   },
 
   addMessage: function(role, content) {
@@ -42,14 +76,6 @@ Page({
     return id;
   },
 
-  appendLastMessage: function(content) {
-    var messages = this.data.messages;
-    if (messages.length === 0) return;
-    var last = messages[messages.length - 1];
-    last.content += content;
-    this.setData({ messages: messages });
-  },
-
   onInput: function(e) { this.setData({ inputValue: e.detail.value }); },
 
   sendMessage: function() {
@@ -57,12 +83,15 @@ Page({
     var content = this.data.inputValue.trim();
     if (!content || this.data.isLoading) return;
     this.addMessage("user", content);
-    this.setData({ inputValue: "", showQuickActions: false, isLoading: true });
+    this.setData({ inputValue: "", showQuickActions: false, isLoading: true, showAnalysisCard: false });
 
-    // Agent mode: handle greeting confirmation ("准备好了")
+    if (this.data.mode === "resume") {
+      this.setData({ mode: "agent" });
+    }
+
+    // Agent mode: handle greeting confirmation
     if (this.data.mode !== "sandbox" && this.data.waitingForReady) {
       this.setData({ waitingForReady: false, showQuickActions: false, isLoading: true });
-      var that = this;
       var agent = this.data.agent || "career";
       app.request({
         method: "POST", url: "/api/v1/growth/start",
@@ -75,8 +104,7 @@ Page({
           data: { user_id: that.data.userId, agent: agent, message: content, session_id: sid }
         });
       }).then(function(chatRes) {
-        that.addMessage("assistant", chatRes.message || "让我深入了解你的情况...");
-        that.setData({ isLoading: false });
+        that.handleAgentResponse(chatRes);
       }).catch(function() {
         that.addMessage("assistant", "网络异常，请重试");
         that.setData({ isLoading: false });
@@ -84,9 +112,8 @@ Page({
       return;
     }
 
-    var isSandbox = this.data.mode === "sandbox";
-
-    if (isSandbox) {
+    if (this.data.mode === "sandbox") {
+      var that = this;
       app.request({
         method: "POST", url: "/sandbox/chat",
         data: { session_id: this.data.sessionId, user_id: this.data.userId, message: content }
@@ -110,7 +137,7 @@ Page({
       return;
     }
 
-    // Agent 模式：先启动会话再发消息
+    // Agent mode: continue chat
     var sid = this.data.sessionId;
     var doStart = sid ? Promise.resolve({ session_id: sid }) : app.request({
       method: "POST", url: "/api/v1/growth/start",
@@ -125,11 +152,70 @@ Page({
         data: { user_id: that.data.userId, agent: that.data.agent, message: content, session_id: sid }
       });
     }).then(function(chatRes) {
-      that.addMessage("assistant", chatRes.message || "收到你的消息，让我分析一下...");
-      that.setData({ isLoading: false });
+      that.handleAgentResponse(chatRes);
     }).catch(function() {
       that.addMessage("assistant", "网络异常，请重试");
       that.setData({ isLoading: false });
+    });
+  },
+
+  handleAgentResponse: function(chatRes) {
+    var that = this;
+    if (chatRes.finished && chatRes.report) {
+      that.addMessage("assistant", chatRes.message || "报告已生成");
+      that.setData({ isLoading: false });
+      wx.showToast({ title: "报告已生成", icon: "success" });
+      setTimeout(function() {
+        wx.navigateTo({ url: "/pages/report/report?session_id=" + (chatRes.session_id || that.data.sessionId) });
+      }, 800);
+    } else if (chatRes.stage === "analyzing" && chatRes.message) {
+      that.addMessage("assistant", chatRes.message);
+      that.setData({ isLoading: false, showAnalysisCard: true });
+    } else if (chatRes.message) {
+      that.addMessage("assistant", chatRes.message);
+      that.setData({ isLoading: false, showAnalysisCard: false });
+      if (chatRes.stage === "awaiting") {
+        that.setData({ waitingForTrigger: true });
+      }
+    } else {
+      that.addMessage("assistant", "让我想想...");
+      that.setData({ isLoading: false, showAnalysisCard: false });
+    }
+  },
+
+  approveAnalysis: function() {
+    var that = this;
+    this.setData({ isLoading: true, showAnalysisCard: false });
+    app.request({
+      method: "POST", url: "/api/v1/growth/approve",
+      data: { session_id: this.data.sessionId, user_id: this.data.userId }
+    }).then(function(res) {
+      that.handleAgentResponse(res);
+    }).catch(function() {
+      that.addMessage("assistant", "生成报告失败，请重试");
+      that.setData({ isLoading: false });
+    });
+  },
+
+  correctAnalysis: function() {
+    var that = this;
+    wx.showModal({
+      title: "修正方向",
+      editable: true,
+      placeholderText: "请输入你的想法，例如：我更想走前端的路线",
+      success: function(r) {
+        if (!r.confirm || !r.content) return;
+        that.setData({ isLoading: true, showAnalysisCard: false });
+        app.request({
+          method: "POST", url: "/api/v1/growth/correct",
+          data: { session_id: that.data.sessionId, user_id: that.data.userId, correction: r.content }
+        }).then(function(res) {
+          that.handleAgentResponse(res);
+        }).catch(function() {
+          that.addMessage("assistant", "网络异常，请重试");
+          that.setData({ isLoading: false });
+        });
+      }
     });
   },
 
@@ -148,22 +234,13 @@ Page({
     wx.showLoading({ title: "启动规划中..." });
     app.request({
       method: "POST", url: "/api/v1/growth/start",
-      data: {
-        agent: agentType,
-        user_id: this.data.userId,
-        sandbox_session_id: this.data.sessionId
-      }
+      data: { agent: agentType, user_id: this.data.userId, sandbox_session_id: this.data.sessionId }
     }).then(function(res) {
       wx.hideLoading();
       var greeting = res.greeting || "准备好开始规划了吗？";
       that.setData({
-        mode: "agent",
-        agent: agentType,
-        sessionId: res.session_id || "",
-        showCards: false,
-        showQuickActions: false,
-        waitingForReady: true,
-        messages: []
+        mode: "agent", agent: agentType, sessionId: res.session_id || "",
+        showCards: false, showQuickActions: false, waitingForReady: true, messages: []
       });
       that.addMessage("assistant", greeting);
     }).catch(function() {
@@ -172,21 +249,16 @@ Page({
     });
   },
 
-  // Path selection for sandbox
   togglePathCard: function(e) {
     var type = e.currentTarget.dataset.type;
     var selected = this.data.selectedPaths.slice();
     var idx = selected.indexOf(type);
-    if (idx >= 0) {
-      selected.splice(idx, 1);
-    } else {
-      selected.push(type);
-    }
+    if (idx >= 0) { selected.splice(idx, 1); }
+    else { selected.push(type); }
     this.setData({ selectedPaths: selected });
   },
 
   confirmPathSelection: function() {
-    var that = this;
     var selected = this.data.selectedPaths;
     if (selected.length === 0) {
       wx.showToast({ title: "请至少选择一个方向", icon: "none" });
@@ -201,5 +273,4 @@ Page({
   },
 
   goBack: function() { wx.navigateBack(); }
-
 });

@@ -112,6 +112,18 @@ async def growth_report(
     return APIResponse.ok(data=result).model_dump()
 
 
+
+@router.get("/conversation/{session_id}", response_model=APIResponse[list])
+async def growth_conversation(
+    session_id: str,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Get all messages for a growth session."""
+    llm = get_llm_service()
+    service = get_growth_service(llm)
+    result = service.get_conversation(db, session_id=session_id)
+    return APIResponse.ok(data=result).model_dump()
+
 @router.get("/agents", response_model=APIResponse[AgentListResponse])
 async def list_agents() -> dict[str, Any]:
     """List all available growth agents."""
