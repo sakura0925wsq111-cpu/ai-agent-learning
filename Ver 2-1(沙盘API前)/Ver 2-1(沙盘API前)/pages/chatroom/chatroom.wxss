@@ -189,10 +189,10 @@ page {
 
 .input-box {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   background: #F5F5F5;
-  border-radius: 48rpx;
-  padding: 12rpx 16rpx;
+  border-radius: 24rpx;
+  padding: 16rpx 20rpx;
   width: 100%;
   box-sizing: border-box;
 }
@@ -211,6 +211,7 @@ page {
   color: #1A1A1A;
   height: 64rpx;
   min-width: 0;
+  line-height: 64rpx;
 }
 
 .voice-btn {
@@ -366,3 +367,50 @@ page {
 .analysis-btn::after { border: none; }
 .correct-btn { background: #F5F5F5; color: #666666; }
 .approve-btn { background: linear-gradient(135deg, #4A90D9, #667EEA); color: #FFFFFF; }
+.progress-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8rpx 24rpx 16rpx;
+}
+.progress-wrap progress { width: 80%; }
+.progress-text { font-size: 22rpx; color: #999; margin-top: 8rpx; }
+
+.retry-banner {
+  text-align: center; padding: 20rpx; margin: 0 24rpx;
+  background: #FFF3E6; border-radius: 12rpx; color: #FA8C16;
+  font-size: 26rpx;
+}
+
+.message-time { font-size: 20rpx; color: #BBB; margin-top: 4rpx; display: block; }
+
+.analysis-card-section {
+  background: #FFFFFF; margin: 16rpx 24rpx; border-radius: 20rpx;
+  padding: 24rpx; border: 2rpx solid #E8F4FD;
+}
+.analysis-card-header { display: flex; align-items: center; margin-bottom: 16rpx; }
+.analysis-card-icon { font-size: 40rpx; margin-right: 12rpx; }
+.analysis-card-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; }
+.analysis-card-desc { font-size: 26rpx; color: #666; margin-bottom: 20rpx; }
+.analysis-card-actions { display: flex; gap: 16rpx; }
+.analysis-btn {
+  flex: 1; height: 72rpx; line-height: 72rpx; text-align: center;
+  border-radius: 36rpx; font-size: 28rpx; font-weight: 500; border: none;
+}
+.analysis-btn::after { border: none; }
+.correct-btn { background: #F5F5F5; color: #666; }
+.approve-btn { background: linear-gradient(135deg, #4A90D9, #667EEA); color: #FFF; }
+.send-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #4A90D9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+.send-icon {
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: bold;
+}

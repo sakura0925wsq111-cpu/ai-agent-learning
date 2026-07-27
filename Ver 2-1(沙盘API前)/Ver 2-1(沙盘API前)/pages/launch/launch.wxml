@@ -1,4 +1,4 @@
-﻿<view class="launch-page">
+<view class="launch-page">
   <!-- Logo区域 -->
   <view class="logo-section">
     <image class="logo" src="/images/mascot.png" mode="aspectFit"></image>

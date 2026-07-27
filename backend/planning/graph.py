@@ -82,9 +82,8 @@ def _save_agent_state(agent: Any) -> dict[str, Any]:
 # ── Professional Report Formatter ────────────────────────────────────────
 
 def _format_professional_report(report: dict[str, Any], agent_label: str) -> str:
-    """Convert internal report dict into a professional, human-readable message."""
+    """Convert internal report dict into a clean, human-readable message (no Markdown syntax)."""
     parts: list[str] = []
-
     summary = report.get("summary", "")
     current_status = report.get("current_status", "")
     goal = report.get("goal", "")
@@ -94,82 +93,76 @@ def _format_professional_report(report: dict[str, Any], agent_label: str) -> str
     action_plan = report.get("action_plan", [])
     next_question = report.get("next_question", "")
 
-    # Header
-    parts.append(f"## 📋 你的{agent_label}报告")
+    parts.append(f"你的{agent_label}报告")
     parts.append("")
-
-    # Summary
     if summary:
         parts.append(summary)
         parts.append("")
-
-    # Current situation
-    if current_status:
-        parts.append("### 目前情况")
+    status_text = current_status or main_problem or ""
+    if status_text:
+        parts.append("现状分析")
+        parts.append(status_text)
         parts.append("")
-        parts.append(current_status)
-        parts.append("")
-
-    # Main problem
-    if main_problem:
-        parts.append("### 核心挑战")
-        parts.append("")
-        parts.append(main_problem)
-        parts.append("")
-
-    # Advantages
-    if advantages:
-        parts.append("### 你的优势")
-        parts.append("")
-        for a in advantages:
-            point = a.get("point", "")
-            detail = a.get("detail", "")
-            parts.append(f"- **{point}**：{detail}")
-        parts.append("")
-
-    # Risks
-    if risks:
-        parts.append("### 需要注意的风险")
-        parts.append("")
-        for r in risks:
-            level = r.get("level", "medium")
-            point = r.get("point", "")
-            detail = r.get("detail", "")
-            level_label = {"high": "🔴 高风险", "medium": "🟡 中等风险", "low": "🟢 低风险"}.get(level, "⚪")
-            parts.append(f"- {level_label} **{point}**")
-            if detail:
-                parts.append(f"  {detail}")
-        parts.append("")
-
-    # Goal
     if goal:
-        parts.append("### 90 天目标")
-        parts.append("")
+        parts.append("核心目标")
         parts.append(goal)
         parts.append("")
-
-    # Action plan
-    if action_plan:
-        parts.append("### 行动计划")
+    if advantages and isinstance(advantages, list) and len(advantages) > 0:
+        parts.append("个人优势")
+        for a in advantages:
+            if isinstance(a, dict):
+                point = a.get("point") or a.get("name") or a.get("strength") or ""
+                detail = a.get("detail") or a.get("description") or ""
+                if point:
+                    line = f"  {point}"
+                    if detail:
+                        line += f"：{detail}"
+                    parts.append(line)
+            elif isinstance(a, str):
+                parts.append(f"  {a}")
         parts.append("")
-        for phase in action_plan:
-            phase_name = phase.get("phase", "")
-            tasks = phase.get("tasks", [])
-            if phase_name:
-                parts.append(f"**{phase_name}**")
-            for task in tasks:
-                parts.append(f"- {task}")
-            parts.append("")
+    if risks and isinstance(risks, list) and len(risks) > 0:
+        parts.append("风险提示")
+        for r in risks:
+            if isinstance(r, dict):
+                risk_name = r.get("risk") or r.get("point") or r.get("name") or (next(iter(r.values()), "") if r else "")
+                mitigation = r.get("mitigation") or r.get("solution") or r.get("detail") or ""
+                if risk_name:
+                    line = f"  {risk_name}"
+                    if mitigation:
+                        line += f" — 建议：{mitigation}"
+                    parts.append(line)
+            elif isinstance(r, str):
+                parts.append(f"  {r}")
         parts.append("")
-
-    # Next steps
-    parts.append("---")
-    parts.append("")
+    if action_plan and isinstance(action_plan, list) and len(action_plan) > 0:
+        parts.append("行动路径")
+        for i, phase in enumerate(action_plan, 1):
+            if isinstance(phase, dict):
+                name = phase.get("phase") or phase.get("name") or phase.get("title") or f"阶段{i}"
+                duration = phase.get("duration") or phase.get("timeline") or ""
+                header = name + (f"（{duration}）" if duration else "")
+                parts.append(f"  {header}")
+                tasks = phase.get("tasks", [])
+                if tasks and isinstance(tasks, list):
+                    for t in tasks:
+                        if isinstance(t, dict):
+                            task_text = t.get("task") or t.get("title") or t.get("name") or (next(iter(t.values()), "") if t else "")
+                            if task_text:
+                                parts.append(f"    - {task_text}")
+                        elif isinstance(t, str):
+                            parts.append(f"    - {t}")
+                elif phase.get("detail") or phase.get("description"):
+                    parts.append(f"    {phase.get('detail') or phase.get('description', '')}")
+            elif isinstance(phase, str):
+                parts.append(f"  {phase}")
+        parts.append("")
     if next_question:
         parts.append(next_question)
         parts.append("")
+    parts.append("如对以上规划有任何疑问，随时告诉我。")
+    return "\n".join(parts)
 
-    parts.append("如果你对以上规划有任何疑问，或者希望对某一阶段进行调整，随时告诉我。")
 
     return "\n".join(parts)# ── Graph builder ──────────────────────────────────────────────
 
@@ -229,11 +222,8 @@ async def build_growth_graph(
                 agent._continue_workflow = original
             updates = _save_agent_state(agent)
             if agent.state.follow_up_complete:
-                if agent.state.current_step.value == "await_trigger":
-                    updates.update({"stage": "awaiting", "awaiting_trigger": True,
-                                    "agent_message": "信息收集完毕，可以开始规划了。准备好了就说\"开始规划\"吧！"})
-                else:
-                    updates.update({"stage": "analyzing", "agent_message": "Analyzing your situation..."})
+                updates.update({"stage": "awaiting", "awaiting_trigger": True,
+                                "agent_message": "信息收集完毕，可以开始规划了。准备好了就说\"开始规划\"吧！"})
             else:
                 is_retry = agent.state.ambiguous_count > 0 and agent.state.retry_count > 0
                 question = agent._generate_dynamic_question(is_retry=is_retry, last_answer=message)

@@ -19,7 +19,7 @@ Page({
     try {
       const res = await app.request({ url: `/api/v1/growth/history/${this.data.userId}` });
       this.setData({ planHistory: this.formatPlanHistory(res.sessions || []) });
-    } catch (err) { this.setData({ planHistory: this.getDefaultPlanHistory() }); }
+    } catch (err) { this.setData({ planHistory: [] }); }
     wx.hideLoading();
   },
 
@@ -28,7 +28,7 @@ Page({
     try {
       const res = await app.request({ url: `/api/v1/growth/history/${this.data.userId}` });
       this.setData({ chatHistory: this.formatChatHistory(res.sessions || []) });
-    } catch (err) { this.setData({ chatHistory: this.getDefaultChatHistory() }); }
+    } catch (err) { this.setData({ chatHistory: [] }); }
     wx.hideLoading();
   },
 
@@ -55,20 +55,6 @@ Page({
       last_message_time: item.updated_at || item.created_at || "",
       message_count: item.message_count || 0
     }));
-  },
-
-  getDefaultPlanHistory() {
-    return [
-      { id: 1, session_id: "plan-001", agent: "graduate", title: "2025考研全程规划", summary: "目标院校：浙江大学计算机学院，备考周期6个月", status: "completed", statusText: "已完成", typeName: "考研规划", color: "#4A90D9", created_at: "2024-07-15" },
-      { id: 2, session_id: "plan-002", agent: "career", title: "互联网大厂求职规划", summary: "目标岗位：后端开发工程师，需补充分布式系统项目经验", status: "in_progress", statusText: "进行中", typeName: "就业指导", color: "#52C41A", created_at: "2024-07-10" }
-    ];
-  },
-
-  getDefaultChatHistory() {
-    return [
-      { id: 1, session_id: "chat-001", title: "考研院校选择咨询", last_message: "那浙大的报录比大概是多少呢？", last_message_time: "今天 14:30", message_count: 12 },
-      { id: 2, session_id: "chat-002", title: "简历优化建议", last_message: "好的，我已经按照建议修改了项目描述", last_message_time: "昨天 18:20", message_count: 8 }
-    ];
   },
 
   switchTab(e) {

@@ -39,6 +39,34 @@ from planning.base import PlanningAgent, UNIFIED_OUTPUT_SCHEMA
 from utils.json_parser import safe_json_parse
 
 
+
+def _safe_json(raw):
+    """Try to parse JSON from LLM output, handling markdown fences."""
+    import json, re
+    if not raw:
+        return None
+    m = re.search(r'\{.*\}', raw, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group())
+        except:
+            pass
+    return None
+
+def _build_disco_sys(session, mem_ctx=""):
+    """Build discovery system prompt with profile context."""
+    import json
+    from sandbox.prompts.discovery import DISCOVERY_SYSTEM_PROMPT
+    prompt = DISCOVERY_SYSTEM_PROMPT
+    if mem_ctx:
+        prompt += "\n\n## ????????????\n" + mem_ctx
+    if session.user_profile:
+        filled = {k: v for k, v in session.user_profile.items() if v}
+        if filled:
+            prompt += "\n\n## ?????\n" + json.dumps(filled, ensure_ascii=False, indent=2) + "\n????????"
+    return prompt
+
+
 class DecisionSandbox:
     """Orchestrator for the decision sandbox multi-path comparison workflow.
 
@@ -242,6 +270,78 @@ class DecisionSandbox:
         finally:
             # Evict completed/errored sessions to prevent memory leaks
             self._evict_stale_sessions()
+
+
+    async def chat_stream(self, session, message, db_session=None):
+        """Stream sandbox response. Yields (event, data) tuples for SSE."""
+        from sandbox.state import SessionPhase, MAX_DISCOVERY_ROUNDS
+        import json as _json
+
+        if not message.strip():
+            yield ("done", _json.dumps({"phase": session.current_phase.value, "finished": False, "message": "请输入内容"}, ensure_ascii=False))
+            return
+
+        session.discovery_history.append({"role": "user", "content": message})
+        session.add_answer("latest_message", message)
+
+        if session.current_phase == SessionPhase.DISCOVERY:
+            yield ("status", _json.dumps({"phase": "discovery", "status": "thinking"}, ensure_ascii=False))
+            
+            is_first = (session.discovery_round == 0)
+            mem_ctx = self._format_memory(session)
+            system_prompt = _build_disco_sys(session, mem_ctx)
+            
+            history_text = "\n".join([
+                f"{h['role']}: {h['content']}" 
+                for h in session.discovery_history[-10:]
+            ])
+            user_prompt = (
+                "开始第一轮。友好打招呼，了解用户当前最大的困惑。只输出JSON。"
+                if is_first else
+                history_text + "\n\n用户说: " + message + "\n\n给出下一个问题（只一个）。只输出JSON。"
+            )
+
+            try:
+                full = ""
+                for chunk in self.llm.chat_stream(user_prompt, system_prompt, temperature=0.7, max_tokens=1024):
+                    full += chunk
+                    yield ("token", chunk)
+                
+                parsed = _safe_json(full)
+                nq = parsed.get("next_question", "") if parsed else full
+                finish = parsed.get("finish", False) if parsed else False
+                
+                if parsed and parsed.get("updated_profile"):
+                    for k, v in parsed["updated_profile"].items():
+                        if v: session.user_profile[k] = v
+                
+                session.discovery_history.append({"role": "assistant", "content": nq or full})
+                session.discovery_round += 1
+                
+                if finish or session.discovery_round >= MAX_DISCOVERY_ROUNDS:
+                    session.current_phase = SessionPhase.PATH_PROBE
+                
+                yield ("done", _json.dumps({
+                    "phase": session.current_phase.value, "finished": False,
+                    "message": nq or full,
+                    "discovery_round": session.discovery_round,
+                    "max_discovery_rounds": MAX_DISCOVERY_ROUNDS,
+                    "path_selections": session.path_selections,
+                    "show_cards": False, "state": session.to_dict(),
+                }, ensure_ascii=False))
+            except Exception as e:
+                yield ("done", _json.dumps({
+                    "phase": "discovery", "finished": False,
+                    "message": "抱歉，请稍后重试。",
+                    "discovery_round": session.discovery_round,
+                    "max_discovery_rounds": MAX_DISCOVERY_ROUNDS,
+                    "state": session.to_dict(),
+                }, ensure_ascii=False))
+            return
+
+        # Other phases: fallback to sync
+        result = self.chat(session, message, db_session)
+        yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
 
     # ── Phase 1: Discovery ──────────────────────────────────────
 
@@ -1065,18 +1165,19 @@ class DecisionSandbox:
         Called at session start so discovery phase doesn't re-ask known info.
         """
         key_mapping = {
-            "专业": "major",
-            "年级": "grade",
-            "目标": "goal",
-            "兴趣": "interested_fields",
-            "职业方向": "career_direction",
-            "当前困惑": "core_confusion",
-            "性格特质": "personality",
-            "学习能力": "learning_ability",
-            "执行力": "execution",
-            "地域偏好": "location_preference",
+            "major": "major",
+            "grade": "grade",
+            "goal": "goal",
+            "school": "school",
+            "college": "college",
+            "enroll_year": "enroll_year",
+            "career_direction": "career_direction",
+            "core_confusion": "core_confusion",
+            "personality": "personality",
+            "learning_ability": "learning_ability",
+            "execution": "execution",
+            "location_preference": "location_preference",
         }
-
         for mem_key, field in key_mapping.items():
             if mem_key in session.memory_snapshot:
                 session.user_profile[field] = session.memory_snapshot[mem_key]

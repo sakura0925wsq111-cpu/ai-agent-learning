@@ -1,4 +1,4 @@
-﻿<!-- 状态栏占位 -->
+<!-- 状态栏占位 -->
 <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
 
 <!-- 返回按钮 -->
@@ -64,20 +64,23 @@
     <!-- 入学年份 -->
     <view class="form-item">
       <view class="form-label">入学年份 <text class="required">*</text></view>
-      <view class="input-wrap" bindtap="selectYear">
-        <input class="form-input" placeholder="请选择入学年份" value="{{enrollYear}}" disabled/>
-        <text class="arrow-down">▼</text>
-      </view>
+      <picker mode="selector" range="{{yearOptions}}" bindchange="onYearChange">
+        <view class="input-wrap">
+          <input class="form-input" placeholder="请选择入学年份" value="{{enrollYear}}" disabled/>
+          <text class="arrow-down">▼</text>
+        </view>
+      </picker>
     </view>
     
-
     <!-- 年级 -->
     <view class="form-item">
       <view class="form-label">年级 <text class="required">*</text></view>
-      <view class="input-wrap" bindtap="selectGrade">
-        <input class="form-input" placeholder="请选择年级" value="{{grade}}" disabled/>
-        <text class="arrow-down">▼</text>
-      </view>
+      <picker mode="selector" range="{{gradeOptions}}" bindchange="onGradeChange">
+        <view class="input-wrap">
+          <input class="form-input" placeholder="请选择年级" value="{{grade}}" disabled/>
+          <text class="arrow-down">▼</text>
+        </view>
+      </picker>
     </view>
     
     <!-- 密码 -->

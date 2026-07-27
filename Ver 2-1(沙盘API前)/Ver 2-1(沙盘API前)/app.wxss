@@ -1,4 +1,15 @@
-/**app.wxss**/
+page {
+  --primary: #4A90D9;
+  --success: #52C41A;
+  --warning: #FA8C16;
+  --danger: #FF4D4F;
+  --radius: 16rpx;
+  --text-primary: #1A1A1A;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --bg: #F5F7FA;
+  --card-bg: #FFFFFF;
+}/**app.wxss**/
 .container {
   height: 100%;
   display: flex;

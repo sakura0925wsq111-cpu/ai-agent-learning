@@ -59,6 +59,7 @@ class QuestionCard(BaseModel):
 
 
 class GrowthChatResponse(BaseModel):
+    progress: float | None = Field(None, description="Report generation progress 0-100")
     """Response for POST /growth/chat and /growth/start."""
     session_id: str
     agent: str

@@ -6,6 +6,7 @@ AsyncSqliteSaver for persistent interrupt/resume across server restarts.
 """
 
 from __future__ import annotations
+import json
 
 import json
 from datetime import datetime, timezone
@@ -307,6 +308,126 @@ class GrowthService:
     # ── Memory integration ────────────────────────────────────
 
 
+    def free_qa(self, db: Session, *, request: GrowthChatRequest) -> dict[str, Any]:
+        """Free-form Q&A after report is complete. Uses LLM directly, not LangGraph."""
+        db_sess = _get_sess(db, request.session_id)
+        agent_type = _norm(request.agent or db_sess.agent_type)
+
+        # Load conversations
+        convs = conv_crud.get_multi(db, session_id=request.session_id)
+        convs = sorted(convs, key=lambda c: c.created_at)
+        qa_history = "\n".join([
+            f"{'User' if c.role == 'user' else 'Assistant'}: {c.content}"
+            for c in convs[-20:]  # Last 20 messages for context
+        ])
+
+        # Load report
+        report_text = ""
+        try:
+            reports = report_crud.get_multi(db, session_id=request.session_id, limit=1)
+            if reports and reports[0].full_report_json:
+                report_text = reports[0].full_report_json
+        except Exception:
+            pass
+
+        system_prompt = (
+            f"你是一个{agent_type}规划顾问。以下是你为该用户生成的规划报告摘要：\n"
+            f"{report_text[:2000]}\n\n"
+            f"以下是你们的对话历史：\n{qa_history[:2000]}\n\n"
+            f"现在用户想继续咨询，请基于以上信息直接回答问题。"
+            f"不要再追问基本信息，不要再启动规划流程，直接回答用户的问题。"
+            f"保持友好、专业、有帮助的语气。"
+        )
+
+        msg = request.message.strip()
+        try:
+            response = self.llm.chat(
+                user_message=msg,
+                system_prompt=system_prompt,
+            )
+        except Exception as e:
+            logger.error("Free QA LLM error: {}", e)
+            response = "抱歉，我暂时无法回答这个问题，请稍后重试。"
+
+        # Save conversation
+        conv_crud.create(db, obj_in={
+            "session_id": db_sess.id, "user_id": request.user_id,
+            "role": "user", "content": msg,
+            "step": 999, "stage": "qa",
+        })
+        conv_crud.create(db, obj_in={
+            "session_id": db_sess.id, "user_id": request.user_id,
+            "role": "assistant", "content": response,
+            "step": 999, "stage": "qa",
+        })
+        db.commit()
+        return {"message": response, "session_id": db_sess.id}
+
+
+    def free_qa_stream(self, db: Session, *, request: GrowthChatRequest):
+        """Stream free-form Q&A response token by token using real LLM streaming."""
+        db_sess = _get_sess(db, request.session_id)
+        agent_type = _norm(request.agent or db_sess.agent_type)
+
+        # Load conversations
+        convs = conv_crud.get_multi(db, session_id=request.session_id)
+        convs = sorted(convs, key=lambda c: c.created_at)
+        qa_history = "\n".join([
+            f"{'User' if c.role == 'user' else 'Assistant'}: {c.content}"
+            for c in convs[-20:]
+        ])
+
+        # Load report
+        report_text = ""
+        try:
+            reports = report_crud.get_multi(db, session_id=request.session_id, limit=1)
+            if reports and reports[0].full_report_json:
+                report_text = reports[0].full_report_json
+        except Exception:
+            pass
+
+        system_prompt = (
+            f"????{agent_type}???????????????????????\n"
+            f"{report_text[:2000]}\n\n"
+            f"???????????\n{qa_history[:2000]}\n\n"
+            f"????????????????????????"
+            f"??????????????????????????????"
+            f"???????????????"
+        )
+
+        msg = request.message.strip()
+        full_response = ""
+
+        try:
+            for chunk in self.llm.chat_stream(
+                user_message=msg,
+                system_prompt=system_prompt,
+                temperature=0.7,
+                max_tokens=1024,
+            ):
+                full_response += chunk
+                yield ("token", chunk)
+        except Exception as e:
+            logger.error("Free QA stream error: {}", e)
+            full_response = "?????????????????????"
+            yield ("token", full_response)
+
+        # Save conversation
+        conv_crud.create(db, obj_in={
+            "session_id": db_sess.id, "user_id": request.user_id,
+            "role": "user", "content": msg,
+            "step": 999, "stage": "qa",
+        })
+        conv_crud.create(db, obj_in={
+            "session_id": db_sess.id, "user_id": request.user_id,
+            "role": "assistant", "content": full_response,
+            "step": 999, "stage": "qa",
+        })
+        db.commit()
+
+        yield ("done", json.dumps({"message": full_response, "session_id": db_sess.id}, ensure_ascii=False))
+
+
     def get_conversation(self, db: Session, *, session_id: str) -> list[dict[str, Any]]:
         """Get all messages for a growth session."""
         convs = conv_crud.get_multi(db, session_id=session_id)
@@ -442,6 +563,7 @@ def _state_from_db(db_sess: GrowthSession, req: GrowthChatRequest) -> GrowthStat
         "finished": db_sess.finished,
         "agent_message": "", "report": None, "error_message": "",
         "last_question": saved.get("last_question", ""),
+        "awaiting_trigger": saved.get("awaiting_trigger", False),
     }
 
 
@@ -465,6 +587,7 @@ def _flush(db_sess: GrowthSession, result: dict[str, Any]) -> None:
         "last_question": result.get("last_question", ""),
         "stage": result.get("stage", "questioning"),
         "finished": result.get("finished", False),
+        "awaiting_trigger": result.get("awaiting_trigger", False),
     }
     db_sess.state_json = json.dumps(state_blob, ensure_ascii=False)
     if result.get("report"):
@@ -509,6 +632,7 @@ def _to_response(session_id: str, agent_type: str, result: dict[str, Any]) -> Gr
             required=True, index=fu + 1, total=MAX_FOLLOW_UP,
         )
     return GrowthChatResponse(
+        progress=result.get("progress", 0),
         session_id=session_id, agent=agent_type,
         stage="report" if finished else stage,
         finished=finished, current_step=fu,

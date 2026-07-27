@@ -12,7 +12,9 @@ Page({
     grade: "",
     password: "",
     agreed: false,
-    canSubmit: false
+    canSubmit: false,
+    yearOptions: ["2020", "2021", "2022", "2023", "2024", "2025"],
+    gradeOptions: ["大一", "大二", "大三", "大四", "研一", "研二", "研三"]
   },
 
   onLoad(options) {
@@ -39,47 +41,14 @@ Page({
     this.checkCanSubmit();
   },
 
-  selectYear() {
-    const that = this;
-    wx.showActionSheet({
-      itemList: ["2020", "2021", "2022", "2023", "2024", "2025"],
-      success(res) {
-        const years = ["2020", "2021", "2022", "2023", "2024", "2025"];
-        that.setData({ enrollYear: years[res.tapIndex] });
-        that.checkCanSubmit();
-      }
-    });
+  onYearChange(e) {
+    this.setData({ enrollYear: this.data.yearOptions[e.detail.value] });
+    this.checkCanSubmit();
   },
 
-  selectGrade() {
-    const that = this;
-    // 先选择学历层次（6项以内）
-    wx.showActionSheet({
-      itemList: ["本科", "硕士研究生"],
-      success(res) {
-        if (res.tapIndex === 0) {
-          // 本科
-          wx.showActionSheet({
-            itemList: ["大一", "大二", "大三", "大四"],
-            success(r) {
-              const grades = ["大一", "大二", "大三", "大四"];
-              that.setData({ grade: grades[r.tapIndex] });
-              that.checkCanSubmit();
-            }
-          });
-        } else {
-          // 硕士研究生
-          wx.showActionSheet({
-            itemList: ["研一", "研二", "研三"],
-            success(r) {
-              const grades = ["研一", "研二", "研三"];
-              that.setData({ grade: grades[r.tapIndex] });
-              that.checkCanSubmit();
-            }
-          });
-        }
-      }
-    });
+  onGradeChange(e) {
+    this.setData({ grade: this.data.gradeOptions[e.detail.value] });
+    this.checkCanSubmit();
   },
 
   async doRegister() {

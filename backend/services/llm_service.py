@@ -19,8 +19,8 @@ class LLMService:
         self._client = OpenAI(
             api_key=settings.llm_api_key,
             base_url=settings.llm_base_url,
-            timeout=30.0,
-            max_retries=1,
+            timeout=90.0,
+            max_retries=2,
         )
         self._model = settings.llm_model
 
@@ -99,6 +99,33 @@ class LLMService:
 
 
 # ── Singleton ────────────────────────────────────────────────────
+
+
+    def chat_stream(
+        self,
+        user_message: str,
+        system_prompt: str = "",
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+    ):
+        """Stream LLM response token by token."""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": user_message})
+
+        stream = self._client.chat.completions.create(
+            model=self._model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=True,
+        )
+
+        for chunk in stream:
+            delta = chunk.choices[0].delta
+            if delta.content:
+                yield delta.content
 
 _llm_service: LLMService | None = None
 

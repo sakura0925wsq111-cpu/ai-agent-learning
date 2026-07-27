@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Growth Agent API — chat-based conversation flow + SSE streaming + human-in-the-loop.
 
 Endpoints (existing, backward-compatible):
@@ -228,3 +228,105 @@ async def growth_approve(
         user_id=request.user_id,
     )
     return APIResponse.ok(data=result).model_dump()
+
+
+
+@router.post("/chat/stream")
+async def growth_chat_stream(
+    request: GrowthChatRequest,
+    db: Session = Depends(get_db),
+):
+    """Stream growth chat response via SSE with token-level streaming."""
+    import asyncio, json as _json
+    from fastapi.responses import StreamingResponse
+
+    logger.info("SSE /growth/chat/stream session={}, user={}", request.session_id, request.user_id)
+    llm = get_llm_service()
+    service = get_growth_service(llm)
+
+    async def event_generator():
+        # Run normal chat to get the full response
+        result = await service.chat(db, request=request)
+        msg = result.message or ""
+        session_id = result.session_id
+        stage = result.stage
+        finished = result.finished
+        report = result.report
+        progress = result.progress
+
+        # Send initial status
+        yield f"event: status\ndata: {_json.dumps({'session_id': session_id, 'stage': stage, 'progress': progress}, ensure_ascii=False)}\n\n"
+
+        # Stream the message token by token (split by character for CJK, by word for English)
+        if msg:
+            import re
+            # Split into small chunks: CJK chars individually, words as groups
+            chunks = re.findall(r'[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]|[a-zA-Z0-9]+|[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffefa-zA-Z0-9]+', msg)
+            for chunk in chunks:
+                yield f"data: {_json.dumps({'token': chunk}, ensure_ascii=False)}\n\n"
+                await asyncio.sleep(0.02)  # Small delay for streaming effect
+
+        # Send done event with full metadata
+        done_data = {
+            "session_id": session_id, "stage": stage,
+            "finished": finished, "message": msg,
+            "progress": progress,
+        }
+        if report:
+            done_data["report"] = report
+        yield f"event: done\ndata: {_json.dumps(done_data, ensure_ascii=False, default=str)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/qa", response_model=APIResponse[dict])
+async def growth_qa(
+    request: GrowthChatRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Free-form Q&A based on completed report and chat history."""
+    logger.info("POST /growth/qa session={}, user={}", request.session_id, request.user_id)
+    llm = get_llm_service()
+    service = get_growth_service(llm)
+    result = service.free_qa(db, request=request)
+    return APIResponse.ok(data=result).model_dump()
+
+
+@router.post("/qa/stream")
+async def growth_qa_stream(
+    request: GrowthChatRequest,
+    db: Session = Depends(get_db),
+):
+    """Stream free-form Q&A response token by token via real LLM streaming."""
+    import json as _json
+    from fastapi.responses import StreamingResponse
+
+    logger.info("SSE /growth/qa/stream session={}", request.session_id)
+    llm = get_llm_service()
+    service = get_growth_service(llm)
+
+    async def event_generator():
+        for event, data in service.free_qa_stream(db, request=request):
+            if event == "token":
+                yield f"data: {_json.dumps({'token': data}, ensure_ascii=False)}\n\n"
+            elif event == "done":
+                yield f"event: done\ndata: {data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 
@@ -29,6 +30,24 @@ from sandbox.schemas import (
 )
 from database.session import get_db
 from sqlalchemy.orm import Session
+
+
+
+def _clean_message(msg: str) -> str:
+    """Remove internal fields from sandbox output."""
+    if not msg:
+        return msg
+    msg = re.sub(r'{[^{}]*"(?:next_question|reasoning|analysis|internal)"[^{}]*}\n?', '', msg)
+    lines = msg.split(chr(10))
+    cleaned = []
+    for line in lines:
+        s = line.strip()
+        if s.startswith("###") and any(kw in s for kw in ["Reason", "Analysis", "Next", "Output"]):
+            continue
+        if s.startswith("{") and len(s) > 20 and s.endswith("}"):
+            continue
+        cleaned.append(line)
+    return chr(10).join(cleaned).strip()
 
 router = APIRouter(prefix="/sandbox", tags=["sandbox"])
 
@@ -268,6 +287,35 @@ async def resume_session(
         error=result.get("error"),
     )
 
+
+
+
+from fastapi.responses import StreamingResponse
+
+@router.post("/chat/stream")
+async def sandbox_chat_stream(
+    request: SandboxChatRequest,
+    sandbox: DecisionSandbox = Depends(get_sandbox),
+    db: Session = Depends(get_db),
+):
+    """Stream sandbox chat response via SSE."""
+    session = sandbox.get_session(request.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    async def event_stream():
+        async for event, data in sandbox.chat_stream(session, request.message, db_session=db):
+            yield f"event: {event}\ndata: {data}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @router.get("/handoff")

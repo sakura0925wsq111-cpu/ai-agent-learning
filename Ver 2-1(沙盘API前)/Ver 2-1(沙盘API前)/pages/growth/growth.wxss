@@ -232,3 +232,81 @@ page {
   font-size: 32rpx;
   color: #999999;
 }
+
+/* ????????? */
+.sandbox-entry-card {
+  margin: 24rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  position: relative;
+  overflow: hidden;
+}
+.sandbox-entry-card::after {
+  content: "";
+  position: absolute;
+  right: -20rpx;
+  top: -20rpx;
+  width: 160rpx;
+  height: 160rpx;
+  background: rgba(255,255,255,0.08);
+  border-radius: 50%;
+}
+.sandbox-entry-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+.sandbox-badge {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  margin-right: 16rpx;
+  font-weight: 600;
+}
+.sandbox-entry-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #fff;
+}
+.sandbox-entry-body {
+  margin-bottom: 24rpx;
+}
+.sandbox-path-tags {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+.path-tag {
+  font-size: 24rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  font-weight: 500;
+}
+.tag-blue { background: rgba(74,144,217,0.5); }
+.tag-green { background: rgba(82,196,26,0.5); }
+.tag-orange { background: rgba(250,140,22,0.5); }
+.tag-purple { background: rgba(114,46,209,0.5); }
+.sandbox-entry-desc {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.5;
+}
+.sandbox-entry-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sandbox-entry-cta {
+  font-size: 30rpx;
+  color: #fff;
+  font-weight: 600;
+}
+.sandbox-entry-arrow {
+  font-size: 32rpx;
+  color: rgba(255,255,255,0.9);
+}

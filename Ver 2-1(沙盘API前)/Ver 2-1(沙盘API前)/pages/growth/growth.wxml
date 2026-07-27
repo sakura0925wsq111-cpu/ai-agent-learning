@@ -97,16 +97,26 @@
 
   </view>
 
-  <!-- 底部引导 -->
-  <view class="help-card" bindtap="goChat">
-    <image class="help-mascot" src="/images/mascotsmall.png" mode="aspectFit"></image>
-    <view class="help-text">
-      <view class="help-title">不知道怎么选？</view>
-      <view class="help-desc">和我聊聊你的困惑吧</view>
+  <!-- 沙盒多路径对比入口 -->
+  <view class="sandbox-entry-card" bindtap="goChat">
+    <view class="sandbox-entry-header">
+      <view class="sandbox-badge">NEW</view>
+      <view class="sandbox-entry-title">多路径对比</view>
     </view>
-    <text class="help-arrow">→</text>
+    <view class="sandbox-entry-body">
+      <view class="sandbox-path-tags">
+        <text class="path-tag tag-blue">考研</text>
+        <text class="path-tag tag-green">就业</text>
+        <text class="path-tag tag-orange">考公</text>
+        <text class="path-tag tag-purple">转专业</text>
+      </view>
+      <view class="sandbox-entry-desc">AI 同时分析四条路径，帮你找到最适合的方向</view>
+    </view>
+    <view class="sandbox-entry-footer">
+      <text class="sandbox-entry-cta">开始对比</text>
+      <text class="sandbox-entry-arrow">→</text>
+    </view>
   </view>
-
   <!-- 底部留白 -->
   <view style="height: 40rpx;"></view>
 

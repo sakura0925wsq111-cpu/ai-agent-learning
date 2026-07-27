@@ -40,59 +40,74 @@ Page({
     const sections = [];
 
     // 现状分析
-    if (report.current_status || report.main_problem) {
-      sections.push({
-        title: "现状分析",
-        type: "text",
-        content: [report.current_status, report.main_problem].filter(Boolean).join("\n\n")
-      });
+    const status = report.current_status || report.main_problem || "";
+    if (status) {
+      sections.push({ title: "现状分析", type: "text", content: status });
     }
 
     // 核心目标
     if (report.goal) {
-      sections.push({
-        title: "核心目标",
-        type: "text",
-        content: report.goal
-      });
+      sections.push({ title: "核心目标", type: "text", content: report.goal });
     }
 
-    // 优势
+    // 个人优势 - 防御性取值
     const advantages = report.advantages || [];
-    if (advantages.length > 0) {
-      sections.push({
-        title: "个人优势",
-        type: "list",
-        items: advantages.map(a => a.point + (a.detail ? "：" + a.detail : ""))
-      });
+    const advItems = advantages.map(a => {
+      if (typeof a === "string") return a;
+      if (typeof a === "object") {
+        const vals = Object.values(a).filter(v => v && typeof v === "string");
+        return vals.slice(0, 2).join("：") || JSON.stringify(a);
+      }
+      return String(a);
+    }).filter(v => v);
+    if (advItems.length > 0) {
+      sections.push({ title: "个人优势", type: "list", items: advItems });
     }
 
-    // 风险
+    // 风险提示 - 防御性取值
     const risks = report.risks || [];
-    if (risks.length > 0) {
-      sections.push({
-        title: "风险提示",
-        type: "list",
-        items: risks.map(r => r.risk + (r.mitigation ? " — " + r.mitigation : ""))
-      });
+    const riskItems = risks.map(r => {
+      if (typeof r === "string") return r;
+      if (typeof r === "object") {
+        const vals = Object.values(r).filter(v => v && typeof v === "string");
+        return vals.slice(0, 2).join(" — ") || JSON.stringify(r);
+      }
+      return String(r);
+    }).filter(v => v);
+    if (riskItems.length > 0) {
+      sections.push({ title: "风险提示", type: "list", items: riskItems });
     }
 
-    // 行动计划
+    // 行动路径 - 防御性取值
     const actionPlan = report.action_plan || [];
-    if (actionPlan.length > 0) {
-      const events = [];
-      actionPlan.forEach((phase, i) => {
-        const tasks = (phase.tasks || []).map(t => t.task).join("；");
-        events.push({
-          time: phase.phase || phase.duration || ("阶段" + (i + 1)),
-          description: tasks || phase.detail || ""
-        });
-      });
-      sections.push({
-        title: "行动路径",
-        type: "timeline",
-        events: events
-      });
+    const events = [];
+    actionPlan.forEach((phase, i) => {
+      if (typeof phase === "string") {
+        events.push({ time: "阶段" + (i + 1), description: phase });
+      } else if (typeof phase === "object") {
+        const name = phase.phase || phase.name || phase.title || ("阶段" + (i + 1));
+        const duration = phase.duration || phase.timeline || "";
+        const tasks = phase.tasks || [];
+        let desc = "";
+        if (tasks.length > 0) {
+          desc = tasks.map(t => {
+            if (typeof t === "string") return t;
+            if (typeof t === "object") {
+              const tvals = Object.values(t).filter(v => v && typeof v === "string");
+              return tvals[1] || tvals[0] || "";
+            }
+            return String(t);
+          }).filter(v => v).join("；");
+        }
+        if (!desc) {
+          const vals = Object.values(phase).filter(v => typeof v === "string" && v.length > 0 && v !== name && v !== duration);
+          desc = vals[0] || "";
+        }
+        events.push({ time: name + (duration ? "（" + duration + "）" : ""), description: desc });
+      }
+    });
+    if (events.length > 0) {
+      sections.push({ title: "行动路径", type: "timeline", events: events });
     }
 
     return sections;
