@@ -1,7 +1,7 @@
 App({
   globalData: {
     userInfo: null, token: "", userId: "",
-    baseUrl: "http://127.0.0.1:8000",
+    baseUrl: "http://a5a8adb5.natappfree.cc",
     mockMode: false
   },
 
@@ -26,7 +26,6 @@ App({
         url: that.globalData.baseUrl + url,
         method: method,
         data: data,
-        timeout: 90000,
         header: Object.assign({ "Content-Type": "application/json", "Authorization": "Bearer " + that.globalData.token }, header),
         success: function(res) {
           if (res.statusCode === 401) {

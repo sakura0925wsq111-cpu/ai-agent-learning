@@ -1,4 +1,4 @@
-const app = getApp();
+﻿const app = getApp();
 
 Page({
   data: {
@@ -33,10 +33,28 @@ Page({
     ]
   },
 
+  getGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return "早上好";
+    if (hour < 18) return "下午好";
+    return "晚上好";
+  },
+
+  loadUserGreeting() {
+    const stored = wx.getStorageSync("userInfo") || app.globalData.userInfo || {};
+    const fullName = stored.name || "";
+    const surname = fullName ? fullName.charAt(0) : "";
+    this.setData({
+      "userInfo.name": surname ? surname + "同学" : "同学",
+      "userInfo.greeting": this.getGreeting()
+    });
+  },
+
   async onLoad() {
     const info = wx.getSystemInfoSync();
     const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
     this.setData({ statusBarHeight: info.statusBarHeight, userId });
+    this.loadUserGreeting();
     this.loadWeather();
     this.loadTodayOverview();
     this.checkActiveSession();
