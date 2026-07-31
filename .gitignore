@@ -1,4 +1,4 @@
-.env
+﻿.env
 venv/
 __pycache__/
 *.py[cod]
@@ -22,4 +22,17 @@ build/
 .env.local
 .env.production
 *.log
+
+# Tunnel / proxy
 natapp.exe
+cloudflared.exe
+config.yml
+run-tunnel.ps1
+start-tunnel.bat
+cf_log.txt
+
+# Temp / debug
+test_*.py
+temp_*.txt
+test_*.xlsx
+test_*.pdf

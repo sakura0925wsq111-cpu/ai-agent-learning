@@ -1,7 +1,7 @@
 App({
   globalData: {
     userInfo: null, token: "", userId: "",
-    baseUrl: "http://a5a8adb5.natappfree.cc",
+    baseUrl: "https://does-manga-legislative-marker.trycloudflare.com",
     mockMode: false
   },
 

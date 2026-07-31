@@ -465,18 +465,31 @@ async def build_growth_graph(
 
     # Node: planning_await_trigger (awaits user confirmation before analysis)
     def _planning_await_trigger_node(state: GrowthState) -> dict[str, Any]:
-        """Wait for user confirmation before starting analysis."""
+        """Wait for user confirmation, with free-form chat in between."""
         message: str = state.get("user_message", "").strip()
-        trigger_keywords = ["开始规划", "开始", "规划", "好的", "可以", "行", "嗯", "好", "生成", "来吧", "ok", "yes", "go", "开始分析"]
+
+        # Tightened trigger keywords to avoid false positives
+        trigger_keywords = [
+            "开始规划", "开始分析", "生成报告",
+            "开始吧", "来吧", "继续规划",
+            "下一步", "可以开始了",
+        ]
         if any(kw in message for kw in trigger_keywords):
             return {
                 "awaiting_trigger": False,
                 "stage": "analyzing",
                 "agent_message": "好的，正在为你生成规划报告...",
             }
-        return {
-            "agent_message": "准备好了就说\"开始规划\"，我们马上开始！",
-        }
+
+        # Free chat: delegate to agent, keep graph layer LLM-free
+        agent_type = state.get("agent_type", "career")
+        agent = planning_router.get_agent(agent_type)
+        _restore_agent_state(agent, state)
+
+        response = agent.free_chat(message)
+        updates = _save_agent_state(agent)
+        updates["agent_message"] = response
+        return updates
 
     def _route_await_trigger(state: GrowthState) -> str:
         if state.get("awaiting_trigger", True):

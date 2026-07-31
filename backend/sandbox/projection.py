@@ -157,7 +157,7 @@ class ProjectionAgent:
                 user_message=user_prompt,
                 system_prompt=PROJECTION_SYSTEM_PROMPT,
                 temperature=0.3,  # low temperature for structured output
-                max_tokens=4096,  # large output for full comparison
+                max_tokens=2048,  # reduced for faster response
             )
 
             result = safe_json_parse(raw_response)

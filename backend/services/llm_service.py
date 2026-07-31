@@ -19,8 +19,8 @@ class LLMService:
         self._client = OpenAI(
             api_key=settings.llm_api_key,
             base_url=settings.llm_base_url,
-            timeout=90.0,
-            max_retries=2,
+            timeout=settings.llm_timeout,
+            max_retries=settings.llm_max_retries,
         )
         self._model = settings.llm_model
 

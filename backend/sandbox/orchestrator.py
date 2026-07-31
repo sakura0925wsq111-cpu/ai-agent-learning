@@ -15,6 +15,8 @@ Integrates with:
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 import uuid
 from typing import Any
 
@@ -240,21 +242,13 @@ class DecisionSandbox:
                     extra={"error": True},
                 )
 
-            # Persist memory after each interaction
+            # Fire memory persistence + LLM extraction in background thread
             if self.memory and db_session:
-                self._persist_memory(session, db_session)
-
-            # Fire async LLM-based memory extraction from this turn
-            if message.strip():
-                try:
-                    from services.memory_service import memory_service
-                    memory_service.extract_from_turn_async(
-                        user_id=session.user_id,
-                        user_message=message,
-                        assistant_message=result.get("message", ""),
-                    )
-                except Exception:
-                    pass  # Non-blocking
+                threading.Thread(
+                    target=self._persist_memory,
+                    args=(session, db_session, message, result.get("message", "")),
+                    daemon=True,
+                ).start()
 
             return result
 
@@ -339,9 +333,74 @@ class DecisionSandbox:
                 }, ensure_ascii=False))
             return
 
-        # Other phases: fallback to sync
-        result = self.chat(session, message, db_session)
-        yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
+        elif session.current_phase == SessionPhase.PATH_PROBE:
+            yield ("status", _json.dumps({"phase": "path_probe", "status": "thinking"}, ensure_ascii=False))
+
+            if not session.path_selections:
+                selections = self._parse_path_selections(message)
+                if not selections:
+                    result = self.chat(session, message, db_session)
+                    yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
+                    return
+                session.path_selections = selections
+                for pt in selections:
+                    session.path_probe_history.setdefault(pt, [])
+
+            current_path = self._find_current_probe_path(session)
+            if current_path is None:
+                result = self._advance_to_parallel_sim(session)
+                yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
+                return
+
+            if session.path_probe_history.get(current_path):
+                session.record_path_probe(current_path, "", message)
+
+            rounds = session.path_probe_rounds(current_path)
+            if rounds >= MAX_PATH_PROBE_ROUNDS:
+                session.path_probe_done.add(current_path)
+                result = self._maybe_advance_from_probe(session)
+                yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
+                return
+
+            question_prompt = build_path_probe_prompt(session, current_path)
+            full_question = ""
+            try:
+                for chunk in self.llm.chat_stream(question_prompt, temperature=0.7, max_tokens=512):
+                    full_question += chunk
+                    yield ("token", chunk)
+            except Exception:
+                full_question = "Let me ask you a couple of questions about this direction."
+
+            question = full_question.strip()
+            if not question:
+                question = "What would you like to know about this direction?"
+
+            yield ("done", _json.dumps({
+                "phase": "path_probe", "finished": False,
+                "message": question,
+                "path_selections": session.path_selections,
+                "show_cards": False, "state": session.to_dict(),
+            }, ensure_ascii=False))
+
+        elif session.current_phase in (SessionPhase.PARALLEL_SIM, SessionPhase.PROJECTION):
+            yield ("status", _json.dumps({"phase": session.current_phase.value, "status": "analyzing"}, ensure_ascii=False))
+
+            if session.current_phase == SessionPhase.PARALLEL_SIM:
+                result = self._handle_parallel_sim(session)
+            else:
+                result = self._handle_projection(session)
+
+            report_text = result.get("report_text", "")
+            if report_text:
+                for i in range(0, len(report_text), 30):
+                    chunk = report_text[i:i+30]
+                    yield ("token", chunk)
+
+            yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
+
+        else:
+            result = self.chat(session, message, db_session)
+            yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
 
     # ── Phase 1: Discovery ──────────────────────────────────────
 
@@ -665,7 +724,7 @@ class DecisionSandbox:
             2. Initialize with user context (skip follow-up phase)
             3. Jump directly to analysis and generate report
 
-        All agents run in serial but could be parallelized with asyncio.
+        All agents now run in parallel via ThreadPoolExecutor.
         """
         if not session.path_selections:
             return self._build_response(
@@ -680,19 +739,26 @@ class DecisionSandbox:
 
         reports: dict[str, dict[str, Any]] = {}
         context = session.build_user_context_for_agent()
+        session_id = session.session_id
 
-        for path_type in session.path_selections:
+        def run_one(path_type):
             try:
                 report = self._run_single_agent_simulation(path_type, context, session)
                 if report:
-                    reports[path_type] = report
-                    logger.info("Sandbox[{}]: {} report generated", session.session_id, path_type)
+                    logger.info("Sandbox[{}]: {} report generated", session_id, path_type)
+                    return (path_type, report)
                 else:
-                    logger.warning("Sandbox[{}]: {} simulation returned empty report", session.session_id, path_type)
-                    reports[path_type] = self._build_fallback_report(path_type)
+                    logger.warning("Sandbox[{}]: {} simulation returned empty report", session_id, path_type)
+                    return (path_type, self._build_fallback_report(path_type))
             except Exception as exc:
-                logger.exception("Sandbox[{}]: {} simulation failed: {}", session.session_id, path_type, exc)
-                reports[path_type] = self._build_fallback_report(path_type)
+                logger.exception("Sandbox[{}]: {} simulation failed: {}", session_id, path_type, exc)
+                return (path_type, self._build_fallback_report(path_type))
+
+        with ThreadPoolExecutor(max_workers=len(session.path_selections)) as executor:
+            futures = {executor.submit(run_one, pt): pt for pt in session.path_selections}
+            for future in as_completed(futures):
+                pt, report = future.result()
+                reports[pt] = report
 
         session.path_reports = reports
         session.parallel_sim_complete = True
@@ -1067,6 +1133,8 @@ class DecisionSandbox:
         self,
         session: SandboxSession,
         db_session: Any,
+        user_message: str = "",
+        assistant_message: str = "",
     ) -> None:
         """Write accumulated user profile data to the Memory DB.
 

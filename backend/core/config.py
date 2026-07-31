@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.deepseek.com"
     llm_model: str = "deepseek-v4-pro"
 
+    # ── LLM tuning
+    llm_timeout: float = 30.0
+    llm_max_retries: int = 1
+
     # ── Logging ──
     log_level: str = "DEBUG"
     log_dir: str = "logs"

@@ -206,7 +206,8 @@ class PlanningAgent(ABC):
 
         # Store the previous question (the one the user just answered)
         prev_q = self._last_asked_question or f"follow_up_{self.state.follow_up_round + 1}"
-        self.state.record_follow_up(prev_q, message)
+        resolved_message = self._resolve_former_latter(prev_q, message)
+        self.state.record_follow_up(prev_q, resolved_message)
 
         if is_ambiguous:
             self.state.ambiguous_count += 1
@@ -719,7 +720,8 @@ class PlanningAgent(ABC):
 - 追问阶段你的工作就是倾听和提问，把分析留给后续的报告生成阶段
 - 结合用户已透露的信息来追问，体现你在认真跟进
 - 不问用户已经明确回答过的问题
-- 如果用户回答模糊，温和地引导对方展开，而不是直接跳到下一个话题"""
+- 如果用户回答模糊，温和地引导对方展开，而不是直接跳到下一个话题
+- 如果用户用“前者”“后者”等代词回答，先明确复述他们选的是什么（如“你选择了技术路线，这个方向很有前景”）再做回应"""
 
         # User prompt: current context and specific instruction
         user_prompt = f"""当前日期：{today}
@@ -753,6 +755,43 @@ class PlanningAgent(ABC):
                 return "感谢你的分享，我已经对你的情况有了比较全面的了解。在进入分析之前，还有什么想补充的吗？"
             else:
                 return "我明白了。接下来我想更深入地了解你的具体情况，方便的话可以详细说说吗？"
+
+    def free_chat(self, message: str) -> str:
+        """Generate a natural conversational response during await_trigger phase.
+
+        Unlike _generate_dynamic_question, this:
+        - Records the message in history WITHOUT incrementing follow_up_round
+        - Uses a lightweight chat prompt instead of the structured question prompt
+        - Returns a warm conversational response, nudging toward analysis naturally
+        """
+        # Record message without incrementing follow_up_round
+        prev_q = self._last_asked_question or ""
+        self.state.follow_up_history.append({"q": prev_q, "a": message})
+
+        user_context = self.state.build_context_for_llm()
+
+        system_prompt = (
+            f"你是{self.agent_label}领域的专业顾问。用户已完成信息收集，"
+            f"正在等待合适的时机开始生成规划报告。\n\n"
+            f"## 规则\n"
+            f"- 用温暖、简洁的语气回应用户（<=80字）\n"
+            f"- 如果用户想继续聊，就自然陪着聊，不要催促\n"
+            f"- 在回复末尾可以轻描淡写地提一句“准备好了随时开始”\n"
+            f"- 不要重复之前问过的问题\n"
+            f"- 不要主动推进到分析阶段"
+        )
+
+        try:
+            response = self.llm.chat(
+                user_message=message,
+                system_prompt=system_prompt,
+                temperature=0.7,
+                max_tokens=300,
+            )
+            return response.strip()
+        except Exception:
+            return "我在这里呢！有什么想聊的随时说～准备好了就告诉我。"
+
     def _build_confirmed_summary(self) -> str:
         """Build a summary of confirmed information from follow-up history."""
         items: list[str] = []
@@ -765,6 +804,59 @@ class PlanningAgent(ABC):
         if items:
             return "\n".join(f"✓ {item}" for item in items)
         return ""
+
+
+    @staticmethod
+    def _resolve_former_latter(question: str, answer: str) -> str:
+        """Resolve ‘前者’/‘后者’ in the answer by extracting options from the question.
+
+        When a user answers “后者” to “你倾向A还是B？”, expand it to “后者（B方向）”
+        so the LLM downstream has explicit context.
+        """
+        if not answer or not question:
+            return answer
+
+        answer_clean = answer.strip()
+        import re
+
+        # Detect shorthand references
+        former_keywords = ["前者", "第一个", "前面的", "第一种", "前一种"]
+        latter_keywords = ["后者", "第二个", "后面的", "第二种", "后一种"]
+
+        is_former = any(kw in answer_clean for kw in former_keywords)
+        is_latter = any(kw in answer_clean for kw in latter_keywords)
+
+        if not (is_former or is_latter):
+            return answer
+
+        # Try to split the question into two options
+        for sep in ["还是", "或者", "或是"]:
+            parts = re.split(sep, question, maxsplit=1)
+            if len(parts) != 2:
+                continue
+            option_a = parts[0].strip().rstrip("，,.?!？！")
+            option_b = parts[1].strip().rstrip("，,.?!？！？")
+
+            # Take only the last clause of option_a (the actual option text)
+            if "，" in option_a:
+                option_a = option_a.split("，")[-1].strip()
+            if "," in option_a:
+                option_a = option_a.split(",")[-1].strip()
+
+            if is_latter:
+                expanded = f"后者（{option_b}）"
+                return answer_clean.replace(
+                    next(kw for kw in latter_keywords if kw in answer_clean),
+                    expanded
+                )
+            else:
+                expanded = f"前者（{option_a}）"
+                return answer_clean.replace(
+                    next(kw for kw in former_keywords if kw in answer_clean),
+                    expanded
+                )
+
+        return answer  # could not split, return as-is
 
     # ── Helpers ─────────────────────────────────────────────────
 
