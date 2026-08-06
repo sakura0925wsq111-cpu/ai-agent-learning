@@ -60,8 +60,14 @@ def _parse_weeks(weeks_str: str) -> dict[str, Any]:
     return {"start": int(m.group(1)), "end": int(m.group(2)), "parity": parity}
 
 
-def _is_course_active_in_week(weeks_parsed: dict, current_week: int) -> bool:
-    """Check if a course slot applies to a given academic week."""
+def _is_course_active_in_week(weeks_parsed: dict, current_week: int | None) -> bool:
+    """Check if a course slot applies to a given academic week.
+
+    If current_week is None or 0 (pre-semester / unknown), skip filtering
+    and show all courses matching the weekday.
+    """
+    if current_week is None or current_week <= 0:
+        return True
     if current_week < weeks_parsed["start"]:
         return False
     if current_week > weeks_parsed["end"]:
@@ -251,15 +257,24 @@ class TodayService:
         context = "\n".join(context_parts)
 
         system_prompt = (
-            "你是 CampusPal 的 AI 校园生活教练。根据用户今天的课程、待办、天气和成长规划进度，"
-            "生成一条温暖、实用的今日建议（<=200字）。\n"
-            "规则:\n"
-            "- 结合空闲时段给出具体建议\n"
-            "- 如果有成长规划任务未完成，温和提醒进度\n"
-            "- 天气不好时提醒带伞或注意安全\n"
-            "- 语气年轻化，像朋友一样"
+            "?? CampusPal ? AI ???????"
+            "???????????????????????????"
+            "???????????????????"
+            "????????????????80??"
+            "\n\n"
+            "☀️ 天气：????????????"
+            "\n"
+            "⏳ 空闲：????????????"
+            "\n"
+            "📋 计划：??????????????"
+            "\n\n"
+            "重要规则："
+            "如果今日无课，绝对不要编造课程时间；"
+            "如果无待办，不要提作业或任务；"
+            "不要使用markdown标题或加粗；"
+            "语气年轻化像朋友；"
+            "总长不超过200字"
         )
-
         suggestion = ""
         context_summary = {
             "weather": weather,

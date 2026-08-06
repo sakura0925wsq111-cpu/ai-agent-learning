@@ -14,7 +14,8 @@ Page({
     scheduleList: [],
     scheduleLoading: false,
     aiSuggestion: { loading: true, text: "", hasError: false },
-    fabOpen: false
+    fabOpen: false,
+    calendarCollapsed: true
   },
 
   getUserId() {
@@ -83,7 +84,7 @@ Page({
       if (res && res.days) {
         const eventsMap = {};
         res.days.forEach(day => {
-          eventsMap[day.date] = (day.events || []).map(e => ({ type: e.event_type }));
+          const types = [...new Set((day.events || []).map(e => e.event_type))]; eventsMap[day.date] = types.map(t => ({ type: t }));
         });
         this.setData({ calendarEventsMap: eventsMap }, () => { this.generateCalendar(); });
       }
@@ -210,6 +211,8 @@ Page({
 
   toggleFab() { this.setData({ fabOpen: !this.data.fabOpen }); },
   closeFab() { this.setData({ fabOpen: false }); },
+
+  toggleCalendar() { this.setData({ calendarCollapsed: !this.data.calendarCollapsed }); },
 
   onImportSchedule() {
     this.closeFab();
@@ -389,6 +392,11 @@ Page({
   },
 
   async loadAISuggestion() {
+    const cache = app.globalData.suggestionCache;
+    if (cache && cache.text && (Date.now() - cache.timestamp < 300000)) {
+      this.setData({ aiSuggestion: { loading: false, text: cache.text, hasError: false } });
+      return;
+    }
     this.setData({ "aiSuggestion.loading": true });
     try {
       const res = await app.request({
@@ -396,8 +404,10 @@ Page({
         url: "/api/v1/today/suggestion",
         data: { user_id: this.getUserId(), city: "青岛" }
       });
+      const text = (res && res.suggestion) ? res.suggestion : "";
+      app.globalData.suggestionCache = { text: text, timestamp: Date.now() };
       this.setData({
-        aiSuggestion: { loading: false, text: res && res.suggestion ? res.suggestion : "", hasError: false }
+        aiSuggestion: { loading: false, text: text, hasError: false }
       });
     } catch (err) {
       this.setData({ aiSuggestion: { loading: false, text: "", hasError: true } });

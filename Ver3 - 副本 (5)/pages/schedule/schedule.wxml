@@ -15,44 +15,23 @@
 <!-- 可滚动内容区 -->
 <scroll-view class="scroll-content" scroll-y>
 
-  <!-- 日期选择区 -->
+<!-- 日期选择区 -->
   <view class="date-section">
-    <view class="date-header">
-      <view class="date-title">今日日程</view>
-      <view class="date-picker" bindtap="onToggleView">
-        <text>{{currentYear}}年{{currentMonth}}月</text>
-        <text class="dropdown">{{calendarView === 'month' ? '▼' : '▲'}}</text>
-      </view>
-    </view>
 
-    <!-- 星期标题 -->
-    <view class="week-row-header">
-      <view class="week-header-item" wx:for="{{['日','一','二','三','四','五','六']}}" wx:key="index">
-        <text class="week-header-text">{{item}}</text>
-      </view>
-    </view>
-
-    <!-- 月视图：完整6行 -->
-    <block wx:if="{{calendarView === 'month'}}">
-      <view class="calendar-grid">
-        <view
-          class="day-cell {{item.isCurrentMonth ? '' : 'other-month'}} {{item.isToday ? 'today' : ''}} {{item.isSelected ? 'selected' : ''}} {{item.isWeekend ? 'weekend' : ''}}"
-          wx:for="{{calendarDays}}"
-          wx:key="fullDate"
-          data-date="{{item.fullDate}}"
-          data-iscurrentmonth="{{item.isCurrentMonth}}"
-          bindtap="onDateTap"
-        >
-          <text class="day-num">{{item.date}}</text>
-          <view class="day-dots" wx:if="{{item.events.length > 0}}">
-            <view class="dot {{event.type === 'exam' ? 'dot-exam' : 'dot-course'}}" wx:for="{{item.events}}" wx:for-item="event" wx:key="index"></view>
-          </view>
+    <!-- 收起态：本周7天 -->
+    <block wx:if="{{calendarCollapsed}}">
+      <view class="date-header">
+        <view class="date-title">今日日程</view>
+        <view class="date-picker" bindtap="toggleCalendar">
+          <text>{{currentYear}}年{{currentMonth}}月</text>
+          <text class="dropdown">▼</text>
         </view>
       </view>
-    </block>
-
-    <!-- 周视图：只显示当前周 -->
-    <block wx:else>
+      <view class="week-row-header">
+        <view class="week-header-item" wx:for="{{['日','一','二','三','四','五','六']}}" wx:key="index">
+          <text class="week-header-text">{{item}}</text>
+        </view>
+      </view>
       <view class="calendar-grid week-view">
         <view
           class="day-cell {{item.isCurrentMonth ? '' : 'other-month'}} {{item.isToday ? 'today' : ''}} {{item.isSelected ? 'selected' : ''}} {{item.isWeekend ? 'weekend' : ''}}"
@@ -71,21 +50,50 @@
       </view>
     </block>
 
-    <!-- 操作栏 -->
-    <view class="calendar-actions">
-      <view class="action-btn" bindtap="onPrevMonth">
-        <text class="action-icon">←</text>
+    <!-- 展开态：完整月历 -->
+    <block wx:else>
+      <view class="date-header">
+        <view class="date-title">今日日程</view>
+        <view class="date-picker" bindtap="toggleCalendar">
+          <text>{{currentYear}}年{{currentMonth}}月</text>
+          <text class="dropdown">▲</text>
+        </view>
       </view>
-      <view class="action-btn today-btn {{selectedDate !== today ? 'active' : ''}}" bindtap="onGoToday">
-        <text>今天</text>
+      <view class="week-row-header">
+        <view class="week-header-item" wx:for="{{['日','一','二','三','四','五','六']}}" wx:key="index">
+          <text class="week-header-text">{{item}}</text>
+        </view>
       </view>
-      <view class="action-btn" bindtap="onNextMonth">
-        <text class="action-icon">→</text>
+      <view class="calendar-grid">
+        <view
+          class="day-cell {{item.isCurrentMonth ? '' : 'other-month'}} {{item.isToday ? 'today' : ''}} {{item.isSelected ? 'selected' : ''}} {{item.isWeekend ? 'weekend' : ''}}"
+          wx:for="{{calendarDays}}"
+          wx:key="fullDate"
+          data-date="{{item.fullDate}}"
+          data-iscurrentmonth="{{item.isCurrentMonth}}"
+          bindtap="onDateTap"
+        >
+          <text class="day-num">{{item.date}}</text>
+          <view class="day-dots" wx:if="{{item.events.length > 0}}">
+            <view class="dot {{event.type === 'exam' ? 'dot-exam' : 'dot-course'}}" wx:for="{{item.events}}" wx:for-item="event" wx:key="index"></view>
+          </view>
+        </view>
       </view>
-    </view>
+      <view class="calendar-actions">
+        <view class="action-btn" bindtap="prevMonth">
+          <text class="action-icon">←</text>
+        </view>
+        <view class="action-btn today-btn {{selectedDate !== today ? 'active' : ''}}" bindtap="onGoToday">
+          <text>今天</text>
+        </view>
+        <view class="action-btn" bindtap="nextMonth">
+          <text class="action-icon">→</text>
+        </view>
+      </view>
+    </block>
   </view>
 
-  <!-- 时间轴大卡片 -->
+
   <view class="timeline-card">
     <view class="timeline-header">
       <text class="timeline-date">{{selectedDate}}</text>

@@ -161,6 +161,12 @@ Page({
   },
 
   async loadAISuggestion() {
+    const cache = app.globalData.suggestionCache;
+    if (cache && cache.text && (Date.now() - cache.timestamp < 300000)) {
+      const displayText = cache.text.length > 60 ? cache.text.substring(0, 58) + "..." : cache.text;
+      this.setData({ aiSuggestion: { icon: "/images/icon-ai-bulb.png", title: "AI今日建议", content: displayText, fullText: cache.text, action: "查看详情", loading: false } });
+      return;
+    }
     this.setData({ "aiSuggestion.loading": true });
     try {
       const res = await app.request({
@@ -170,6 +176,7 @@ Page({
       if (res && res.suggestion) {
         const fullText = res.suggestion;
         let displayText = fullText.length > 60 ? fullText.substring(0, 58) + "..." : fullText;
+        app.globalData.suggestionCache = { text: fullText, timestamp: Date.now() };
         this.setData({ aiSuggestion: { icon: "/images/icon-ai-bulb.png", title: "AI今日建议", content: displayText, fullText: fullText, action: "查看详情", loading: false } });
       } else {
         this.setData({ aiSuggestion: { icon: "/images/icon-ai-bulb.png", title: "AI今日建议", content: "暂无个性化建议", fullText: "", action: "查看详情", loading: false } });
@@ -179,7 +186,6 @@ Page({
       throw err;
     }
   },
-
   async checkActiveSession() {
     if (!this.data.userId) return;
     try {

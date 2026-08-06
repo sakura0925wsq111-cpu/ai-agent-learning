@@ -1,11 +1,12 @@
-﻿App({
+App({
   globalData: {
     userInfo: null,
     token: "",
     userId: "",
     baseUrl: "http://127.0.0.1:8000",
     mockMode: false,
-    aiSuggestionFull: null
+    aiSuggestionFull: null,
+    suggestionCache: null
   },
 
   onLaunch() {

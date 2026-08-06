@@ -77,6 +77,20 @@ page {
   display: block;
 }
 
+.summary-stats {
+  display: flex;
+  gap: 32rpx;
+  margin-top: 12rpx;
+}
+
+.stat-item {
+  font-size: 26rpx;
+  color: #4A90D9;
+  background: #EBF5FF;
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
+}
+
 .summary-desc {
   font-size: 26rpx;
   opacity: 0.9;

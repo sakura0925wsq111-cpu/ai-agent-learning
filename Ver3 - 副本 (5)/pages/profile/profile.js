@@ -89,29 +89,32 @@ Page({
       });
       
       if (res) {
-        const total = (res.portrait_count || 0) + (res.goal_count || 0) + (res.fact_count || 0);
+        const tc = res.type_counts || {};
+        const profileCount = tc.profile || 0;
+        const goalCount = tc.goal || 0;
+        const factCount = tc.fact || 0;
+        const total = res.total || (profileCount + goalCount + factCount);
         
         this.setData({
           memoryStats: {
             total: total,
             types: [
-              { name: "画像数量", count: res.portrait_count || 0, icon: "/images/icon-portrait.png", bgColor: "#E8F4FD" },
-              { name: "目标数量", count: res.goal_count || 0, icon: "/images/icon-goal.png", bgColor: "#E6F7E6" },
-              { name: "事实数量", count: res.fact_count || 0, icon: "/images/icon-fact.png", bgColor: "#F0E6FF" }
+              { name: "画像数量", count: profileCount, icon: "/images/icon-portrait.png", bgColor: "#E8F4FD" },
+              { name: "目标数量", count: goalCount, icon: "/images/icon-goal.png", bgColor: "#E6F7E6" },
+              { name: "事实数量", count: factCount, icon: "/images/icon-fact.png", bgColor: "#F0E6FF" }
             ]
           }
         });
       }
     } catch (err) {
       console.error("加载记忆统计失败:", err);
-      // 使用默认数据
       this.setData({
         memoryStats: {
-          total: 123,
+          total: 0,
           types: [
-            { name: "画像数量", count: 45, icon: "/images/icon-portrait.png", bgColor: "#E8F4FD" },
-            { name: "目标数量", count: 32, icon: "/images/icon-goal.png", bgColor: "#E6F7E6" },
-            { name: "事实数量", count: 46, icon: "/images/icon-fact.png", bgColor: "#F0E6FF" }
+            { name: "画像数量", count: 0, icon: "/images/icon-portrait.png", bgColor: "#E8F4FD" },
+            { name: "目标数量", count: 0, icon: "/images/icon-goal.png", bgColor: "#E6F7E6" },
+            { name: "事实数量", count: 0, icon: "/images/icon-fact.png", bgColor: "#F0E6FF" }
           ]
         }
       });

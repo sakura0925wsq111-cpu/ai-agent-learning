@@ -469,6 +469,11 @@ def confirm_import(payload: ImportConfirmRequest, db: Session = Depends(get_db))
     saved = 0
 
     if itype == "course":
+        # Delete existing pdf_import courses for this user (overwrite)
+        db.query(Course).filter(
+            Course.user_id == user_id,
+            Course.source == "pdf_import"
+        ).delete()
         semester_start_val = preview.get("semester_start")
         for item in items:
             try:
@@ -489,6 +494,11 @@ def confirm_import(payload: ImportConfirmRequest, db: Session = Depends(get_db))
             except Exception as exc:
                 logger.warning("Course save fail: {}", exc)
     else:
+        # Delete existing excel_import exams for this user (overwrite)
+        db.query(Exam).filter(
+            Exam.user_id == user_id,
+            Exam.source == "excel_import"
+        ).delete()
         for item in items:
             try:
                 exam_date = item.get("exam_date")

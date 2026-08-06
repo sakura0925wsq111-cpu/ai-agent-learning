@@ -1,7 +1,7 @@
 const app = getApp();
 
 Page({
-  data: { statusBarHeight: 44, userId: "", memories: [] },
+  data: { statusBarHeight: 44, userId: "", memories: [], profileCount: 0, goalCount: 0, totalCount: 0 },
 
   onLoad() {
     const info = wx.getSystemInfoSync(); const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
@@ -13,6 +13,12 @@ Page({
     try {
       const res = await app.request({ url: `/api/v1/memory/panel/${this.data.userId}` });
       const memories = res.memories || [];
+      const typeCounts = res.type_counts || {};
+      this.setData({
+        profileCount: typeCounts.profile || 0,
+        goalCount: typeCounts.goal || 0,
+        totalCount: res.total || memories.length
+      });
       if (memories.length > 0) {
         this.setData({ memories: this.formatMemories(memories) });
       } else {
@@ -36,7 +42,8 @@ Page({
         { key: "grade", value: profile.grade || "", memory_type: "profile", label: "年级" },
         { key: "enroll_year", value: profile.enroll_year || "", memory_type: "profile", label: "入学年份" },
       ].filter(function(m) { return m.value; });
-      this.setData({ memories: this.formatMemories(fallbackMemories) });
+      const profileCount = fallbackMemories.filter(m => m.memory_type === 'profile').length;
+      this.setData({ memories: this.formatMemories(fallbackMemories), profileCount: profileCount, goalCount: 0, totalCount: fallbackMemories.length });
     } catch (e) {
       this.setData({ memories: [] });
     }

@@ -71,8 +71,23 @@ Page({
           return;
         }
 
-        this.setData({ status: "selected" });
-        this.uploadFile(file);
+                wx.showModal({
+          title: "覆盖确认",
+          content: "导入新的课表将覆盖之前导入的内容，是否继续？",
+          confirmText: "继续导入",
+          cancelText: "取消",
+          success: (modalRes) => {
+            if (modalRes.confirm) {
+              this.setData({ status: "selected" });
+              this.uploadFile(file);
+            } else {
+              this.setData({
+                fileInfo: { name: "", size: "", path: "" },
+                status: "idle"
+              });
+            }
+          }
+        });
       },
       fail: (err) => { console.error("选择文件失败:", err); }
     });
@@ -93,12 +108,10 @@ Page({
     const userId = this.getUserId();
 
     const url = activeTab === "course"
-      ? app.globalData.baseUrl + "/api/v1/today/import"
-      : app.globalData.baseUrl + "/api/v1/today/import/excel";
+      ? app.globalData.baseUrl + "/api/v1/today/import?user_id=" + userId + "&import_type=course"
+      : app.globalData.baseUrl + "/api/v1/today/import/excel?user_id=" + userId;
 
-    const formData = activeTab === "course"
-      ? { user_id: userId, import_type: "course" }
-      : { user_id: userId };
+    const formData = {};
 
     wx.uploadFile({
       url: url,

@@ -20,7 +20,11 @@
       <image class="summary-avatar" src="/images/icon-avatar.png"></image>
       <view class="summary-info">
         <text class="summary-title">AI 记住的你</text>
-        <text class="summary-count">共 {{memories.length}} 条记忆</text>
+        <text class="summary-count">共 {{totalCount}} 条记忆</text>
+        <view class="summary-stats">
+          <text class="stat-item">画像 {{profileCount}}</text>
+          <text class="stat-item">目标 {{goalCount}}</text>
+        </view>
       </view>
     </view>
     <text class="summary-desc">这些记忆帮助 AI 更好地理解你，提供个性化建议</text>
