@@ -2,9 +2,9 @@
 """Course ORM model for Today Mode."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, date, timezone
 
-from sqlalchemy import String, Text, DateTime, ForeignKey, Integer, JSON, Index
+from sqlalchemy import String, Text, DateTime, ForeignKey, Date, Integer, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database.base import Base
@@ -26,13 +26,17 @@ class Course(Base):
     teacher: Mapped[str | None] = mapped_column(String(100), nullable=True)
     location: Mapped[str | None] = mapped_column(String(200), nullable=True)
     schedule_json: Mapped[str | None] = mapped_column(Text, nullable=True,
-        comment="JSON: [{\"weekday\":1,\"start\":1,\"end\":2,\"weeks\":\"1-16\"}]"
+        comment="JSON: [{'weekday':1,'start':1,'end':2,'weeks':'1-16周','weeks_parsed':{...}}]"
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     color: Mapped[str | None] = mapped_column(String(20), nullable=True, default="#4A90D9")
     source: Mapped[str] = mapped_column(
         String(20), nullable=False, default="manual",
         comment="manual / pdf_import"
+    )
+    semester_start: Mapped[date | None] = mapped_column(
+        Date, nullable=True,
+        comment="Semester start date for week-range calculation"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

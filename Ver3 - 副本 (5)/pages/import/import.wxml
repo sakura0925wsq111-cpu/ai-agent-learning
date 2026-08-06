@@ -1,0 +1,288 @@
+<view class="container">
+  <!-- 固定顶部区域：统一背景色 -->
+  <view class="fixed-header">
+    <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+    <view class="custom-nav">
+      <view class="nav-back" bindtap="goBack">
+        <text class="back-icon">‹</text>
+      </view>
+      <view class="nav-title">导入日程</view>
+      <view class="nav-placeholder"></view>
+    </view>
+    
+    <!-- Tab 移入固定头部内部，消除断层 -->
+    <view class="tab-bar">
+      <view 
+        class="tab-item {{activeTab === 'course' ? 'active' : ''}}" 
+        bindtap="switchTab"
+        data-tab="course"
+      >
+        <text class="tab-text">课程表</text>
+        <view class="tab-line"></view>
+      </view>
+      <view 
+        class="tab-item {{activeTab === 'exam' ? 'active' : ''}}" 
+        bindtap="switchTab"
+        data-tab="exam"
+      >
+        <text class="tab-text">考试表</text>
+        <view class="tab-line"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 内容区域：动态计算 padding-top -->
+  <scroll-view 
+    class="content" 
+    scroll-y 
+    enhanced 
+    show-scrollbar="{{false}}"
+    style="padding-top: {{navHeight}}px;"
+  >
+    
+    <!-- 初始状态：上传区域 -->
+    <view class="upload-section" wx:if="{{status === 'idle'}}">
+      <view class="upload-area" bindtap="chooseFile">
+        <image class="upload-icon" src="/images/icon-upload-cloud.png" mode="aspectFit"></image>
+        <text class="upload-title">点击选择文件</text>
+        <text class="upload-hint">{{activeTab === 'course' ? '支持 PDF 格式' : '支持 Excel (.xlsx/.xls) 格式'}}</text>
+      </view>
+      
+      <!-- 格式要求提示按钮 -->
+      <view class="format-tip-bar" bindtap="showFormatModal">
+        <text class="format-tip-icon">ⓘ</text>
+        <text class="format-tip-text">查看{{activeTab === 'course' ? 'PDF' : 'Excel'}}格式要求</text>
+      </view>
+    </view>
+
+    <!-- 上传中/解析中状态 -->
+    <view class="upload-section" wx:if="{{status === 'uploading' || status === 'parsing'}}">
+      <view class="upload-area uploading">
+        <view class="loading-spinner"></view>
+        <text class="upload-title">{{status === 'uploading' ? '正在上传...' : '正在解析，请稍候...'}}</text>
+      </view>
+    </view>
+
+    <!-- 文件已选择，展示文件信息 -->
+    <view class="upload-section" wx:if="{{status === 'selected' || status === 'parsed' || status === 'parse_empty' || status === 'parse_error' || status === 'type_mismatch'}}">
+      <!-- 文件信息卡片 -->
+      <view class="file-card" wx:if="{{fileInfo.name}}">
+        <view class="file-icon {{activeTab === 'course' ? 'pdf' : 'excel'}}">
+          <text class="file-icon-text">{{activeTab === 'course' ? 'PDF' : 'XLS'}}</text>
+        </view>
+        <view class="file-info">
+          <text class="file-name">{{fileInfo.name}}</text>
+          <text class="file-size">{{fileInfo.size}}</text>
+        </view>
+        <text class="file-replace" bindtap="chooseFile">重新选择</text>
+      </view>
+
+      <!-- 类型不匹配 -->
+      <view class="status-card mismatch" wx:if="{{status === 'type_mismatch'}}">
+        <text class="status-icon">⚠️</text>
+        <text class="status-title">文件类型不匹配</text>
+        <text class="status-desc">{{mismatchMsg}}</text>
+        <view class="status-btn" bindtap="chooseFile">重新选择</view>
+      </view>
+
+      <!-- 解析为空 -->
+      <view class="status-card empty" wx:if="{{status === 'parse_empty'}}">
+        <image class="status-icon" src="/images/icon-empty.png" mode="aspectFit"></image>
+        <text class="status-title">未识别到信息</text>
+        <text class="status-desc">请检查文件格式是否正确</text>
+        <view class="status-btn" bindtap="chooseFile">重新选择</view>
+      </view>
+
+      <!-- 解析失败 -->
+      <view class="status-card error" wx:if="{{status === 'parse_error'}}">
+        <image class="status-icon" src="/images/icon-error.png" mode="aspectFit"></image>
+        <text class="status-title">解析失败</text>
+        <text class="status-desc">{{errorMsg}}</text>
+        <view class="status-btn" bindtap="chooseFile">重试</view>
+      </view>
+
+      <!-- 预览列表 -->
+      <view class="preview-section" wx:if="{{status === 'parsed' && previewList.length > 0}}">
+        <!-- 全选操作栏 -->
+        <view class="select-all-bar">
+          <view class="checkbox-wrap" bindtap="toggleSelectAll">
+            <view class="checkbox {{isAllSelected ? 'checked' : ''}}">
+              <text class="check-icon" wx:if="{{isAllSelected}}">✓</text>
+            </view>
+            <text class="select-all-text">{{isAllSelected ? '取消全选' : '全选'}}</text>
+          </view>
+          <text class="select-count">已选 {{selectedCount}}/{{previewList.length}} 项</text>
+        </view>
+
+        <!-- 课程表预览列表 -->
+        <view class="preview-list" wx:if="{{activeTab === 'course'}}">
+          <view 
+            class="preview-item {{item.selected ? 'selected' : ''}}" 
+            wx:for="{{previewList}}" 
+            wx:key="index"
+            bindtap="toggleItem"
+            data-index="{{index}}"
+          >
+            <view class="item-checkbox">
+              <view class="checkbox {{item.selected ? 'checked' : ''}}">
+                <text class="check-icon" wx:if="{{item.selected}}">✓</text>
+              </view>
+            </view>
+            <view class="item-content">
+              <view class="item-row primary">
+                <text class="item-name">{{item.name}}</text>
+                <text class="item-teacher" wx:if="{{item.teacher}}">{{item.teacher}}</text>
+              </view>
+              <view class="item-row secondary">
+                <text class="item-location" wx:if="{{item.location}}">📍 {{item.location}}</text>
+              </view>
+              <view class="item-row tertiary">
+                <text class="item-schedule" wx:for="{{item.schedule}}" wx:for-item="sched" wx:key="sindex">
+                  周{{sched.weekday === 1 ? '一' : sched.weekday === 2 ? '二' : sched.weekday === 3 ? '三' : sched.weekday === 4 ? '四' : sched.weekday === 5 ? '五' : sched.weekday === 6 ? '六' : '日'}} 
+                  第{{sched.start}}-{{sched.end}}节 · {{sched.weeks}}
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 考试表预览列表 -->
+        <view class="preview-list" wx:if="{{activeTab === 'exam'}}">
+          <view 
+            class="preview-item {{item.selected ? 'selected' : ''}}" 
+            wx:for="{{previewList}}" 
+            wx:key="index"
+            bindtap="toggleItem"
+            data-index="{{index}}"
+          >
+            <view class="item-checkbox">
+              <view class="checkbox {{item.selected ? 'checked' : ''}}">
+                <text class="check-icon" wx:if="{{item.selected}}">✓</text>
+              </view>
+            </view>
+            <view class="item-content">
+              <view class="item-row primary">
+                <text class="item-name">{{item.subject}}</text>
+              </view>
+              <view class="item-row secondary">
+                <text class="item-date">📅 {{item.exam_date}}</text>
+                <text class="item-time" wx:if="{{item.start_time}}">🕐 {{item.start_time}}{{item.end_time ? '-' + item.end_time : ''}}</text>
+              </view>
+              <view class="item-row tertiary" wx:if="{{item.location}}">
+                <text class="item-location">📍 {{item.location}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部留白 -->
+    <view class="bottom-safe" wx:if="{{status === 'parsed' && previewList.length > 0}}"></view>
+  </scroll-view>
+
+  <!-- 底部固定按钮 -->
+  <view class="footer-bar" wx:if="{{status !== 'uploading' && status !== 'parsing' && status !== 'type_mismatch'}}">
+    <view 
+      class="confirm-btn {{selectedCount > 0 && status === 'parsed' ? 'active' : 'disabled'}} {{confirmLoading ? 'loading' : ''}}" 
+      bindtap="onConfirm"
+    >
+      <view class="btn-loading" wx:if="{{confirmLoading}}">
+        <view class="loading-dot"></view>
+        <view class="loading-dot"></view>
+        <view class="loading-dot"></view>
+      </view>
+      <text class="btn-text" wx:else>{{selectedCount > 0 ? '确认导入 ' + selectedCount + ' 项' : '请选择要导入的项目'}}</text>
+    </view>
+  </view>
+
+  <!-- ========== 格式要求弹窗 ========== -->
+  <view class="modal-mask" wx:if="{{showFormatModal}}" bindtap="hideFormatModal"></view>
+  <view class="modal-content" wx:if="{{showFormatModal}}">
+    <view class="modal-header">
+      <text class="modal-title">{{activeTab === 'course' ? 'PDF 格式要求' : 'Excel 格式要求'}}</text>
+      <view class="modal-close" bindtap="hideFormatModal">
+        <text class="close-icon">✕</text>
+      </view>
+    </view>
+    
+    <scroll-view class="modal-body" scroll-y>
+      <!-- 课程表 PDF 要求 -->
+      <view wx:if="{{activeTab === 'course'}}">
+        <view class="require-section">
+          <text class="require-label">表格结构</text>
+          <text class="require-text">必须使用标准表格，包含以下列：</text>
+          <view class="require-table">
+            <view class="require-row header">
+              <text class="require-cell">课程名</text>
+              <text class="require-cell">教师</text>
+              <text class="require-cell">地点</text>
+              <text class="require-cell">星期</text>
+              <text class="require-cell">节次</text>
+              <text class="require-cell">周次</text>
+            </view>
+            <view class="require-row">
+              <text class="require-cell">高等数学</text>
+              <text class="require-cell">张老师</text>
+              <text class="require-cell">A201</text>
+              <text class="require-cell">1</text>
+              <text class="require-cell">1-2</text>
+              <text class="require-cell">1-16周</text>
+            </view>
+          </view>
+        </view>
+        
+        <view class="require-section">
+          <text class="require-label">填写说明</text>
+          <view class="require-list">
+            <text class="require-item">• 星期：数字 1-7（1=周一，7=周日）</text>
+            <text class="require-item">• 节次：格式为"开始-结束"，如 1-2、3-4</text>
+            <text class="require-item">• 周次：格式为"开始-结束周"，如 1-16周</text>
+            <text class="require-item">• 表格需有清晰边框，避免合并单元格</text>
+          </view>
+        </view>
+        
+        <view class="require-section">
+          <text class="require-label">制作工具</text>
+          <text class="require-text">Word、Excel 另存为 PDF，或使用在线工具</text>
+        </view>
+      </view>
+      
+      <!-- 考试表 Excel 要求 -->
+      <view wx:if="{{activeTab === 'exam'}}">
+        <view class="require-section">
+          <text class="require-label">表格结构</text>
+          <text class="require-text">第一行为表头，包含以下列名之一：</text>
+          <view class="require-table">
+            <view class="require-row header">
+              <text class="require-cell">课程名称</text>
+              <text class="require-cell">考试日期</text>
+              <text class="require-cell">考试时间</text>
+              <text class="require-cell">考试地点</text>
+            </view>
+            <view class="require-row">
+              <text class="require-cell">高等数学</text>
+              <text class="require-cell">2026-08-15</text>
+              <text class="require-cell">10:00-12:00</text>
+              <text class="require-cell">A101</text>
+            </view>
+          </view>
+        </view>
+        
+        <view class="require-section">
+          <text class="require-label">填写说明</text>
+          <view class="require-list">
+            <text class="require-item">• 日期格式：2026-08-15（推荐）或 2026/08/15</text>
+            <text class="require-item">• 时间格式：10:00-12:00（起止时间）</text>
+            <text class="require-item">• 列名支持：课程名称/科目/课程/考试课程</text>
+            <text class="require-item">• 文件格式：.xlsx（推荐）或 .xls</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+    
+    <view class="modal-footer">
+      <view class="modal-btn" bindtap="hideFormatModal">我知道了</view>
+    </view>
+  </view>
+</view>

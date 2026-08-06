@@ -1,0 +1,62 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/register/register",
+    "pages/index/index",
+    "pages/ai/ai",
+    "pages/schedule/schedule",
+    "pages/weather/weather",
+    "pages/growth/growth",
+    "pages/mine/mine",
+    "pages/profile/profile",
+    "pages/settings/settings",
+    "pages/sandbox-result/sandbox-result",
+    "pages/report/report",
+    "pages/chatroom/chatroom",
+    "pages/memory/memory",
+    "pages/history/history",
+    "pages/import/import",
+    "pages/preview/preview",
+    "pages/logout/logout",
+    "pages/tasks/tasks"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#fff",
+    "navigationBarTitleText": "iCampus",
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#4A90D9",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/schedule/schedule",
+        "text": "今日",
+        "iconPath": "images/tab-calendar.png",
+        "selectedIconPath": "images/tab-calendar-active.png"
+      },
+      {
+        "pagePath": "pages/growth/growth",
+        "text": "成长",
+        "iconPath": "images/tab-leaf.png",
+        "selectedIconPath": "images/tab-leaf-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "images/tab-mine.png",
+        "selectedIconPath": "images/tab-mine-active.png"
+      }
+    ]
+  }
+}

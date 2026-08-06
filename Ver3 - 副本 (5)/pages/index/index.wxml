@@ -1,0 +1,272 @@
+<!-- 固定顶部区域 -->
+<view class="fixed-header">
+  <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+  <view class="brand-bar">
+    <view class="brand-left">
+      <text class="app-name">iCampus</text>
+      <text class="brand-star">✨</text>
+    </view>
+    <view class="brand-right" bindtap="goToAI">
+      <text class="chat-icon">💬</text>
+    </view>
+  </view>
+  <view class="brand-subtitle">你的校园AI伙伴</view>
+  
+  <!-- 进行中会话横幅 - 移动到固定头部内 -->
+  <view class="continue-banner" wx:if="{{activeSession}}" bindtap="continueSession">
+    <view class="continue-left">
+      <text class="continue-dot"></text>
+      <text class="continue-text">你有一个进行中的规划会话</text>
+    </view>
+    <text class="continue-arrow">继续</text>
+  </view>
+</view>
+
+<!-- ========== 骨架屏 ========== -->
+<view class="skeleton-container" wx:if="{{loading}}">
+  <scroll-view class="scroll-content skeleton-scroll" scroll-y>
+    <!-- 欢迎区域骨架 -->
+    <view class="skeleton-welcome-section">
+      <view class="skeleton-welcome-text">
+        <view class="skeleton-line-lg"></view>
+        <view class="skeleton-line-sm"></view>
+      </view>
+      <view class="skeleton-mascot"></view>
+    </view>
+    
+    <!-- 天气卡片骨架 -->
+    <view class="skeleton-weather-card">
+      <view class="skeleton-weather-left">
+        <view class="skeleton-line-md"></view>
+        <view class="skeleton-line-xs"></view>
+      </view>
+    </view>
+    
+    <!-- 概览卡片骨架 -->
+    <view class="skeleton-section">
+      <view class="skeleton-title"></view>
+      <view class="skeleton-overview-card">
+        <view class="skeleton-overview-grid">
+          <view class="skeleton-overview-item" wx:for="{{4}}" wx:key="index">
+            <view class="skeleton-circle"></view>
+            <view class="skeleton-line-num"></view>
+            <view class="skeleton-line-label"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- AI建议骨架 -->
+    <view class="skeleton-section">
+      <view class="skeleton-title"></view>
+      <view class="skeleton-ai-card">
+        <view class="skeleton-ai-row">
+          <view class="skeleton-circle-sm"></view>
+          <view class="skeleton-ai-text">
+            <view class="skeleton-line-md"></view>
+            <view class="skeleton-line-sm"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 待办列表骨架 -->
+    <view class="skeleton-section">
+      <view class="skeleton-title"></view>
+      <view class="skeleton-todo-card">
+        <view class="skeleton-todo-item" wx:for="{{3}}" wx:key="index">
+          <view class="skeleton-circle-sm"></view>
+          <view class="skeleton-todo-text">
+            <view class="skeleton-line-md"></view>
+            <view class="skeleton-line-xs"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <view style="height: 40rpx;"></view>
+  </scroll-view>
+</view>
+
+<!-- ========== 错误态 ========== -->
+<view class="error-container" wx:elif="{{hasError}}">
+  <view class="error-content">
+    <view class="error-icon">📡</view>
+    <text class="error-title">网络连接失败</text>
+    <text class="error-desc">{{errorMsg}}</text>
+    <button class="retry-btn" bindtap="onRetry">重新加载</button>
+  </view>
+</view>
+
+<!-- ========== 正常内容 ========== -->
+<block wx:else>
+  <scroll-view class="scroll-content" scroll-y refresher-enabled="{{true}}" bindrefresherrefresh="onPullDownRefresh">
+    
+    <!-- 欢迎区域 -->
+    <view class="welcome-section">
+      <view class="welcome-text">
+        <view class="greeting">{{userInfo.greeting}}，{{userInfo.name}}！☀️</view>
+        <view class="sub-greeting">{{encourageText}}</view>
+      </view>
+      <image class="mascot" src="/images/mascot.png" mode="aspectFit"></image>
+    </view>
+
+    <!-- 天气卡片 -->
+    <view class="weather-card-wrapper">
+      <view class="weather-card" bindtap="goToWeather">
+        <view class="weather-left">
+          <view class="weather-icon-temp">
+            <text class="weather-icon">☀️</text>
+            <text class="weather-temp">{{userInfo.weather.temp}}℃</text>
+            <text class="weather-condition">{{userInfo.weather.condition}}</text>
+          </view>
+          <view class="weather-location-date">
+            <text>{{userInfo.weather.location}} {{userInfo.weather.date}}</text>
+          </view>
+        </view>
+        <text class="weather-arrow">›</text>
+      </view>
+    </view>
+
+    <!-- --- 今日概览 --- -->
+    <view class="section">
+      <view class="overview-card">
+        <view class="section-title">今日概览</view>
+        <view class="overview-grid">
+          <view 
+            class="overview-item {{item.disabled ? 'disabled' : ''}} {{item.hasData ? '' : 'empty'}}" 
+            wx:for="{{todayOverview}}" 
+            wx:key="key"
+            data-key="{{item.key}}"
+            bindtap="{{item.disabled ? '' : 'onOverviewTap'}}"
+          >
+            <!-- 有数据状态 -->
+            <block wx:if="{{item.hasData}}">
+              <view class="overview-icon-wrap" style="background: {{item.bgColor}};">
+                <image class="overview-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+              </view>
+              <view class="overview-num-wrap">
+                <text class="overview-num {{item.isExam ? 'exam-num' : ''}}">{{item.num}}</text>
+                <text class="overview-unit">{{item.unit}}</text>
+              </view>
+              <view class="overview-suffix-text" wx:if="{{item.suffix}}">{{item.suffix}}</view>
+              <view class="overview-label">{{item.label}}</view>
+            </block>
+            
+            <!-- 无数据状态（非禁用） -->
+            <block wx:elif="{{!item.disabled}}">
+              <view class="overview-icon-wrap overview-icon-empty" style="background: {{item.bgColor}};">
+                <image class="overview-icon-img overview-img-empty" src="{{item.icon}}" mode="aspectFit"></image>
+              </view>
+              <view class="overview-empty-num">
+                <text class="overview-num-empty">{{item.emptyText}}</text>
+              </view>
+              <view class="overview-label overview-label-empty">{{item.label}}</view>
+            </block>
+            
+            <!-- 禁用状态（校园通知） -->
+            <block wx:else>
+              <view class="overview-icon-wrap" style="background: {{item.bgColor}};">
+                <image class="overview-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+              </view>
+              <view class="overview-num-wrap">
+                <text class="overview-num disabled-num">{{item.num}}</text>
+              </view>
+              <view class="overview-label">{{item.label}}</view>
+            </block>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- AI建议 -->
+    <view class="section">
+      <view class="ai-card-wrapper">
+        <view class="section-title">AI建议</view>
+        <view class="ai-content-box" bindtap="goToSchedule">
+          <view class="ai-card">
+            <view class="ai-icon-wrap">
+              <image class="ai-icon-img" src="{{aiSuggestion.icon}}" mode="aspectFit"></image>
+            </view>
+            <view class="ai-info">
+              <view class="ai-title">{{aiSuggestion.title}}</view>
+              <view class="ai-desc">{{aiSuggestion.content}}</view>
+            </view>
+          </view>
+          <view class="ai-action-btn">{{aiSuggestion.action}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 待办任务区域 -->
+    <view class="section">
+      <view class="todo-card">
+        <view class="section-header">
+          <text class="section-title">待办任务</text>
+          <view class="header-actions">
+            <text class="view-more" bindtap="goToTasks">查看更多</text>
+            <text class="add-btn" bindtap="onAddTodo">+ 添加</text>
+          </view>
+        </view>
+          
+        <!-- 加载中 -->
+        <view class="todos-loading" wx:if="{{todosLoading && todoList.length === 0}}">
+          <view class="loading-dots">
+            <view class="dot"></view>
+            <view class="dot"></view>
+            <view class="dot"></view>
+          </view>
+        </view>
+        
+        <!-- 有数据 -->
+        <view class="todo-list" wx:elif="{{todoList.length > 0}}">
+          <view 
+            class="todo-item {{item.done ? 'completing' : ''}} {{item.source === 'ai_plan' ? 'ai-plan' : ''}}" 
+            wx:for="{{todoList}}" 
+            wx:key="id"
+            data-id="{{item.id}}"
+            data-index="{{index}}"
+          >
+            <view 
+              class="todo-check {{item.done ? 'checked' : ''}}" 
+              bindtap="toggleTodo" 
+              data-id="{{item.id}}"
+              data-index="{{index}}"
+            >
+              <view class="check-inner">
+                <text class="check-mark" wx:if="{{item.done}}">✓</text>
+              </view>
+            </view>
+            <view class="todo-content {{item.done ? 'done' : ''}}">
+              <view class="todo-title-wrap">
+                <text class="todo-title">{{item.title}}</text>
+                <text class="todo-source-tag" wx:if="{{item.source === 'ai_plan'}}">AI计划</text>
+              </view>
+              <view class="todo-time" wx:if="{{item.time}}">{{item.time}}</view>
+            </view>
+          </view>
+          
+          <!-- 超过5条提示 -->
+          <view class="todo-more" wx:if="{{todayOverview[1].num > 5}}" bindtap="goToSchedule">
+            <text>还有 {{todayOverview[1].num - 5}} 项，查看全部 ›</text>
+          </view>
+        </view>
+        
+        <!-- 空状态：无待办 -->
+        <view class="empty-state" wx:elif="{{!todosLoading && todoList.length === 0 && todayOverview[1].num === 0}}">
+          <text class="empty-icon">🌴</text>
+          <text class="empty-text">今天没有待办，放松一下～</text>
+          <text class="empty-hint" bindtap="onAddTodo">点击上方添加按钮创建待办</text>
+        </view>
+        
+        <!-- 全部完成 -->
+        <view class="all-done-state" wx:elif="{{!todosLoading && todoList.length === 0 && todayOverview[1].num > 0}}">
+          <text class="all-done-icon">🎉</text>
+          <text class="all-done-text">全部搞定！</text>
+        </view>
+      </view>
+    </view>
+
+    <view style="height: 40rpx;"></view>
+  </scroll-view>
+</block>

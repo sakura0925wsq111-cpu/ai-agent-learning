@@ -1,14 +1,14 @@
-﻿# -*- coding: utf-8 -*-
-"""PDF & Excel Import API — deterministic parsers for university教务系统 files.
+# -*- coding: utf-8 -*-
+"""PDF & Excel Import API -- deterministic parsers for university files.
 
-PDF course schedule: table extraction + regex, zero LLM.
-Excel exam schedule: column-mapped extraction, zero LLM.
+PDF course schedule: ★-marker based cell splitting + regex extraction, zero LLM.
+Excel exam schedule: flexible column-mapped extraction, zero LLM.
 """
 
 from __future__ import annotations
 
 import io, json, re, uuid
-from datetime import date as dt_date
+from datetime import date as dt_date, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
@@ -27,51 +27,138 @@ _preview_store: dict[str, dict[str, Any]] = {}
 WEEKDAY_KW = ["星期一","星期二","星期三","星期四","星期五","星期六","星期日"]
 _EXAM_DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})\((\d{2}:\d{2})-(\d{2}:\d{2})\)")
 
-# ═══════════════════════════════════════════════════════════════
-#  COURSE PDF PARSER (deterministic, zero LLM)
-# ═══════════════════════════════════════════════════════════════
+# Semester mapping
+_SEMESTER_PATTERN = re.compile(
+    r"(\d{4})-(\d{4})学年第?(\d)学期"
+)
 
-_PERIOD_RE = re.compile(r"\((?P<ps>\d+)-(?P<pe>\d+)节\)\s*(?P<weeks>[\d\-]+周(?:\([双单]\))?)")
+def _infer_semester_start(pdf_text: str) -> dt_date | None:
+    m = _SEMESTER_PATTERN.search(pdf_text)
+    if not m:
+        return None
+    year1 = int(m.group(1))
+    semester = int(m.group(3))
+    if semester == 1:
+        return dt_date(year1, 9, 1)
+    else:
+        return dt_date(int(m.group(2)), 2, 15)
+
+
+# Week parsing utilities
+
+_WEEKS_RE = re.compile(r"^(\d+)-(\d+)周(?:\(([单双])\))?$")
+
+
+def _parse_weeks(weeks_str: str) -> dict[str, Any]:
+    m = _WEEKS_RE.match((weeks_str or "").strip())
+    if not m:
+        return {"start": 1, "end": 20, "parity": None, "raw": weeks_str}
+    parity = None
+    if m.group(3) == "单":
+        parity = "odd"
+    elif m.group(3) == "双":
+        parity = "even"
+    return {
+        "start": int(m.group(1)),
+        "end": int(m.group(2)),
+        "parity": parity,
+        "raw": weeks_str.strip(),
+    }
+
+
+def _is_course_active_in_week(
+    weeks_parsed: dict[str, Any], current_week: int
+) -> bool:
+    if current_week < weeks_parsed["start"]:
+        return False
+    if current_week > weeks_parsed["end"]:
+        return False
+    if weeks_parsed["parity"] == "odd" and current_week % 2 == 0:
+        return False
+    if weeks_parsed["parity"] == "even" and current_week % 2 != 0:
+        return False
+    return True
+
+
+def _get_current_week(semester_start: dt_date) -> int:
+    delta = dt_date.today() - semester_start
+    if delta.days < 0:
+        return 0
+    return delta.days // 7 + 1
+
+
+def _get_week_for_date(semester_start: dt_date, target: dt_date) -> int:
+    delta = target - semester_start
+    if delta.days < 0:
+        return 0
+    return delta.days // 7 + 1
+
+
+# Course PDF parser (★-marker based)
+
+_PERIOD_WEEKS_RE = re.compile(
+    r"\((\d+)-(\d+)节\)\s*([\d\-]+周(?:\([单双]\))?)"
+)
+_LOCATION_RE = re.compile(r"/场地:\s*([^/\n]+)")
+_TEACHER_RE  = re.compile(r"/教师:\s*([^/\n]+)")
 
 
 def _parse_cell(cell_text: str, weekday: int) -> list[dict[str, Any]]:
-    text = " ".join(cell_text.split())
+    text = cell_text.strip()
+    if not text:
+        return []
+
+    star_positions = [m.start() for m in re.finditer(r"★", text)]
+    if not star_positions:
+        return []
+
     courses: list[dict[str, Any]] = []
 
-    for pm in re.finditer(_PERIOD_RE, text):
-        ps = int(pm.group("ps"))
-        pe = int(pm.group("pe"))
-        weeks = pm.group("weeks").strip()
-
-        before = text[:pm.start()]
-        name = ""
-        last_marker = None
-        for m in re.finditer(r"[★○●◇◆]", before):
-            last_marker = m
-        if last_marker:
-            after_marker = before[last_marker.end():].strip()
-            if after_marker:
-                name = after_marker
-            else:
-                name_before = before[:last_marker.start()].strip()
-                parts = name_before.split()
-                name = parts[-1] if parts else ""
+    for i, pos in enumerate(star_positions):
+        prev_boundary = star_positions[i - 1] + 1 if i > 0 else 0
+        name_block = text[prev_boundary:pos]
+        name_lines = [l for l in name_block.split("\n") if l.strip()]
+        name = name_lines[-1].strip() if name_lines else ""
         name = re.sub(r"[★○●◇◆]", "", name).strip()
+        if not name:
+            continue
 
-        after = text[pm.end():]
-        loc_m = re.search(r"/场地:\s*([^/\n]+)", after)
-        tch_m = re.search(r"/教师:\s*([^/\n]+)", after)
+        next_boundary = (
+            star_positions[i + 1] if i + 1 < len(star_positions) else len(text)
+        )
+        after_block = text[pos + 1 : next_boundary]
+
+        pw = _PERIOD_WEEKS_RE.search(after_block)
+        if not pw:
+            continue
+        ps = int(pw.group(1))
+        pe = int(pw.group(2))
+        weeks_raw = pw.group(3).strip()
+
+        loc_m = _LOCATION_RE.search(after_block)
+        tch_m = _TEACHER_RE.search(after_block)
+
+        weeks_parsed = _parse_weeks(weeks_raw)
 
         courses.append({
-            "name": name or "(未命名课程)",
+            "name": name,
             "teacher": tch_m.group(1).strip() if tch_m else None,
             "location": loc_m.group(1).strip() if loc_m else None,
-            "schedule": [{"weekday": weekday, "start": ps, "end": pe, "weeks": weeks}],
+            "schedule": [{
+                "weekday": weekday,
+                "start": ps,
+                "end": pe,
+                "weeks": weeks_raw,
+                "weeks_parsed": weeks_parsed,
+            }],
         })
+
     return courses
 
 
-def _extract_courses_from_pdf(file_bytes: bytes) -> list[dict[str, Any]]:
+def _extract_courses_from_pdf(
+    file_bytes: bytes,
+) -> tuple[list[dict[str, Any]], dt_date | None]:
     try:
         import pdfplumber
     except ImportError:
@@ -79,122 +166,175 @@ def _extract_courses_from_pdf(file_bytes: bytes) -> list[dict[str, Any]]:
 
     all_courses: list[dict[str, Any]] = []
     saved_col_map: dict[int, int] | None = None
+    semester_start: dt_date | None = None
+    all_text_parts: list[str] = []
 
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
         for page in pdf.pages:
+            page_text = page.extract_text() or ""
+            all_text_parts.append(page_text)
+
+            if semester_start is None and page_text:
+                semester_start = _infer_semester_start(page_text)
+
             tables = page.extract_tables()
             for table in tables:
-                if not table or len(table) < 2: continue
+                if not table or len(table) < 2:
+                    continue
+
                 col_map: dict[int, int] = {}
                 for row in table:
-                    if not row: continue
+                    if not row:
+                        continue
                     for ci, cell in enumerate(row):
-                        if cell:
+                        if cell and isinstance(cell, str):
                             for kw, wd in zip(WEEKDAY_KW, range(1, 8)):
-                                if kw in str(cell):
+                                if kw in cell:
                                     col_map[ci] = wd
                     if col_map:
                         saved_col_map = dict(col_map)
                         break
                 if not col_map:
                     col_map = saved_col_map or {}
-                if not col_map: continue
+                if not col_map:
+                    continue
+
                 for row in table:
-                    if not row: continue
+                    if not row:
+                        continue
                     for col_idx, weekday in col_map.items():
-                        ct = str(row[col_idx] or "").strip() if col_idx < len(row) else ""
-                        if not ct or ct == "None" or len(ct) < 8: continue
-                        if any(kw in ct and len(ct) < 12 for kw in WEEKDAY_KW): continue
+                        ct = (
+                            str(row[col_idx] or "").strip()
+                            if col_idx < len(row)
+                            else ""
+                        )
+                        if not ct or ct == "None" or "★" not in ct:
+                            continue
+                        if any(kw in ct and len(ct) < 12 for kw in WEEKDAY_KW):
+                            continue
                         all_courses.extend(_parse_cell(ct, weekday))
-    return all_courses
+
+    if semester_start is None:
+        full_text = "\n".join(all_text_parts)
+        semester_start = _infer_semester_start(full_text)
+
+    return all_courses, semester_start
 
 
-# ═══════════════════════════════════════════════════════════════
-#  EXAM EXCEL PARSER (deterministic, zero LLM)
-# ═══════════════════════════════════════════════════════════════
+# Exam Excel parser
 
-# Column name mappings (Chinese header -> English key)
-_EXAM_COL_MAP = {
+_EXAM_COL_MAP: dict[str, str] = {
     "课程名称": "subject",
+    "科目": "subject",
+    "课程": "subject",
+    "考试课程": "subject",
+    "考试科目": "subject",
     "考试日期": "exam_date_raw",
+    "日期": "exam_date_raw",
+    "考试时间": "exam_date_raw",
+    "时间": "exam_date_raw",
     "考试地点": "location",
+    "地点": "location",
+    "考场": "location",
+    "场地简称": "location",
 }
+
+_DATE_TIME_RE_PATTERNS = [
+    re.compile(r"(\d{4}-\d{2}-\d{2})\((\d{2}:\d{2})-(\d{2}:\d{2})\)"),
+    re.compile(r"(\d{4}/\d{2}/\d{2})\s*(\d{2}:\d{2})-(\d{2}:\d{2})"),
+    re.compile(r"(\d{4}年\d{2}月\d{2}日)\s*(\d{2}:\d{2})-(\d{2}:\d{2})"),
+    re.compile(r"(\d{4}-\d{2}-\d{2})"),
+    re.compile(r"(\d{4}/\d{2}/\d{2})"),
+]
 
 
 def _extract_exams_from_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
-    """Parse exam schedule from university教务系统 Excel format.
-
-    Expected columns: 课程名称, 考试日期(YYYY-MM-DD(HH:MM-HH:MM)), 考试地点
-    """
     try:
         import openpyxl
     except ImportError:
         raise RuntimeError("openpyxl required: pip install openpyxl")
 
-    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), )
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
     ws = wb.active
     if not ws:
         raise RuntimeError("Excel file has no active sheet")
 
     rows = list(ws.iter_rows(values_only=True))
     if len(rows) < 2:
+        wb.close()
         return []
 
-    # Find column indices from header row
     header = rows[0]
     col_idx: dict[str, int] = {}
     for ci, cell in enumerate(header):
-        if cell:
-            key = _EXAM_COL_MAP.get(str(cell).strip())
-            if key:
-                col_idx[key] = ci
+        cell_str = str(cell).strip() if cell else ""
+        key = _EXAM_COL_MAP.get(cell_str)
+        if key and key not in col_idx:
+            col_idx[key] = ci
 
     if "subject" not in col_idx or "exam_date_raw" not in col_idx:
-        raise RuntimeError(
-            "Excel must contain columns: 课程名称, 考试日期. "
-            f"Found: {list(col_idx.keys())}"
-        )
+        wb.close()
+        return []
 
     exams: list[dict[str, Any]] = []
-    for row in rows[1:]:
-        if not row: continue
+    subj_col = col_idx["subject"]
+    date_col = col_idx["exam_date_raw"]
+    loc_col = col_idx.get("location")
 
-        subject = str(row[col_idx["subject"]] or "").strip()
-        date_raw = str(row[col_idx["exam_date_raw"]] or "").strip()
-        location = str(row[col_idx.get("location", -1)] or "").strip() if "location" in col_idx else None
+    for row in rows[1:]:
+        if not row:
+            continue
+
+        subject = str(row[subj_col] or "").strip() if subj_col < len(row) else ""
+        date_raw = str(row[date_col] or "").strip() if date_col < len(row) else ""
+        location = (
+            str(row[loc_col] or "").strip()
+            if loc_col is not None and loc_col < len(row)
+            else None
+        )
 
         if not subject or not date_raw:
             continue
 
-        # Parse date: "2026-07-15(10:10-12:00)"
-        dm = _EXAM_DATE_RE.search(date_raw)
-        if not dm:
-            exams.append({
-                "subject": subject,
-                "exam_date": None,
-                "start_time": None,
-                "end_time": None,
-                "location": location or None,
-                "source": "excel_import",
-            })
-            continue
+        matched = False
+        for pat in _DATE_TIME_RE_PATTERNS:
+            dm = pat.search(date_raw)
+            if dm:
+                groups = dm.groups()
+                try:
+                    date_str = groups[0].replace("年", "-").replace("月", "-").replace("日", "")
+                    parsed_date = dt_date.fromisoformat(date_str)
+                except (ValueError, IndexError):
+                    parsed_date = None
+                if len(groups) >= 3:
+                    exams.append({
+                        "subject": subject,
+                        "exam_date": parsed_date,
+                        "start_time": groups[1],
+                        "end_time": groups[2],
+                        "location": location or None,
+                        "source": "excel_import",
+                    })
+                elif len(groups) >= 1:
+                    exams.append({
+                        "subject": subject,
+                        "exam_date": parsed_date,
+                        "start_time": None,
+                        "end_time": None,
+                        "location": location or None,
+                        "source": "excel_import",
+                    })
+                matched = True
+                break
 
-        exams.append({
-            "subject": subject,
-            "exam_date": dm.group(1),
-            "start_time": dm.group(2),
-            "end_time": dm.group(3),
-            "location": location or None,
-            "source": "excel_import",
-        })
+        if not matched:
+            logger.warning("Could not parse date from: '{}'", date_raw[:80])
 
     wb.close()
     return exams
 
 
-# ═══════════════════════════════════════════════════════════════
-#  EXAM PDF PARSER (LLM fallback for unstructured exam PDFs)
-# ═══════════════════════════════════════════════════════════════
+# Exam PDF parser (LLM fallback)
 
 def _extract_text_from_pdf(file_bytes: bytes) -> str:
     try:
@@ -203,7 +343,8 @@ def _extract_text_from_pdf(file_bytes: bytes) -> str:
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             for p in pdf.pages:
                 t = p.extract_text()
-                if t: parts.append(t)
+                if t:
+                    parts.append(t)
         return "\n".join(parts)
     except ImportError:
         pass
@@ -222,38 +363,67 @@ def _parse_exams_llm(raw_text: str, llm) -> list[dict[str, Any]]:
         "Output ONLY JSON array."
     )
     try:
-        resp = llm.chat(user_message="Parse:\n"+raw_text[:4000],
-                        system_prompt=prompt, temperature=0.1, max_tokens=2000)
+        resp = llm.chat(
+            user_message="Parse:\n" + raw_text[:4000],
+            system_prompt=prompt,
+            temperature=0.1,
+            max_tokens=2000,
+        )
         m = re.search(r"\[.*\]", resp, re.DOTALL)
-        return json.loads(m.group()) if m else []
+        if m:
+            items = json.loads(m.group())
+            for item in items:
+                if isinstance(item.get("exam_date"), str):
+                    try:
+                        item["exam_date"] = dt_date.fromisoformat(item["exam_date"])
+                    except (ValueError, TypeError):
+                        pass
+            return items
+        return []
     except Exception as exc:
         logger.error("Exam LLM parse failed: {}", exc)
         return []
 
 
-# ═══════════════════════════════════════════════════════════════
-#  API ENDPOINTS
-# ═══════════════════════════════════════════════════════════════
+# API endpoints
 
 @router.post("/import", response_model=APIResponse[dict])
 async def import_pdf(
     file: UploadFile = File(...),
     user_id: str = Query(..., description="User ID"),
     import_type: str = Query("course", description="course or exam"),
+    semester_start: str | None = Query(
+        None,
+        description="Semester start date YYYY-MM-DD. Overrides auto-detection.",
+    ),
     db: Session = Depends(get_db),
 ):
-    """Import course/exam data from PDF files."""
     if file.content_type and "pdf" not in file.content_type:
-        return APIResponse.error(code=400, message="Only PDF files supported for this endpoint. Use /import/excel for Excel.")
+        return APIResponse.error(
+            code=400,
+            message="Only PDF files supported. Use /import/excel for Excel."
+        )
 
     file_bytes = await file.read()
+    resolved_semester: dt_date | None = None
 
     if import_type == "course":
         try:
-            items = _extract_courses_from_pdf(file_bytes)
+            items, auto_semester = _extract_courses_from_pdf(file_bytes)
         except Exception as exc:
             logger.error("Course PDF failed: {}", exc)
             return APIResponse.error(code=400, message=str(exc))
+
+        if semester_start:
+            try:
+                resolved_semester = dt_date.fromisoformat(semester_start)
+            except ValueError:
+                return APIResponse.error(code=400, message="Invalid semester_start format, use YYYY-MM-DD")
+        elif auto_semester:
+            resolved_semester = auto_semester
+
+        if resolved_semester:
+            logger.info("Semester start resolved: {}", resolved_semester.isoformat())
     else:
         raw = _extract_text_from_pdf(file_bytes)
         if not raw.strip():
@@ -263,7 +433,7 @@ async def import_pdf(
     if not items:
         return APIResponse.error(code=422, message="No items found in PDF")
 
-    return _store_preview(user_id, import_type, items)
+    return _store_preview(user_id, import_type, items, resolved_semester)
 
 
 @router.post("/import/excel", response_model=APIResponse[dict])
@@ -272,11 +442,6 @@ async def import_excel(
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
 ):
-    """Import exam data from Excel (.xlsx) files.
-
-    Supports the university教务系统 exam schedule format.
-    Columns: 课程名称, 考试日期, 考试地点
-    """
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
         return APIResponse.error(code=400, message="Only .xlsx / .xls files supported")
 
@@ -296,7 +461,6 @@ async def import_excel(
 
 @router.post("/import/confirm", response_model=APIResponse[dict])
 def confirm_import(payload: ImportConfirmRequest, db: Session = Depends(get_db)):
-    """Confirm a previewed import and save items to database."""
     preview = _preview_store.pop(payload.import_id, None)
     if preview is None:
         return APIResponse.error(code=404, message="Preview not found or already confirmed")
@@ -305,37 +469,77 @@ def confirm_import(payload: ImportConfirmRequest, db: Session = Depends(get_db))
     saved = 0
 
     if itype == "course":
+        semester_start_val = preview.get("semester_start")
         for item in items:
             try:
-                db.add(Course(user_id=user_id, name=item.get("name", ""),
-                    teacher=item.get("teacher"), location=item.get("location"),
-                    schedule_json=json.dumps(item.get("schedule", []), ensure_ascii=False),
-                    source="pdf_import"))
+                db.add(
+                    Course(
+                        user_id=user_id,
+                        name=item.get("name", ""),
+                        teacher=item.get("teacher"),
+                        location=item.get("location"),
+                        schedule_json=json.dumps(
+                            item.get("schedule", []), ensure_ascii=False
+                        ),
+                        semester_start=semester_start_val,
+                        source="pdf_import",
+                    )
+                )
                 saved += 1
             except Exception as exc:
                 logger.warning("Course save fail: {}", exc)
-    else:  # exam
+    else:
         for item in items:
             try:
-                db.add(Exam(user_id=user_id, subject=item.get("subject", ""),
-                    exam_date=item.get("exam_date"), start_time=item.get("start_time"),
-                    end_time=item.get("end_time"), location=item.get("location"),
-                    source=item.get("source", "excel_import")))
+                exam_date = item.get("exam_date")
+                if isinstance(exam_date, str):
+                    try:
+                        exam_date = dt_date.fromisoformat(exam_date)
+                    except (ValueError, TypeError):
+                        exam_date = None
+                db.add(
+                    Exam(
+                        user_id=user_id,
+                        subject=item.get("subject", ""),
+                        exam_date=exam_date,
+                        start_time=item.get("start_time"),
+                        end_time=item.get("end_time"),
+                        location=item.get("location"),
+                        source=item.get("source", "excel_import"),
+                    )
+                )
                 saved += 1
             except Exception as exc:
                 logger.warning("Exam save fail: {}", exc)
 
     db.commit()
     logger.info("Import confirmed: {} {}/{}", itype, saved, len(items))
-    return APIResponse.ok(data={"import_id": payload.import_id, "saved_count": saved})
+
+    result: dict[str, Any] = {"import_id": payload.import_id, "saved_count": saved}
+    if preview.get("semester_start"):
+        ss = preview["semester_start"]
+        result["semester_start"] = ss.isoformat() if hasattr(ss, "isoformat") else str(ss)
+    return APIResponse.ok(data=result)
 
 
-def _store_preview(user_id: str, import_type: str, items: list[dict[str, Any]]) -> dict[str, Any]:
-    """Store parsed items as preview, return standard response."""
+def _store_preview(
+    user_id: str,
+    import_type: str,
+    items: list[dict[str, Any]],
+    semester_start: dt_date | None = None,
+) -> dict[str, Any]:
     import_id = str(uuid.uuid4())
-    _preview_store[import_id] = {"user_id": user_id, "import_type": import_type, "items": items}
+    entry: dict[str, Any] = {
+        "user_id": user_id,
+        "import_type": import_type,
+        "items": items,
+    }
+    if semester_start:
+        entry["semester_start"] = semester_start
+    _preview_store[import_id] = entry
     logger.info("Import preview: {} {} items (id={})", import_type, len(items), import_id)
     return APIResponse.ok(data={
         "import_id": import_id, "import_type": import_type,
-        "total": len(items), "items": items,
+        "total": len(items),
+        "items": items,
     })

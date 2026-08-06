@@ -1,0 +1,206 @@
+<!-- 固定顶部区域 -->
+<view class="fixed-header">
+  <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+  <view class="custom-nav">
+    <view class="nav-left" bindtap="goBack">
+      <text class="back-icon">←</text>
+    </view>
+    <view class="nav-title">今日模式</view>
+    <view class="nav-right">
+      <text class="more-icon">⋯</text>
+    </view>
+  </view>
+</view>
+
+<!-- 可滚动内容区 -->
+<scroll-view class="scroll-content" scroll-y>
+
+  <!-- 日期选择区 -->
+  <view class="date-section">
+    <view class="date-header">
+      <view class="date-title">今日日程</view>
+      <view class="date-picker" bindtap="onToggleView">
+        <text>{{currentYear}}年{{currentMonth}}月</text>
+        <text class="dropdown">{{calendarView === 'month' ? '▼' : '▲'}}</text>
+      </view>
+    </view>
+
+    <!-- 星期标题 -->
+    <view class="week-row-header">
+      <view class="week-header-item" wx:for="{{['日','一','二','三','四','五','六']}}" wx:key="index">
+        <text class="week-header-text">{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 月视图：完整6行 -->
+    <block wx:if="{{calendarView === 'month'}}">
+      <view class="calendar-grid">
+        <view
+          class="day-cell {{item.isCurrentMonth ? '' : 'other-month'}} {{item.isToday ? 'today' : ''}} {{item.isSelected ? 'selected' : ''}} {{item.isWeekend ? 'weekend' : ''}}"
+          wx:for="{{calendarDays}}"
+          wx:key="fullDate"
+          data-date="{{item.fullDate}}"
+          data-iscurrentmonth="{{item.isCurrentMonth}}"
+          bindtap="onDateTap"
+        >
+          <text class="day-num">{{item.date}}</text>
+          <view class="day-dots" wx:if="{{item.events.length > 0}}">
+            <view class="dot {{event.type === 'exam' ? 'dot-exam' : 'dot-course'}}" wx:for="{{item.events}}" wx:for-item="event" wx:key="index"></view>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 周视图：只显示当前周 -->
+    <block wx:else>
+      <view class="calendar-grid week-view">
+        <view
+          class="day-cell {{item.isCurrentMonth ? '' : 'other-month'}} {{item.isToday ? 'today' : ''}} {{item.isSelected ? 'selected' : ''}} {{item.isWeekend ? 'weekend' : ''}}"
+          wx:for="{{calendarDays}}"
+          wx:key="fullDate"
+          wx:if="{{index >= weekStartIndex && index < weekStartIndex + 7}}"
+          data-date="{{item.fullDate}}"
+          data-iscurrentmonth="{{item.isCurrentMonth}}"
+          bindtap="onDateTap"
+        >
+          <text class="day-num">{{item.date}}</text>
+          <view class="day-dots" wx:if="{{item.events.length > 0}}">
+            <view class="dot {{event.type === 'exam' ? 'dot-exam' : 'dot-course'}}" wx:for="{{item.events}}" wx:for-item="event" wx:key="index"></view>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 操作栏 -->
+    <view class="calendar-actions">
+      <view class="action-btn" bindtap="onPrevMonth">
+        <text class="action-icon">←</text>
+      </view>
+      <view class="action-btn today-btn {{selectedDate !== today ? 'active' : ''}}" bindtap="onGoToday">
+        <text>今天</text>
+      </view>
+      <view class="action-btn" bindtap="onNextMonth">
+        <text class="action-icon">→</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 时间轴大卡片 -->
+  <view class="timeline-card">
+    <view class="timeline-header">
+      <text class="timeline-date">{{selectedDate}}</text>
+      <text class="timeline-count" wx:if="{{scheduleList.length > 0}}">{{scheduleList.length}}项安排</text>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="timeline-loading" wx:if="{{scheduleLoading}}">
+      <view class="loading-dots">
+        <view class="dot"></view>
+        <view class="dot"></view>
+        <view class="dot"></view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="timeline-empty" wx:elif="{{scheduleList.length === 0}}">
+      <text class="empty-icon">📮</text>
+      <text class="empty-text">这天没有安排</text>
+      <text class="empty-hint" bindtap="onFabTap">点击右下角添加事件</text>
+    </view>
+
+    <!-- 时间轴列表 -->
+    <view class="timeline-list" wx:else>
+      <view class="timeline-item type-{{item.eventType}}" wx:for="{{scheduleList}}" wx:key="id">
+        <view class="time">{{item.time}}</view>
+        <view class="timeline-axis">
+          <view class="timeline-dot"></view>
+          <view class="timeline-line" wx:if="{{index < scheduleList.length - 1}}"></view>
+        </view>
+        <view class="event-main">
+          <view class="event-header">
+            <view class="event-title">{{item.title}}</view>
+            <view class="event-status-wrap">
+              <text class="status-badge {{item.status}}">{{item.statusText}}</text>
+            </view>
+          </view>
+          <view class="event-location" wx:if="{{item.location}}">{{item.location}}</view>
+          <view class="event-tags" wx:if="{{item.eventType === 'todo' || item.source === 'ai_plan'}}">
+            <text class="tag todo" wx:if="{{item.eventType === 'todo'}}">待办</text>
+            <text class="tag ai-plan" wx:if="{{item.source === 'ai_plan'}}">AI计划</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- AI建议 -->
+  <view class="ai-tip">
+    <view class="ai-tip-header">
+      <image class="ai-tip-icon" src="/images/icon-ai-bulb.png" mode="aspectFit"></image>
+      <text class="ai-tip-title">AI 建议</text>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="ai-loading" wx:if="{{aiSuggestion.loading}}">
+      <text class="ai-loading-text">正在生成建议...</text>
+    </view>
+
+    <!-- 错误态 -->
+    <view class="ai-error" wx:elif="{{aiSuggestion.hasError}}">
+      <text class="ai-error-text">获取建议失败</text>
+      <text class="ai-retry" bindtap="loadAISuggestion">点击重试</text>
+    </view>
+
+    <!-- 正常显示 -->
+    <view class="ai-tip-content" wx:else>
+      <text class="ai-tip-text-full">{{aiSuggestion.text}}</text>
+    </view>
+  </view>
+
+  <!-- 底部留白 -->
+  <view style="height: 120rpx;"></view>
+</scroll-view>
+
+<!-- 替换原有的 FAB 区域 -->
+<view class="fab-container {{fabOpen ? 'open' : ''}}">
+  <!-- 遮罩层 -->
+  <view class="fab-mask" wx:if="{{fabOpen}}" bindtap="closeFab"></view>
+
+  <!-- 子菜单选项 - 白色大卡片 -->
+  <view class="fab-menu">
+    <view class="fab-card">
+      <view class="fab-card-item" bindtap="onAddCourse">
+        <view class="fab-card-icon" style="background: #EBF5FF;">
+          <text style="color: #4A90D9;">📎</text>
+        </view>
+        <text class="fab-card-label">添加课程</text>
+      </view>
+      <view class="fab-card-divider"></view>
+      <view class="fab-card-item" bindtap="onAddExam">
+        <view class="fab-card-icon" style="background: #FEF0F0;">
+          <text style="color: #E74C3C;">📑</text>
+        </view>
+        <text class="fab-card-label">添加考试</text>
+      </view>
+      <view class="fab-card-divider"></view>
+      <view class="fab-card-item" bindtap="onAddTodo">
+        <view class="fab-card-icon" style="background: #F6FFED;">
+          <text style="color: #52C41A;">✓</text>
+        </view>
+        <text class="fab-card-label">添加待办</text>
+      </view>
+      <view class="fab-card-divider"></view>
+      <view class="fab-card-item" bindtap="onImportSchedule">
+        <view class="fab-card-icon" style="background: #F9F0FF;">
+          <text style="color: #9B59B6;">📜</text>
+        </view>
+        <text class="fab-card-label">导入课表</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 主按钮 -->
+  <view class="fab-main" bindtap="toggleFab">
+    <text class="fab-icon {{fabOpen ? 'rotate' : ''}}">+</text>
+  </view>
+</view>

@@ -1,0 +1,106 @@
+<view class="container">
+  <!-- 固定顶部 -->
+  <view class="fixed-header">
+    <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+    <view class="custom-nav">
+      <view class="nav-back" bindtap="goBack">
+        <text class="back-icon">‹</text>
+      </view>
+      <view class="nav-title">{{importType === 'course' ? '导入课程表预览' : '导入考试表预览'}}</view>
+      <view class="nav-placeholder"></view>
+    </view>
+  </view>
+
+  <!-- 内容区域 -->
+  <scroll-view 
+    class="content" 
+    style="padding-top: {{statusBarHeight + 44}}px;" 
+    scroll-y 
+    enhanced 
+    show-scrollbar="{{false}}"
+  >
+    <!-- 文件信息卡片 -->
+    <view class="file-card">
+      <view class="file-icon {{importType === 'course' ? 'pdf' : 'excel'}}">
+        <text class="file-icon-text">{{importType === 'course' ? 'PDF' : 'XLS'}}</text>
+      </view>
+      <view class="file-info">
+        <text class="file-name">{{fileName}}</text>
+        <text class="file-size">{{fileSize}}</text>
+      </view>
+      <text class="file-replace" bindtap="goBack">重新选择</text>
+    </view>
+
+    <!-- 预览标题 -->
+    <view class="preview-header">
+      <text class="preview-title">{{importType === 'course' ? '课程预览' : '考试预览'}}</text>
+      <text class="preview-count">（共{{previewList.length}}条）</text>
+    </view>
+
+    <!-- 课程表预览列表 -->
+    <view class="preview-table" wx:if="{{importType === 'course'}}">
+      <view class="table-header">
+        <view class="th" style="width: 25%;">课程名</view>
+        <view class="th" style="width: 15%;">教师</view>
+        <view class="th" style="width: 20%;">地点</view>
+        <view class="th" style="width: 12%;">星期</view>
+        <view class="th" style="width: 13%;">节次</view>
+        <view class="th" style="width: 15%;">周次</view>
+      </view>
+      <view class="table-body">
+        <view class="table-row" wx:for="{{previewList}}" wx:key="index">
+          <view class="td" style="width: 25%;">{{item.name}}</view>
+          <view class="td" style="width: 15%;">{{item.teacher}}</view>
+          <view class="td" style="width: 20%;">{{item.location}}</view>
+          <view class="td" style="width: 12%;">{{item.weekdayText}}</view>
+          <view class="td" style="width: 13%;">{{item.section}}</view>
+          <view class="td" style="width: 15%;">{{item.weeks}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 考试表预览列表 -->
+    <view class="preview-table" wx:if="{{importType === 'exam'}}">
+      <view class="table-header">
+        <view class="th" style="width: 30%;">科目</view>
+        <view class="th" style="width: 25%;">日期</view>
+        <view class="th" style="width: 25%;">时间</view>
+        <view class="th" style="width: 20%;">地点</view>
+      </view>
+      <view class="table-body">
+        <view class="table-row" wx:for="{{previewList}}" wx:key="index">
+          <view class="td" style="width: 30%;">{{item.subject}}</view>
+          <view class="td" style="width: 25%;">{{item.exam_date}}</view>
+          <view class="td" style="width: 25%;">{{item.time}}</view>
+          <view class="td" style="width: 20%;">{{item.location}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 提示信息 -->
+    <view class="tips">
+      <text class="tips-icon">ⓘ</text>
+      <text class="tips-text">如有{{importType === 'course' ? '课程' : '考试'}}信息识别错误，可在导入后手动调整</text>
+    </view>
+
+    <!-- 底部留白 -->
+    <view class="bottom-safe"></view>
+  </scroll-view>
+
+  <!-- 底部固定按钮 -->
+  <view class="footer-bar">
+    <view 
+      class="confirm-btn {{importLoading ? 'loading' : 'active'}}" 
+      bindtap="onConfirm"
+    >
+      <!-- loading 状态 -->
+      <view class="btn-loading" wx:if="{{importLoading}}">
+        <view class="loading-dot"></view>
+        <view class="loading-dot"></view>
+        <view class="loading-dot"></view>
+      </view>
+      <!-- 正常状态 -->
+      <text class="btn-text" wx:else>一键导入</text>
+    </view>
+  </view>
+</view>

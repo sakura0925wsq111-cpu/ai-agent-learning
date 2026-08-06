@@ -1,0 +1,33 @@
+.container { min-height: 100vh; background: #F5F6FA; }
+.status-bar { background: #fff; }
+.custom-nav { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 16px; background: #fff; border-bottom: 1px solid #F0F0F0; }
+.nav-left { width: 40px; }
+.back-icon { font-size: 20px; color: #333; }
+.nav-title { font-size: 17px; font-weight: 600; color: #222; }
+.nav-right { width: 40px; }
+.scroll-content { padding-top: 12px; }
+.loading-state { display: flex; justify-content: center; padding: 80px 0; }
+.loading-dots { display: flex; gap: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #4A90D9; animation: bounce 1.4s ease-in-out infinite; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,80%,100% { opacity: 0.3; } 40% { opacity: 1; } }
+.section-card { background: #fff; margin: 0 16px 12px; border-radius: 12px; overflow: hidden; }
+.section-header { padding: 16px 16px 0; display: flex; align-items: center; }
+.section-title-wrap { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.section-title { font-size: 15px; font-weight: 600; color: #333; }
+.section-arrow { font-size: 16px; color: #ccc; }
+.info-list { padding: 0 16px; }
+.info-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #F5F5F5; }
+.info-item:last-child { border-bottom: none; }
+.info-left { display: flex; align-items: center; }
+.info-label { font-size: 14px; color: #333; }
+.info-label.danger { color: #E74C3C; }
+.info-right { display: flex; align-items: center; }
+.info-value { font-size: 14px; color: #999; margin-right: 6px; }
+.info-arrow { font-size: 14px; color: #ccc; }
+.account-icon { width: 20px; height: 20px; margin-right: 10px; }
+.memory-row { padding: 12px 16px 16px; }
+.memory-desc { font-size: 13px; color: #999; }
+.memory-count { font-size: 15px; font-weight: 700; color: #4A90D9; }
+.bottom-safe { height: 40px; }

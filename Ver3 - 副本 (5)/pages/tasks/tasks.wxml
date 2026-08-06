@@ -1,0 +1,160 @@
+<view class="container">
+  <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
+  
+  <view class="custom-nav">
+    <view class="nav-left" bindtap="goBack">
+      <text class="back-icon">←</text>
+    </view>
+    <view class="nav-title">我的任务</view>
+    <view class="nav-right"><text class="more-icon" style="opacity:0;">⋯</text></view>
+  </view>
+
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'pending' ? 'active' : ''}}" bindtap="switchTab" data-tab="pending">
+      <text class="tab-text">待完成</text>
+      <view class="tab-line" wx:if="{{activeTab === 'pending'}}"></view>
+    </view>
+    <view class="tab-item {{activeTab === 'done' ? 'active' : ''}}" bindtap="switchTab" data-tab="done">
+      <text class="tab-text">已完成</text>
+      <view class="tab-line" wx:if="{{activeTab === 'done'}}"></view>
+    </view>
+    <view class="tab-item {{activeTab === 'archived' ? 'active' : ''}}" bindtap="switchTab" data-tab="archived">
+      <text class="tab-text">已归档</text>
+      <view class="tab-line" wx:if="{{activeTab === 'archived'}}"></view>
+    </view>
+  </view>
+
+  <scroll-view class="task-scroll" scroll-y refresher-enabled="{{true}}" bindrefresherrefresh="onRefresh">
+    <view class="task-card">
+      <view class="loading-state" wx:if="{{loading}}">
+        <view class="loading-dots"><view class="dot"></view><view class="dot"></view><view class="dot"></view></view>
+      </view>
+
+      <block wx:elif="{{taskList.length > 0}}">
+        <view class="task-item {{item.done ? 'completed' : ''}} {{item.archived ? 'archived' : ''}}" 
+              wx:for="{{taskList}}" wx:key="id"
+              bindtap="onTaskTap" data-id="{{item.id}}" data-index="{{index}}">
+          
+          <!-- Pending: check circle -->
+          <view class="task-check {{item.done ? 'checked' : ''}} {{item.source === 'ai_plan' ? 'ai-plan' : ''}}" 
+                wx:if="{{activeTab === 'pending'}}"
+                catchtap="toggleTodo" data-id="{{item.id}}" data-index="{{index}}">
+            <view class="check-inner">
+              <text class="check-mark" wx:if="{{item.done}}">✓</text>
+            </view>
+          </view>
+
+          <!-- Done: archive button -->
+          <view class="task-check checked" wx:if="{{activeTab === 'done'}}"
+                catchtap="archiveTodo" data-id="{{item.id}}" data-index="{{index}}">
+            <view class="check-inner"><text class="check-mark">✓</text></view>
+          </view>
+
+          <!-- Archived: restore button -->
+          <view class="task-check archived-check" wx:if="{{activeTab === 'archived'}}"
+                catchtap="restoreTodo" data-id="{{item.id}}">
+            <view class="check-inner"><text class="check-mark">↩</text></view>
+          </view>
+
+          <view class="task-content">
+            <text class="task-title">{{item.title}}</text>
+            <view class="task-meta" wx:if="{{item.time || item.deadline}}">
+              <text class="time-icon">⏰</text>
+              <text class="task-time">{{item.time || item.deadline}}</text>
+            </view>
+            <view class="task-meta" wx:else>
+              <text class="task-time" style="color:#999;">无截止时间</text>
+            </view>
+          </view>
+
+          <view class="task-tag {{item.tagClass}}">
+            <text>{{item.tagText}}</text>
+          </view>
+
+          <!-- Swipe-delete hint area -->
+          <view class="task-delete-btn" catchtap="onDeleteTap" data-id="{{item.id}}" data-index="{{index}}">
+            <text>🗑</text>
+          </view>
+        </view>
+      </block>
+
+      <view class="empty-state" wx:elif="{{activeTab === 'pending'}}">
+        <view class="empty-illustration"><text class="empty-emoji">📝</text></view>
+        <text class="empty-text">暂无待办任务</text>
+        <text class="empty-hint">点击右下角按钮创建新任务</text>
+      </view>
+
+      <view class="empty-state" wx:elif="{{activeTab === 'done'}}">
+        <view class="empty-illustration"><text class="empty-emoji">🎮</text></view>
+        <text class="empty-text">还没有完成任何任务</text>
+        <text class="empty-hint">去完成你的第一个任务吧</text>
+      </view>
+
+      <view class="empty-state" wx:elif="{{activeTab === 'archived'}}">
+        <view class="empty-illustration"><text class="empty-emoji">📦</text></view>
+        <text class="empty-text">归档为空</text>
+        <text class="empty-hint">完成的任务会自动归档到这里</text>
+      </view>
+    </view>
+    <view style="height: 120rpx;"></view>
+  </scroll-view>
+
+  <view class="fab-container" bindtap="onFabTap">
+    <view class="fab-main"><text class="fab-icon">+</text></view>
+  </view>
+</view>
+
+<!-- New/Edit Modal -->
+<view class="modal-mask" wx:if="{{showModal}}" bindtap="closeModal"></view>
+<view class="modal-content" wx:if="{{showModal}}">
+  <view class="modal-header">
+    <text class="modal-title">{{isEdit ? '编辑任务' : '新建任务'}}</text>
+    <view class="modal-close" bindtap="closeModal">✕</view>
+  </view>
+  <view class="modal-body">
+    <view class="form-item">
+      <text class="form-label">任务标题</text>
+      <input class="form-input" type="text" placeholder="输入任务内容" value="{{formTitle}}" bindinput="onTitleInput" focus="{{showModal}}"/>
+    </view>
+    <view class="form-item">
+      <text class="form-label">截止日期（可选）</text>
+      <picker mode="date" value="{{formDate}}" start="{{today}}" bindchange="onDateChange">
+        <view class="form-picker {{formDate ? 'active' : ''}}">
+          <text>{{formDate ? formDate : '选择日期'}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
+    </view>
+    <view class="form-item" wx:if="{{formDate}}">
+      <text class="form-label">截止时间</text>
+      <picker mode="time" value="{{formTime}}" bindchange="onTimeChange">
+        <view class="form-picker {{formTime ? 'active' : ''}}">
+          <text>{{formTime ? formTime : '选择时间'}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
+    </view>
+  </view>
+  <view class="modal-footer">
+    <view class="btn-cancel" bindtap="closeModal">取消</view>
+    <view class="btn-confirm {{formTitle ? 'active' : ''}}" bindtap="onSubmit">{{isEdit ? '保存' : '创建'}}</view>
+  </view>
+</view>
+
+<!-- Delete Confirm Modal -->
+<view class="delete-mask" wx:if="{{showDeleteModal}}" bindtap="cancelDelete"></view>
+<view class="delete-modal" wx:if="{{showDeleteModal}}">
+  <view class="delete-content">
+    <view class="delete-icon">🗑️</view>
+    <text class="delete-title">确认删除</text>
+    <text class="delete-desc">删除后无法恢复，是否确认删除该任务？</text>
+  </view>
+  <view class="delete-actions">
+    <view class="delete-btn cancel" bindtap="cancelDelete">取消</view>
+    <view class="delete-btn confirm" bindtap="confirmDelete">删除</view>
+  </view>
+</view>
+
+<view class="toast-hint" wx:if="{{showLongPressHint}}">
+  <text>点击右侧垃圾桶可删除任务</text>
+</view>

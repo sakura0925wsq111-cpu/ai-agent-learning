@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Today Service — daily suggestion, Growth sync, progress tracking."""
 
 from __future__ import annotations
@@ -40,6 +40,65 @@ def _weekday_today() -> int:
     return date.today().isoweekday()  # 1=Mon, 7=Sun
 
 
+# ── Week calculation helpers ────────────────────────────────────
+
+import re as _re
+
+_WEEKS_RE = _re.compile(r"^(\d+)-(\d+)周(?:\(([双单])\))?$")
+
+
+def _parse_weeks(weeks_str: str) -> dict[str, Any]:
+    """Parse '3-16周' or '2-8周(双)' into structured form."""
+    m = _WEEKS_RE.match((weeks_str or "").strip())
+    if not m:
+        return {"start": 1, "end": 20, "parity": None}
+    parity = None
+    if m.group(3) == "单":
+        parity = "odd"
+    elif m.group(3) == "双":
+        parity = "even"
+    return {"start": int(m.group(1)), "end": int(m.group(2)), "parity": parity}
+
+
+def _is_course_active_in_week(weeks_parsed: dict, current_week: int) -> bool:
+    """Check if a course slot applies to a given academic week."""
+    if current_week < weeks_parsed["start"]:
+        return False
+    if current_week > weeks_parsed["end"]:
+        return False
+    if weeks_parsed["parity"] == "odd" and current_week % 2 == 0:
+        return False
+    if weeks_parsed["parity"] == "even" and current_week % 2 != 0:
+        return False
+    return True
+
+
+def _get_current_week(semester_start: date | None) -> int | None:
+    """Current academic week (1-based), or None if semester_start unknown.
+
+    Returns 0 if today is before the semester start date (semester not yet begun).
+    """
+    if semester_start is None:
+        return None
+    delta = date.today() - semester_start
+    if delta.days < 0:
+        return 0  # Semester hasn't started yet
+    return delta.days // 7 + 1
+
+
+def _get_week_for_date(semester_start: date | None, target: date) -> int | None:
+    """Academic week for a specific date, or None if unknown.
+
+    Returns 0 if target date is before semester start.
+    """
+    if semester_start is None:
+        return None
+    delta = target - semester_start
+    if delta.days < 0:
+        return 0  # Before semester
+    return delta.days // 7 + 1
+
+
 # ── Plan sync helper ────────────────────────────────────────────
 
 PHASE_LABELS = {
@@ -63,7 +122,7 @@ class TodayService:
         weekday = _weekday_today()
         today = date.today()
 
-        # Courses today: filter client-side by schedule_json weekday
+        # Courses today: filter by weekday AND week range
         all_courses = db.query(Course).filter(Course.user_id == user_id).all()
         courses_today: list[dict[str, Any]] = []
         for c in all_courses:
@@ -72,14 +131,23 @@ class TodayService:
             except (json.JSONDecodeError, TypeError):
                 schedule = []
             for slot in schedule:
-                if slot.get("weekday") == weekday:
-                    courses_today.append({
-                        "id": c.id, "name": c.name,
-                        "teacher": c.teacher, "location": c.location,
-                        "start": slot.get("start"), "end": slot.get("end"),
-                        "weeks": slot.get("weeks", ""),
-                        "color": c.color, "source": c.source,
-                    })
+                if slot.get("weekday") != weekday:
+                    continue
+                # Week-range filter
+                weeks_parsed = slot.get("weeks_parsed")
+                if weeks_parsed is None:
+                    weeks_parsed = _parse_weeks(slot.get("weeks", ""))
+                current_week = _get_current_week(c.semester_start)
+                if current_week is not None and not _is_course_active_in_week(weeks_parsed, current_week):
+                    continue
+
+                courses_today.append({
+                    "id": c.id, "name": c.name,
+                    "teacher": c.teacher, "location": c.location,
+                    "start": slot.get("start"), "end": slot.get("end"),
+                    "weeks": slot.get("weeks", ""),
+                    "color": c.color, "source": c.source,
+                })
 
         # Pending todos
         todos = db.query(Todo).filter(
@@ -141,22 +209,27 @@ class TodayService:
             context_parts.append(
                 f"天气: {weather.get('condition', '未知')}, "
                 f"{weather.get('temp', '?')}°C, "
-                f"{weather.get('location', '未知')}"
+                f"湿度 {weather.get('humidity', '?')}%"
             )
-            if weather.get("advice"):
-                context_parts.append(f"天气建议: {weather['advice']}")
 
-        courses = overview["courses_today"]
+        # Courses context
+        courses = overview.get("courses_today", [])
         if courses:
-            context_parts.append(
-                f"今日课程({len(courses)}节): " +
-                ", ".join(
-                    f"[{c['start']}-{c['end']}节] {c['name']}"
-                    for c in courses
+            course_lines = []
+            for c in courses:
+                loc = f"({c.get('location', '')})" if c.get("location") else ""
+                course_lines.append(
+                    f"  {c.get('start', '?')}-{c.get('end', '?')}节 "
+                    f"{c['name']}{loc}"
                 )
+            context_parts.append(
+                f"今日课程({len(courses)}门):\n" + "\n".join(course_lines)
             )
+        else:
+            context_parts.append("今日无课程")
 
-        todos = overview["pending_todos"]
+        # Todos context
+        todos = overview.get("pending_todos", [])
         if todos:
             context_parts.append(
                 f"待办任务({len(todos)}项): " +
@@ -238,8 +311,8 @@ class TodayService:
 
         if existing:
             logger.info(
-                "PlanTask sync: phase {} already synced for session {}",
-                phase, growth_session_id,
+                "Plan phase already synced: {} / {}",
+                growth_session_id, phase,
             )
             return {
                 "user_id": user_id,
@@ -247,72 +320,67 @@ class TodayService:
                 "phase": phase,
                 "synced_count": 0,
                 "todos": [],
-                "message": "该阶段已同步过，无需重复操作",
             }
 
-        # Load growth report
+        # Load the growth report for this session
         report = db.query(GrowthReport).filter(
+            GrowthReport.user_id == user_id,
             GrowthReport.session_id == growth_session_id,
-        ).first()
+        ).order_by(GrowthReport.created_at.desc()).first()
 
-        if not report or not report.plan_json:
-            raise ValueError(f"No plan found for session {growth_session_id}")
+        if not report:
+            raise ValueError(f"Growth report not found: {growth_session_id}")
 
         try:
-            plan = json.loads(report.plan_json)
+            plan_data = json.loads(report.content_json or "{}")
         except (json.JSONDecodeError, TypeError):
-            raise ValueError("Failed to parse growth plan JSON")
+            plan_data = {}
 
-        # Extract tasks for the requested phase
-        action_plan = plan if isinstance(plan, list) else plan.get("action_plan", [])
-        phase_tasks: list[dict[str, Any]] = []
-        for p in action_plan:
-            if isinstance(p, dict) and p.get("phase") == phase:
-                phase_tasks = p.get("tasks", [])
-                break
-
-        if not phase_tasks:
-            raise ValueError(f"No tasks found for phase {phase}")
-
-        # Create Todo + PlanTask for each task
-        synced: list[dict[str, Any]] = []
-        for idx, task in enumerate(phase_tasks):
-            title = task.get("title") or task.get("name") or task.get("task") or ""
-            if not title:
-                continue
-
-            deadline = task.get("deadline") or task.get("due") or None
-
-            todo = todo_crud.create(db, obj_in={
+        phase_data = plan_data.get("phases", {}).get(phase, {})
+        tasks = phase_data.get("tasks", [])
+        if not tasks:
+            logger.warning("No tasks found in phase {}", phase)
+            return {
                 "user_id": user_id,
-                "title": title,
-                "status": "pending",
-                "deadline": deadline,
-                "source": "ai_plan",
-            })
+                "growth_session_id": growth_session_id,
+                "phase": phase,
+                "synced_count": 0,
+                "todos": [],
+            }
 
+        # Create PlanTask + Todo records
+        synced = []
+        for task in tasks:
             plan_task = PlanTask(
                 user_id=user_id,
                 growth_session_id=growth_session_id,
-                growth_report_id=report.id,
-                todo_id=todo.id,
                 phase_key=phase,
-                plan_task_index=idx,
+                phase_label=PHASE_LABELS.get(phase, phase),
+                description=task.get("title", task.get("description", "")),
+                deadline=task.get("deadline"),
+                status="pending",
             )
             db.add(plan_task)
-            db.commit()
+            db.flush()  # get plan_task.id
 
+            todo = Todo(
+                user_id=user_id,
+                title=task.get("title", task.get("description", "")),
+                source="ai_plan",
+                status="pending",
+                deadline=task.get("deadline"),
+                plan_task_id=plan_task.id,
+            )
+            db.add(todo)
             synced.append({
+                "plan_task_id": plan_task.id,
                 "todo_id": todo.id,
                 "title": todo.title,
-                "deadline": todo.deadline,
-                "phase": phase,
-                "index": idx,
             })
 
+        db.commit()
         logger.info(
-            "PlanTask sync: {} tasks synced for session {} phase {}",
-            len(synced), growth_session_id, phase,
+            "Synced {} tasks from {} / {}", len(synced), growth_session_id, phase
         )
 
         return {
@@ -338,52 +406,38 @@ class TodayService:
             PlanTask.growth_session_id == growth_session_id,
         ).all()
 
-        if not plan_tasks:
-            return {
-                "user_id": user_id,
-                "growth_session_id": growth_session_id,
-                "phases": [],
-                "overall_completion": 0.0,
-            }
-
-        # Group by phase
-        phases_map: dict[str, list[dict[str, Any]]] = {}
+        phases: dict[str, dict[str, Any]] = {}
         for pt in plan_tasks:
-            todo = db.query(Todo).filter(Todo.id == pt.todo_id).first()
-            todo_info = {
-                "todo_id": pt.todo_id,
-                "title": todo.title if todo else "(已删除)",
-                "status": todo.status if todo else "unknown",
-                "plan_task_index": pt.plan_task_index,
-            }
-            phases_map.setdefault(pt.phase_key, []).append(todo_info)
-
-        phases: list[dict[str, Any]] = []
-        total_all = 0
-        completed_all = 0
-        for pk in sorted(phases_map.keys()):
-            items = phases_map[pk]
-            completed = sum(1 for t in items if t["status"] in ("done", "archived"))
-            phases.append({
-                "phase_key": pk,
-                "label": PHASE_LABELS.get(pk, pk),
-                "total": len(items),
-                "completed": completed,
-                "todos": items,
+            ph = phases.setdefault(pt.phase_key, {
+                "phase_key": pt.phase_key,
+                "label": pt.phase_label,
+                "total": 0,
+                "completed": 0,
+                "todos": [],
             })
-            total_all += len(items)
-            completed_all += completed
+            ph["total"] += 1
+            if pt.status == "completed":
+                ph["completed"] += 1
+            ph["todos"].append({
+                "id": pt.id,
+                "description": pt.description,
+                "deadline": pt.deadline,
+                "status": pt.status,
+            })
 
-        overall = completed_all / total_all if total_all > 0 else 0.0
+        phases_list = list(phases.values())
+        total_tasks = sum(p["total"] for p in phases_list)
+        completed = sum(p["completed"] for p in phases_list)
+        overall = completed / total_tasks if total_tasks > 0 else 0.0
 
         return {
             "user_id": user_id,
             "growth_session_id": growth_session_id,
-            "phases": phases,
+            "phases": phases_list,
             "overall_completion": round(overall, 2),
         }
 
-    # ?? Timeline ????????????????????????????????????????????????
+    # ── Timeline ────────────────────────────────────────────────
 
     def get_timeline(
         self,
@@ -399,7 +453,7 @@ class TodayService:
 
         events = []
 
-        # Courses
+        # Courses — filtered by weekday AND week range
         all_courses = db.query(Course).filter(Course.user_id == user_id).all()
         for c in all_courses:
             try:
@@ -407,23 +461,32 @@ class TodayService:
             except (json.JSONDecodeError, TypeError):
                 schedule = []
             for slot in schedule:
-                if slot.get("weekday") == weekday:
-                    start = slot.get("start", 1)
-                    end = slot.get("end", 2)
-                    h = 8 + (start - 1)
-                    start_str = "%02d:00" % h
-                    end_str = "%02d:00" % (8 + end)
-                    events.append({
-                        "id": c.id,
-                        "title": c.name,
-                        "time": start_str,
-                        "end_time": end_str,
-                        "location": c.location or "",
-                        "event_type": "course",
-                        "color": c.color or "#4A90D9",
-                        "source": c.source,
-                        "sort_key": start,
-                    })
+                if slot.get("weekday") != weekday:
+                    continue
+                # Week-range filter
+                weeks_parsed = slot.get("weeks_parsed")
+                if weeks_parsed is None:
+                    weeks_parsed = _parse_weeks(slot.get("weeks", ""))
+                week_num = _get_week_for_date(c.semester_start, target)
+                if week_num is not None and not _is_course_active_in_week(weeks_parsed, week_num):
+                    continue
+
+                start = slot.get("start", 1)
+                end = slot.get("end", 2)
+                h = 8 + (start - 1)
+                start_str = "%02d:00" % h
+                end_str = "%02d:00" % (8 + end)
+                events.append({
+                    "id": c.id,
+                    "title": c.name,
+                    "time": start_str,
+                    "end_time": end_str,
+                    "location": c.location or "",
+                    "event_type": "course",
+                    "color": c.color or "#4A90D9",
+                    "source": c.source,
+                    "sort_key": start,
+                })
 
         # Exams
         exams = db.query(Exam).filter(
@@ -473,7 +536,7 @@ class TodayService:
             "events": events,
         }
 
-    # ?? Calendar ????????????????????????????????????????????????
+    # ── Calendar ────────────────────────────────────────────────
 
     def get_calendar(
         self,
@@ -483,28 +546,26 @@ class TodayService:
         year,
         month,
     ):
-        import json
         import calendar as cal_mod
-        from datetime import date as date_type, timedelta
-
+        from datetime import date as date_type
         today = date_type.today()
         days_in_month = cal_mod.monthrange(year, month)[1]
-        first_weekday = cal_mod.monthrange(year, month)[0]  # 0=Mon ? we convert to 1=Mon
+        first_weekday = cal_mod.monthrange(year, month)[0]  # 0=Mon → we convert to 1=Mon
         first_weekday = (first_weekday + 6) % 7 + 1  # convert to 1=Mon...7=Sun
 
-        # Pre-build empty day map
+        # Build day map
         days_map = {}
         for d in range(1, days_in_month + 1):
             dt = date_type(year, month, d)
             days_map[dt] = {
                 "date": dt.isoformat(),
                 "weekday": dt.isoweekday(),
-                "weekday_label": ["", "??", "??", "??", "??", "??", "??", "??"][dt.isoweekday()],
+                "weekday_label": ["", "一", "二", "三", "四", "五", "六", "日"][dt.isoweekday()],
                 "is_today": dt == today,
                 "events": [],
             }
 
-        # Courses: expand schedule slots to actual dates in this month
+        # Courses: expand schedule slots to actual dates, with week-range filtering
         all_courses = db.query(Course).filter(Course.user_id == user_id).all()
         for c in all_courses:
             try:
@@ -515,13 +576,20 @@ class TodayService:
                 wd = slot.get("weekday", 0)
                 start = slot.get("start", 1)
                 end = slot.get("end", 2)
-                weeks_str = slot.get("weeks", "1-16")
+                # Pre-parse weeks once per slot
+                weeks_parsed = slot.get("weeks_parsed")
+                if weeks_parsed is None:
+                    weeks_parsed = _parse_weeks(slot.get("weeks", ""))
                 # Compute dates in this month that fall on this weekday
                 for d in range(1, days_in_month + 1):
                     dt = date_type(year, month, d)
                     if dt.isoweekday() != wd:
                         continue
-                    # Simple week-range parsing
+                    # Week-range filtering
+                    if c.semester_start is not None:
+                        week_num = _get_week_for_date(c.semester_start, dt)
+                        if week_num is not None and not _is_course_active_in_week(weeks_parsed, week_num):
+                            continue
                     h = 8 + (start - 1)
                     start_str = "%02d:00" % h
                     end_str = "%02d:00" % (8 + end)
@@ -559,7 +627,7 @@ class TodayService:
                     "sort_key": sk + 10,
                 })
 
-        # Pending todos ? attach to today by default
+        # Pending todos → attach to today by default
         todos = db.query(Todo).filter(
             Todo.user_id == user_id,
             Todo.status == "pending",
@@ -570,13 +638,8 @@ class TodayService:
             if t.deadline:
                 for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%m-%d"]:
                     try:
-                        parsed = date_type.strptime(t.deadline, fmt) if hasattr(date_type, 'strptime') else None
-                        if parsed is None:
-                            from datetime import datetime as dt_cls
-                            try:
-                                parsed = dt_cls.strptime(t.deadline, fmt).date()
-                            except:
-                                continue
+                        from datetime import datetime as dt_cls
+                        parsed = dt_cls.strptime(t.deadline, fmt).date()
                         if parsed and month_start <= parsed <= month_end:
                             todo_date = parsed
                             break
@@ -606,9 +669,8 @@ class TodayService:
             "user_id": user_id,
             "year": year,
             "month": month,
-            "month_label": "%d?" % month,
+            "month_label": "%d月" % month,
             "first_weekday": first_weekday,
             "total_days": days_in_month,
             "days": days_list,
         }
-
