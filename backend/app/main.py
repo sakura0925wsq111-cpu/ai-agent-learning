@@ -83,8 +83,8 @@ app.include_router(memory_router_v1, prefix="/api/v1")
 app.include_router(growth_router_v1, prefix="/api/v1")
 app.include_router(weather_router_v1, prefix="/api/v1")
 app.include_router(todos_router_v1, prefix="/api/v1")
-app.include_router(today_router_v1, prefix="/api/v1")
-app.include_router(sandbox_router)
+app.include_router(today_router_v1, prefix="/api/v1/today")
+app.include_router(sandbox_router, prefix="/api/v1/sandbox")
 
 
 @app.get("/", response_model=APIResponse[dict], tags=["system"])

@@ -22,6 +22,19 @@ from models.today import Course, Exam
 from services.llm_service import get_llm_service
 
 router = APIRouter()
+
+@router.get("/import/preview", response_model=APIResponse[dict])
+def get_import_preview(import_id: str = Query(..., description="Import preview ID")):
+    """Get import preview data by import_id."""
+    preview = _preview_store.get(import_id)
+    if preview is None:
+        return APIResponse.error(code=404, message="Preview not found or expired")
+    return APIResponse.ok(data={
+        "import_id": import_id,
+        "import_type": preview["import_type"],
+        "total": len(preview["items"]),
+        "items": preview["items"],
+    })
 _preview_store: dict[str, dict[str, Any]] = {}
 
 WEEKDAY_KW = ["星期一","星期二","星期三","星期四","星期五","星期六","星期日"]

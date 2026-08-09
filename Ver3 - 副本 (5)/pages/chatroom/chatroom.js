@@ -166,7 +166,7 @@ Page({
 // Sandbox mode
     if (this.data.mode === "sandbox") {
       app.request({
-        method: "POST", url: "/sandbox/chat",
+        method: "POST", url: "/api/v1/sandbox/chat",
         data: { session_id: this.data.sessionId, user_id: this.data.userId, message: content }
       }).then(function(res) {
         if (!res) { that.setData({ isLoading: false }); return; }

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Weather API - Open-Meteo (free, no key required)."""
 
 import httpx

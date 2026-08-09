@@ -61,7 +61,8 @@ Page({
       days.push({ date: i, fullDate: fd, isCurrentMonth: true, isToday: fd === today, isSelected: fd === selectedDate, isWeekend: dow === 0 || dow === 6, events: calendarEventsMap[fd] || [] });
     }
     const totalRows = Math.ceil(days.length / 7);
-    const needFill = (totalRows < 5 ? 5 : 6) * 7 - days.length;
+    const needRows = totalRows > 5 ? 6 : 5;
+    const needFill = needRows * 7 - days.length;
     for (let i = 1; i <= needFill; i++) {
       const fd = this.getDateStr(currentYear, currentMonth + 1, i);
       days.push({ date: i, fullDate: fd, isCurrentMonth: false, isToday: fd === today, isSelected: fd === selectedDate, isWeekend: false, events: [] });
@@ -144,9 +145,17 @@ Page({
   },
 
   onGoToday() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
     const ts = this.data.today;
-    this.setData({ selectedDate: ts, calendarView: "month" }, () => {
-      this.calcWeekStartIndex();
+    this.setData({
+      selectedDate: ts,
+      currentYear: year,
+      currentMonth: month,
+      calendarView: "month"
+    }, () => {
+      this.loadCalendarEvents(year, month);
       this.loadScheduleForDate(ts);
     });
   },
@@ -274,7 +283,7 @@ Page({
       const userId = this.getUserId();
       await app.request({
         method: "POST",
-        url: "/api/v1/courses?user_id=" + userId,
+        url: "/api/v1/today/courses?user_id=" + userId,
         data: {
           name: name, teacher: "", location: location,
           schedule: [{ weekday: weekday, start: slot.start, end: slot.end, weeks: "1-16" }],
@@ -342,7 +351,7 @@ Page({
       const userId = this.getUserId();
       await app.request({
         method: "POST",
-        url: "/api/v1/exams?user_id=" + userId,
+        url: "/api/v1/today/exams?user_id=" + userId,
         data: {
           subject: subject, exam_date: examDate,
           start_time: startTime, end_time: "", location: location,

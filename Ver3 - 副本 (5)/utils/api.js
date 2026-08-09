@@ -1,4 +1,4 @@
-﻿const app = getApp();
+const app = getApp();
 
 /**
  * 获取可用的规划 Agent 列表

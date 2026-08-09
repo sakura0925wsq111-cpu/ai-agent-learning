@@ -35,7 +35,7 @@ Page({
 
   async loadPaths() {
     try {
-      const res = await app.request({ url: "/sandbox/paths" });
+      const res = await app.request({ url: "/api/v1/sandbox/paths" });
       if (res && res.paths && res.paths.length) {
         const icons = { graduate: "/images/icon-postgrad.png", employment: "/images/icon-job.png", career: "/images/icon-job.png", civil: "/images/icon-civil.png", major: "/images/icon-transfer.png" };
         const colors = { graduate: "#4A90D9", employment: "#52C41A", career: "#52C41A", civil: "#FA8C16", major: "#722ED1" };
@@ -57,7 +57,7 @@ Page({
   async loadResult() {
     wx.showLoading({ title: "分析中..." });
     try {
-      const res = await app.request({ url: "/sandbox/result/" + this.data.sandboxSessionId });
+      const res = await app.request({ url: "/api/v1/sandbox/result/" + this.data.sandboxSessionId });
       this.setData({
         summary: res.summary || "基于你的回答，AI为你生成了个性化的决策分析...",
         messageCount: res.message_count || 0,

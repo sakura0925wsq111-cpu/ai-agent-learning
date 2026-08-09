@@ -49,7 +49,7 @@ def _clean_message(msg: str) -> str:
         cleaned.append(line)
     return chr(10).join(cleaned).strip()
 
-router = APIRouter(prefix="/sandbox", tags=["sandbox"])
+router = APIRouter(tags=["sandbox"])
 
 # ── Sandbox singleton ──────────────────────────────────────────
 _sandbox: DecisionSandbox | None = None

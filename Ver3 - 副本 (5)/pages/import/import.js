@@ -108,7 +108,7 @@ Page({
     const userId = this.getUserId();
 
     const url = activeTab === "course"
-      ? app.globalData.baseUrl + "/api/v1/today/import?user_id=" + userId + "&import_type=course"
+      ? app.globalData.baseUrl + "/api/v1/today/import/pdf?user_id=" + userId + "&import_type=course"
       : app.globalData.baseUrl + "/api/v1/today/import/excel?user_id=" + userId;
 
     const formData = {};
