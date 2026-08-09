@@ -7,17 +7,16 @@ AsyncSqliteSaver for persistent interrupt/resume across server restarts.
 
 from __future__ import annotations
 import json
-
-import json
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from core.exceptions import NotFoundException
+from core.exceptions import NotFoundException, ValidationException
 from planning.graph import build_growth_graph, GrowthState
 from planning.router import PlanningRouter
+from planning.state import MAX_FOLLOW_UP_ROUNDS
 from models.growth import GrowthSession, GrowthConversation, GrowthReport
 from schemas.growth import (
     AgentTypeEnum, GrowthChatRequest, GrowthStartRequest,
@@ -30,7 +29,7 @@ from crud.user import user as user_crud
 session_crud = CRUDBase[GrowthSession](GrowthSession)
 conv_crud = CRUDBase[GrowthConversation](GrowthConversation)
 report_crud = CRUDBase[GrowthReport](GrowthReport)
-MAX_FOLLOW_UP = 5
+MAX_FOLLOW_UP = MAX_FOLLOW_UP_ROUNDS
 
 
 class GrowthService:
@@ -61,50 +60,93 @@ class GrowthService:
     async def start_session(self, db: Session, *, request: GrowthStartRequest) -> GrowthChatResponse:
         agent_type = _norm(request.agent)
         user = user_crud.get(db, id=request.user_id)
+        if user is None:
+            raise NotFoundException(f"User {request.user_id} not found")
         profile: dict[str, str] = {}
-        if user:
-            if user.nickname: profile["nickname"] = user.nickname
-            if user.major: profile["major"] = user.major
-            if user.grade: profile["grade"] = user.grade
+        if user.nickname: profile["nickname"] = user.nickname
+        if user.major: profile["major"] = user.major
+        if user.grade: profile["grade"] = user.grade
 
-        # Load memory DB for cross-session continuity
-        # Only profile-type memories (school/college/major/grade/enroll_year).
-        # Action/goal memories from previous planning sessions are NOT loaded
-        # to avoid the agent referencing old conversations in new sessions.
+        # Wait for the preceding sandbox/growth turn to finish persisting, then
+        # load categorized long-term memory relevant to this planning agent.
+        growth_memory: dict[str, Any] = {}
         try:
             from services.memory_service import memory_service
-            memories = memory_service.load_memory(db, user_id=request.user_id, as_dict=True, memory_type="profile")
-            if isinstance(memories, dict) and memories:
-                # Map memory keys to profile fields (same mapping as sandbox)
-                key_mapping = {
-                    "school": "school",
-                    "college": "college",
-                    "enroll_year": "enroll_year",
-                }
-                for mem_key, field in key_mapping.items():
-                    if mem_key in memories and field not in profile:
-                        profile[field] = str(memories[mem_key])
-
-                logger.info("Growth: loaded {} profile memories for user {}",
-                            len(memories), request.user_id)
+            if not memory_service.wait_for_pending(request.user_id, timeout=5.0):
+                logger.warning(
+                    "Growth: memory writes still pending after timeout for user {}",
+                    request.user_id,
+                )
+            growth_memory = memory_service.load_growth_context(
+                db, user_id=request.user_id, agent_type=agent_type,
+            )
+            for field, value in growth_memory.get("profile", {}).items():
+                if value:
+                    profile[field] = str(value)
+            if growth_memory.get("goal"):
+                profile["previous_goal"] = str(growth_memory["goal"])
+            if growth_memory.get("action_plan"):
+                profile["previous_action_plan"] = str(growth_memory["action_plan"])
+            if growth_memory.get("analysis"):
+                profile["previous_analysis"] = str(growth_memory["analysis"])
+            logger.info(
+                "Growth: loaded {} categorized memories for user {} agent {}",
+                len(growth_memory.get("memory_ids", [])), request.user_id, agent_type,
+            )
         except Exception as exc:
             logger.warning("Growth: failed to load memories: {}", exc)
 
         # Load sandbox context if provided (gap 1 fix)
-        sandbox_profile: dict[str, str] = {}
         sandbox_history: list[dict[str, str]] = []
+        sandbox_question_count = 0
         if request.sandbox_session_id:
             try:
-                from app.api.v1.sandbox import get_sandbox
-                sb = get_sandbox()
+                from sandbox.state import SandboxSession
+                from services.memory_service import memory_service
+                sb = self._sandbox
+                if sb is None:
+                    from app.api.v1.sandbox import get_sandbox
+                    sb = get_sandbox()
                 sb_sess = sb.get_session(request.sandbox_session_id)
+                if sb_sess is not None and sb_sess.user_id != request.user_id:
+                    logger.warning(
+                        "Growth: ignored sandbox context owned by another user: {}",
+                        request.sandbox_session_id,
+                    )
+                    sb_sess = None
+                if sb_sess is None:
+                    persisted = memory_service.load_context(
+                        db,
+                        user_id=request.user_id,
+                        context_kind="sandbox",
+                        context_id=request.sandbox_session_id,
+                    )
+                    if persisted:
+                        restored = SandboxSession.from_dict(persisted)
+                        if (
+                            restored.user_id == request.user_id
+                            and restored.session_id == request.sandbox_session_id
+                        ):
+                            sb_sess = restored
+                            logger.info(
+                                "Growth: restored persisted sandbox context {}",
+                                request.sandbox_session_id,
+                            )
                 if sb_sess:
                     # Merge sandbox user_profile
                     for k, v in sb_sess.user_profile.items():
                         if v and k not in profile:
                             profile[k] = str(v)
-                    # Capture discovery history for pre-filling
-                    sandbox_history = sb_sess.discovery_history
+                    # Carry the complete question budget into the selected
+                    # planning direction: shared discovery plus this path's
+                    # probe.  This prevents sandbox + planning from silently
+                    # exceeding five user-facing clarifications.
+                    sandbox_history = list(sb_sess.discovery_history)
+                    sandbox_history.extend(sb_sess.path_probe_history.get(agent_type, []))
+                    sandbox_history = sandbox_history[:MAX_FOLLOW_UP]
+                    sandbox_question_count = len(sb_sess.discovery_history) + sum(
+                        len(history) for history in sb_sess.path_probe_history.values()
+                    )
                     logger.info("Growth: loaded sandbox context for user {}, {} profile fields, {} history items",
                                 request.user_id, len(profile), len(sandbox_history))
             except Exception as exc:
@@ -115,15 +157,25 @@ class GrowthService:
             "current_step": 0, "total_steps": MAX_FOLLOW_UP,
             "state_json": "{}", "progress": 0.0,
         })
-        initial = _make_initial(agent_type, db_sess.id, request.user_id, profile, sandbox_history)
+        initial = _make_initial(
+            agent_type,
+            db_sess.id,
+            request.user_id,
+            profile,
+            sandbox_history,
+            prior_questions_asked=sandbox_question_count,
+        )
         config = {"configurable": {"thread_id": db_sess.id}}
         result = await self._invoke(initial, config)
         _flush(db_sess, result)
-        conv_crud.create(db, obj_in={
-            "session_id": db_sess.id, "user_id": request.user_id,
-            "role": "system", "content": f"Growth session started: {agent_type}",
-            "step": 0, "stage": "questioning",
-        })
+        first_message = result.get("agent_message", "")
+        if first_message:
+            conv_crud.create(db, obj_in={
+                "session_id": db_sess.id, "user_id": request.user_id,
+                "role": "assistant", "content": first_message,
+                "step": result.get("questions_asked", result.get("follow_up_round", 0)),
+                "stage": result.get("stage", "questioning"),
+            })
         db.commit()
         logger.info("Growth: session {} started", db_sess.id)
         return _to_response(db_sess.id, agent_type, result)
@@ -138,8 +190,28 @@ class GrowthService:
                 return start
             request.session_id = start.session_id
 
-        db_sess = _get_sess(db, request.session_id)
+        db_sess = _get_owned_sess(db, request.session_id, request.user_id)
+        agent_type = db_sess.agent_type
+        if db_sess.finished:
+            report = _load_report_dict(db_sess)
+            return GrowthChatResponse(
+                progress=100,
+                session_id=db_sess.id,
+                agent=db_sess.agent_type,
+                stage="report",
+                finished=True,
+                current_step=db_sess.current_step,
+                total_steps=db_sess.total_steps or MAX_FOLLOW_UP,
+                report=report or None,
+                message="本次规划已完成，你可以查看报告或继续咨询。",
+            )
         state = _state_from_db(db_sess, request)
+        if db_sess.stage == "analyzing" and state.get("analysis"):
+            # Text input remains a valid alternative to the two confirmation buttons.
+            if _is_analysis_approval(request.message):
+                state.update({"user_message": "", "report_requested": True})
+            else:
+                state.update({"user_message": "", "user_correction": request.message.strip()})
         config = {"configurable": {"thread_id": db_sess.id}}
         result = await self._invoke(state, config)
         _flush(db_sess, result)
@@ -148,7 +220,7 @@ class GrowthService:
             conv_crud.create(db, obj_in={
                 "session_id": db_sess.id, "user_id": request.user_id,
                 "role": "user", "content": request.message,
-                "step": result.get("follow_up_round", 0),
+                "step": result.get("questions_asked", result.get("follow_up_round", 0)),
                 "stage": result.get("stage", "questioning"),
             })
         msg = result.get("agent_message", "")
@@ -156,7 +228,7 @@ class GrowthService:
             conv_crud.create(db, obj_in={
                 "session_id": db_sess.id, "user_id": request.user_id,
                 "role": "assistant", "content": msg,
-                "step": result.get("follow_up_round", 0),
+                "step": result.get("questions_asked", result.get("follow_up_round", 0)),
                 "stage": result.get("stage", "questioning"),
             })
         if result.get("finished") and result.get("report"):
@@ -172,6 +244,7 @@ class GrowthService:
                     user_id=request.user_id,
                     user_message=request.message,
                     assistant_message=msg,
+                    source_context=f"growth_turn:{db_sess.id}",
                 )
             except Exception:
                 pass  # Non-blocking; extraction runs in background thread
@@ -181,26 +254,82 @@ class GrowthService:
     # ── Human-in-the-loop ─────────────────────────────────────
 
     async def correct_analysis(self, db: Session, *, session_id: str, user_id: str, correction: str) -> GrowthChatResponse:
-        from langgraph.types import Command
-        db_sess = _get_sess(db, session_id)
+        db_sess = _get_owned_sess(db, session_id, user_id)
+        if db_sess.finished:
+            raise ValidationException("报告已完成，如需调整请新建一份规划。")
+        if not correction.strip():
+            raise ValidationException("请填写需要修正的方向。")
         config = {"configurable": {"thread_id": session_id}}
-        result = await self._invoke(
-            Command(goto="planning_analyze", update={"user_correction": correction}),
-            config,
-        )
+        state = _state_from_db(db_sess, GrowthChatRequest(
+            user_id=user_id,
+            agent=AgentTypeEnum(db_sess.agent_type),
+            message="",
+            session_id=session_id,
+        ))
+        state.update({
+            "user_correction": correction.strip(),
+            "report_requested": False,
+            "stage": "analyzing",
+        })
+        result = await self._invoke(state, config)
         _flush(db_sess, result)
+        conv_crud.create(db, obj_in={
+            "session_id": session_id, "user_id": user_id,
+            "role": "user", "content": f"修正分析：{correction.strip()}",
+            "step": db_sess.current_step, "stage": "analyzing",
+        })
+        if result.get("agent_message"):
+            conv_crud.create(db, obj_in={
+                "session_id": session_id, "user_id": user_id,
+                "role": "assistant", "content": result["agent_message"],
+                "step": db_sess.current_step, "stage": result.get("stage", "analyzing"),
+            })
         db.commit()
+        try:
+            from services.memory_service import memory_service
+            memory_service.extract_from_turn_async(
+                user_id=user_id,
+                user_message=correction.strip(),
+                assistant_message=result.get("agent_message", ""),
+                source_context=f"growth_correction:{session_id}",
+            )
+        except Exception:
+            pass
         return _to_response(session_id, db_sess.agent_type, result)
 
     async def approve_analysis(self, db: Session, *, session_id: str, user_id: str) -> GrowthChatResponse:
-        from langgraph.types import Command
-        db_sess = _get_sess(db, session_id)
+        db_sess = _get_owned_sess(db, session_id, user_id)
+        if db_sess.finished:
+            report = _load_report_dict(db_sess)
+            return GrowthChatResponse(
+                progress=100, session_id=session_id, agent=db_sess.agent_type,
+                stage="report", finished=True,
+                current_step=db_sess.current_step,
+                total_steps=db_sess.total_steps or MAX_FOLLOW_UP,
+                report=report or None,
+                message="报告已经生成，可以直接查看。",
+            )
+        if db_sess.stage != "analyzing":
+            raise ValidationException("初步分析尚未完成，请先继续回答问题。")
         config = {"configurable": {"thread_id": session_id}}
-        result = await self._invoke(Command(resume="continue"), config)
+        state = _state_from_db(db_sess, GrowthChatRequest(
+            user_id=user_id,
+            agent=AgentTypeEnum(db_sess.agent_type),
+            message="",
+            session_id=session_id,
+        ))
+        state.update({"report_requested": True, "user_correction": ""})
+        result = await self._invoke(state, config)
         _flush(db_sess, result)
         if result.get("finished") and result.get("report"):
             self._save_report(db, db_sess, result["report"])
             await self._save_memory(db, db_sess, result["report"])
+        if result.get("agent_message"):
+            conv_crud.create(db, obj_in={
+                "session_id": session_id, "user_id": user_id,
+                "role": "assistant", "content": result["agent_message"],
+                "step": db_sess.current_step, "stage": result.get("stage", "report"),
+            })
         db.commit()
         return _to_response(session_id, db_sess.agent_type, result)
 
@@ -236,16 +365,20 @@ class GrowthService:
             state["user_message"] = message
 
         config = {"configurable": {"thread_id": session_id}}
+        last_agent_message = ""
         try:
             async for event in self._stream(state, config):
                 node_name = list(event.keys())[0] if event else "unknown"
                 node_data = event.get(node_name, {})
+                if node_data.get("agent_message"):
+                    last_agent_message = node_data["agent_message"]
                 yield _sse(node_name, {
                     "session_id": session_id, "stage": node_data.get("stage", ""),
                     "finished": node_data.get("finished", False),
                     "message": node_data.get("agent_message", ""),
                     "report": node_data.get("report"),
                     "follow_up_round": node_data.get("follow_up_round", 0),
+                    "questions_asked": node_data.get("questions_asked", 0),
                 })
                 if node_data:
                     _flush(db_sess, node_data)
@@ -253,6 +386,17 @@ class GrowthService:
                         self._save_report(db, db_sess, node_data["report"])
                         await self._save_memory(db, db_sess, node_data["report"])
                 db.commit()
+            if message.strip():
+                try:
+                    from services.memory_service import memory_service
+                    memory_service.extract_from_turn_async(
+                        user_id=user_id,
+                        user_message=message,
+                        assistant_message=last_agent_message,
+                        source_context=f"growth_stream:{session_id}",
+                    )
+                except Exception:
+                    pass
         except Exception as exc:
             logger.exception("Growth stream error: {}", exc)
             yield _sse("error", {"message": str(exc)})
@@ -264,28 +408,24 @@ class GrowthService:
         sessions = sorted(sessions, key=lambda s: s.updated_at or s.created_at, reverse=True)
         if not sessions:
             return GrowthStateResponse()
-        s = sessions[0]
-        answers: dict[str, str] = {}
-        try:
-            answers = json.loads(s.state_json or "{}").get("follow_up_answers", {})
-        except (json.JSONDecodeError, TypeError):
-            pass
-        return GrowthStateResponse(
-            session_id=s.id, agent=s.agent_type, stage=s.stage,
-            finished=s.finished, current_step=s.current_step,
-            total_steps=s.total_steps or MAX_FOLLOW_UP, answers=answers,
-            has_report=bool(s.report_json and len(s.report_json or "") > 0),
-            created_at=s.created_at, updated_at=s.updated_at,
-        )
+        return _session_to_state(sessions[0])
+
+    def get_session_state(self, db: Session, *, session_id: str) -> GrowthStateResponse:
+        """Return resumable state for one specific growth session."""
+        return _session_to_state(_get_sess(db, session_id))
 
     def get_history(self, db: Session, *, user_id: str, limit: int = 20) -> GrowthHistoryResponse:
         sessions = session_crud.get_multi(db, user_id=user_id)
-        sessions = sorted(sessions, key=lambda s: s.created_at, reverse=True)[:limit]
+        sessions = sorted(sessions, key=lambda s: s.updated_at or s.created_at, reverse=True)[:limit]
         return GrowthHistoryResponse(user_id=user_id, sessions=[
             GrowthSessionSummary(
                 session_id=s.id, agent=s.agent_type, status=s.status,
-                finished=s.finished, created_at=s.created_at,
-                message_count=len(s.conversations) if s.conversations else 0,
+                stage=s.stage, finished=s.finished,
+                has_report=bool(s.report_json or s.report),
+                created_at=s.created_at, updated_at=s.updated_at,
+                message_count=len([
+                    c for c in (s.conversations or []) if c.role in ("user", "assistant")
+                ]),
             ) for s in sessions
         ])
 
@@ -310,15 +450,19 @@ class GrowthService:
 
     def free_qa(self, db: Session, *, request: GrowthChatRequest) -> dict[str, Any]:
         """Free-form Q&A after report is complete. Uses LLM directly, not LangGraph."""
-        db_sess = _get_sess(db, request.session_id)
-        agent_type = _norm(request.agent or db_sess.agent_type)
+        if not request.session_id:
+            raise ValidationException("缺少规划会话，无法继续咨询。")
+        db_sess = _get_owned_sess(db, request.session_id, request.user_id)
+        if not db_sess.finished or not db_sess.report_json:
+            raise ValidationException("请先完成成长规划报告，再继续咨询。")
+        agent_type = db_sess.agent_type
 
         # Load conversations
         convs = conv_crud.get_multi(db, session_id=request.session_id)
         convs = sorted(convs, key=lambda c: c.created_at)
         qa_history = "\n".join([
             f"{'User' if c.role == 'user' else 'Assistant'}: {c.content}"
-            for c in convs[-20:]  # Last 20 messages for context
+            for c in convs[-20:] if c.role in ("user", "assistant")
         ])
 
         # Load report
@@ -361,23 +505,36 @@ class GrowthService:
             "step": 999, "stage": "qa",
         })
         db.commit()
+        try:
+            from services.memory_service import memory_service
+            memory_service.extract_from_turn_async(
+                user_id=request.user_id,
+                user_message=msg,
+                assistant_message=response,
+                source_context=f"growth_qa:{db_sess.id}",
+            )
+        except Exception:
+            pass
         return {"message": response, "session_id": db_sess.id}
 
 
     def free_qa_stream(self, db: Session, *, request: GrowthChatRequest):
         """Stream free-form Q&A response token by token using real LLM streaming."""
-        db_sess = _get_sess(db, request.session_id)
-        agent_type = _norm(request.agent or db_sess.agent_type)
+        if not request.session_id:
+            raise ValidationException("缺少规划会话，无法继续咨询。")
+        db_sess = _get_owned_sess(db, request.session_id, request.user_id)
+        if not db_sess.finished or not db_sess.report_json:
+            raise ValidationException("请先完成成长规划报告，再继续咨询。")
+        agent_type = db_sess.agent_type
 
         # Load conversations
         convs = conv_crud.get_multi(db, session_id=request.session_id)
         convs = sorted(convs, key=lambda c: c.created_at)
         qa_history = "\n".join([
             f"{'User' if c.role == 'user' else 'Assistant'}: {c.content}"
-            for c in convs[-20:]
+            for c in convs[-20:] if c.role in ("user", "assistant")
         ])
 
-        # Load report
         report_text = ""
         try:
             reports = report_crud.get_multi(db, session_id=request.session_id, limit=1)
@@ -387,12 +544,11 @@ class GrowthService:
             pass
 
         system_prompt = (
-            f"????{agent_type}???????????????????????\n"
+            f"你是专业的{agent_type}规划顾问。以下是用户已经确认的规划报告：\n"
             f"{report_text[:2000]}\n\n"
-            f"???????????\n{qa_history[:2000]}\n\n"
-            f"????????????????????????"
-            f"??????????????????????????????"
-            f"???????????????"
+            f"以下是最近的对话历史：\n{qa_history[:2000]}\n\n"
+            "请基于报告和对话直接回答用户的新问题。不要重复收集基础资料，"
+            "不要重新启动规划流程；信息不足时明确说明，不要编造。"
         )
 
         msg = request.message.strip()
@@ -409,10 +565,9 @@ class GrowthService:
                 yield ("token", chunk)
         except Exception as e:
             logger.error("Free QA stream error: {}", e)
-            full_response = "?????????????????????"
+            full_response = "抱歉，我暂时无法回答这个问题，请稍后重试。"
             yield ("token", full_response)
 
-        # Save conversation
         conv_crud.create(db, obj_in={
             "session_id": db_sess.id, "user_id": request.user_id,
             "role": "user", "content": msg,
@@ -425,22 +580,34 @@ class GrowthService:
         })
         db.commit()
 
+        try:
+            from services.memory_service import memory_service
+            memory_service.extract_from_turn_async(
+                user_id=request.user_id,
+                user_message=msg,
+                assistant_message=full_response,
+                source_context=f"growth_qa:{db_sess.id}",
+            )
+        except Exception:
+            pass
+
         yield ("done", json.dumps({"message": full_response, "session_id": db_sess.id}, ensure_ascii=False))
 
 
     def get_conversation(self, db: Session, *, session_id: str) -> list[dict[str, Any]]:
-        """Get all messages for a growth session."""
+        """Get all user-visible messages for a growth session."""
         convs = conv_crud.get_multi(db, session_id=session_id)
         convs = sorted(convs, key=lambda c: c.created_at)
         return [
             {
+                "id": c.id,
                 "role": c.role,
                 "content": c.content,
                 "step": c.step,
                 "stage": c.stage,
                 "created_at": c.created_at.isoformat() if c.created_at else "",
             }
-            for c in convs
+            for c in convs if c.role in ("user", "assistant")
         ]
 
     async def _save_memory(self, db: Session, session: GrowthSession, report: dict[str, Any]) -> None:
@@ -448,30 +615,38 @@ class GrowthService:
         try:
             from services.memory_service import memory_service
             uid = session.user_id
-
-            # Save goal
+            items: list[dict[str, Any]] = []
             goal_text = report.get("goal", "")
             if goal_text:
-                memory_service.save_memory(db, data=__import__("schemas.memory", fromlist=["MemoryCreate"]).MemoryCreate(
-                    user_id=uid, key="current_goal",
-                    value=goal_text[:500], memory_type="goal",
-                    importance=5, confidence=0.9,
-                    source=f"growth_report:{session.id}",
-                ))
+                items.append({
+                    "key": f"growth:{session.agent_type}:goal",
+                    "value": str(goal_text)[:1000],
+                    "memory_type": "goal", "importance": 5, "confidence": 0.95,
+                    "source": f"growth_report:{session.id}",
+                })
 
-            # Save profile snapshot
             summary = report.get("summary", "")
             status = report.get("current_status", "")
             if summary or status:
-                profile_text = f"{status}\n{summary}".strip()[:500]
-                memory_service.save_memory(db, data=__import__("schemas.memory", fromlist=["MemoryCreate"]).MemoryCreate(
-                    user_id=uid, key="latest_analysis",
-                    value=profile_text, memory_type="profile",
-                    importance=4, confidence=0.85,
-                    source=f"growth_report:{session.id}",
-                ))
+                items.append({
+                    "key": f"growth:{session.agent_type}:analysis",
+                    "value": f"{status}\n{summary}".strip()[:1500],
+                    "memory_type": "fact", "importance": 4, "confidence": 0.9,
+                    "source": f"growth_report:{session.id}",
+                })
 
-            logger.info("Growth: memory saved for user={}", uid)
+            action_plan = report.get("action_plan", [])
+            if action_plan:
+                items.append({
+                    "key": f"growth:{session.agent_type}:action_plan",
+                    "value": json.dumps(action_plan, ensure_ascii=False)[:5000],
+                    "memory_type": "action", "importance": 5, "confidence": 0.95,
+                    "source": f"growth_report:{session.id}",
+                })
+
+            if items:
+                memory_service.save_batch(db, user_id=uid, items=items)
+            logger.info("Growth: saved {} categorized memories for user={}", len(items), uid)
         except Exception as exc:
             logger.warning("Growth: failed to save memory: {}", exc)
 
@@ -513,8 +688,46 @@ def _get_sess(db: Session, sid: str) -> GrowthSession:
     return s
 
 
+def _get_owned_sess(db: Session, sid: str, user_id: str) -> GrowthSession:
+    session = _get_sess(db, sid)
+    if session.user_id != user_id:
+        raise NotFoundException(f"Growth session {sid} not found")
+    return session
+
+
+def _load_report_dict(session: GrowthSession) -> dict[str, Any]:
+    try:
+        return json.loads(session.report_json or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _session_to_state(session: GrowthSession) -> GrowthStateResponse:
+    answers: dict[str, str] = {}
+    try:
+        saved = json.loads(session.state_json or "{}")
+        planning_state = json.loads(saved.get("planning_state_json", "{}"))
+        answers = planning_state.get("follow_up_answers", {})
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        answers = {}
+    return GrowthStateResponse(
+        session_id=session.id,
+        agent=session.agent_type,
+        status=session.status,
+        stage=session.stage,
+        finished=session.finished,
+        current_step=session.current_step,
+        total_steps=session.total_steps or MAX_FOLLOW_UP,
+        answers=answers,
+        has_report=bool(session.report_json or session.report),
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+    )
+
+
 def _make_initial(agent_type: str, session_id: str, user_id: str,
-                  profile: dict[str, str], sandbox_history: list | None = None) -> GrowthState:
+                  profile: dict[str, str], sandbox_history: list | None = None,
+                  prior_questions_asked: int = 0) -> GrowthState:
     from planning.state import PlanningState
     ps = PlanningState(agent_type=agent_type)
     if profile:
@@ -527,18 +740,25 @@ def _make_initial(agent_type: str, session_id: str, user_id: str,
             a = qa.get("a", "")
             if q and a:
                 ps.record_follow_up(q, a)
-        # Mark follow-up as complete if we have enough context from sandbox
-        if len(sandbox_history) >= 3:
-            ps.follow_up_complete = True
+        ps.questions_asked = min(
+            MAX_FOLLOW_UP,
+            max(len(sandbox_history), prior_questions_asked),
+        )
+        # Sandbox answers count toward the shared five-question budget, but
+        # completion is decided by the domain readiness gate, not by raw count.
     return {
         "user_id": user_id, "agent_type": agent_type, "session_id": session_id,
         "user_message": "", "user_correction": "",
         "planning_state_json": json.dumps(ps.to_dict(), ensure_ascii=False),
-        "follow_up_round": 0, "follow_up_complete": False,
+        "follow_up_round": ps.follow_up_round,
+        "questions_asked": ps.questions_asked,
+        "follow_up_complete": ps.follow_up_complete,
         "analysis": {}, "identified_problems": [], "long_term_goal": "",
         "action_plan": [], "output": {},
         "stage": "questioning", "finished": False,
         "agent_message": "", "report": None, "error_message": "", "last_question": "",
+        "awaiting_trigger": ps.follow_up_complete, "report_requested": False,
+        "turn_analysis": {}, "knowledge_context": "", "knowledge_evidence": {},
     }
 
 
@@ -548,11 +768,12 @@ def _state_from_db(db_sess: GrowthSession, req: GrowthChatRequest) -> GrowthStat
     except (json.JSONDecodeError, TypeError):
         saved = {}
     return {
-        "user_id": req.user_id, "agent_type": _norm(req.agent),
+        "user_id": req.user_id, "agent_type": db_sess.agent_type,
         "session_id": db_sess.id, "user_message": req.message,
         "user_correction": "",
         "planning_state_json": saved.get("planning_state_json", "{}"),
         "follow_up_round": saved.get("follow_up_round", 0),
+        "questions_asked": saved.get("questions_asked", 0),
         "follow_up_complete": saved.get("follow_up_complete", False),
         "analysis": saved.get("analysis", {}),
         "identified_problems": saved.get("identified_problems", []),
@@ -564,20 +785,37 @@ def _state_from_db(db_sess: GrowthSession, req: GrowthChatRequest) -> GrowthStat
         "agent_message": "", "report": None, "error_message": "",
         "last_question": saved.get("last_question", ""),
         "awaiting_trigger": saved.get("awaiting_trigger", False),
+        "report_requested": False,
+        "turn_analysis": saved.get("turn_analysis", {}),
+        "knowledge_context": saved.get("knowledge_context", ""),
+        "knowledge_evidence": saved.get("knowledge_evidence", {}),
     }
+
+
+def _is_analysis_approval(message: str) -> bool:
+    normalized = message.strip().lower()
+    if not normalized:
+        return False
+    keywords = ("继续", "确认", "生成报告", "可以", "好的", "没问题", "ok", "yes")
+    return any(keyword in normalized for keyword in keywords)
 
 
 def _flush(db_sess: GrowthSession, result: dict[str, Any]) -> None:
     now = datetime.now(timezone.utc)
-    if result.get("stage"): db_sess.stage = result["stage"]
+    if result.get("stage"):
+        db_sess.stage = result["stage"]
+        if result["stage"] == "analyzing" and not result.get("finished"):
+            db_sess.status = "analyzing"
     if result.get("finished"):
         db_sess.finished = True
         db_sess.status = "completed"
-    if result.get("follow_up_round", 0) > 0:
-        db_sess.current_step = result["follow_up_round"]
+    asked = result.get("questions_asked", result.get("follow_up_round", 0))
+    if asked > 0:
+        db_sess.current_step = asked
     state_blob = {
         "planning_state_json": result.get("planning_state_json", "{}"),
         "follow_up_round": result.get("follow_up_round", 0),
+        "questions_asked": result.get("questions_asked", 0),
         "follow_up_complete": result.get("follow_up_complete", False),
         "analysis": result.get("analysis", {}),
         "identified_problems": result.get("identified_problems", []),
@@ -588,35 +826,21 @@ def _flush(db_sess: GrowthSession, result: dict[str, Any]) -> None:
         "stage": result.get("stage", "questioning"),
         "finished": result.get("finished", False),
         "awaiting_trigger": result.get("awaiting_trigger", False),
+        "turn_analysis": result.get("turn_analysis", {}),
+        "knowledge_context": result.get("knowledge_context", ""),
+        "knowledge_evidence": result.get("knowledge_evidence", {}),
     }
     db_sess.state_json = json.dumps(state_blob, ensure_ascii=False)
     if result.get("report"):
         db_sess.report_json = json.dumps(result["report"], ensure_ascii=False)
         db_sess.progress = 100.0
-        # Record growth memory
-        try:
-            from services.memory_service import memory_service
-            agent_label = {"career": "就业规划", "graduate": "考研规划", "civil": "考公规划", "major": "转专业规划"}.get(db_sess.agent_type, db_sess.agent_type)
-            goal = result.get("long_term_goal", "") or result.get("output", {}).get("goal", "")
-            action_plan = result.get("action_plan", []) or result.get("output", {}).get("action_plan", [])
-            memories = [
-                {"key": f"last_{db_sess.agent_type}_plan", "value": f"于{now.strftime('%Y-%m-%d')}完成{agent_label}", "memory_type": "action", "importance": 8, "confidence": 1.0, "source": "growth_session"},
-            ]
-            if goal:
-                memories.append({"key": f"{db_sess.agent_type}_goal", "value": goal, "memory_type": "goal", "importance": 9, "confidence": 0.9, "source": "growth_session"})
-            if action_plan and len(action_plan) > 0:
-                plan_summary = "; ".join([p.get("phase", "") or p.get("title", "") for p in action_plan[:4] if p.get("phase") or p.get("title")])
-                if plan_summary:
-                    memories.append({"key": f"{db_sess.agent_type}_action_plan", "value": plan_summary, "memory_type": "action", "importance": 7, "confidence": 0.9, "source": "growth_session"})
-            memory_service.save_batch(db_sess, user_id=db_sess.user_id, items=memories)
-        except Exception:
-            pass  # Memory recording is non-critical
     elif result.get("stage") == "analyzing":
         db_sess.progress = 40.0
     elif result.get("stage") == "report":
         db_sess.progress = 90.0
-    elif result.get("follow_up_round", 0) > 0:
-        db_sess.progress = min(35.0, (result["follow_up_round"] / MAX_FOLLOW_UP) * 35.0)
+    elif result.get("questions_asked", result.get("follow_up_round", 0)) > 0:
+        asked = result.get("questions_asked", result.get("follow_up_round", 0))
+        db_sess.progress = min(35.0, (asked / MAX_FOLLOW_UP) * 35.0)
     db_sess.updated_at = now
 
 
@@ -624,18 +848,19 @@ def _to_response(session_id: str, agent_type: str, result: dict[str, Any]) -> Gr
     stage = result.get("stage", "questioning")
     finished = result.get("finished", False)
     fu = result.get("follow_up_round", 0)
+    questions_asked = result.get("questions_asked", fu)
     message = result.get("agent_message", "")
     nq = None
-    if not finished and message:
+    if not finished and message and stage in ("questioning", "awaiting"):
         nq = QuestionCard(
-            id=f"follow_up_{fu + 1}", title=message, options=[],
-            required=True, index=fu + 1, total=MAX_FOLLOW_UP,
+            id=f"follow_up_{questions_asked + 1}", title=message, options=[],
+            required=False, index=min(questions_asked + 1, MAX_FOLLOW_UP), total=MAX_FOLLOW_UP,
         )
     return GrowthChatResponse(
         progress=result.get("progress", 0),
         session_id=session_id, agent=agent_type,
         stage="report" if finished else stage,
-        finished=finished, current_step=fu,
+        finished=finished, current_step=questions_asked,
         total_steps=MAX_FOLLOW_UP, next_question=nq,
         report=result.get("report"), message=message,
     )

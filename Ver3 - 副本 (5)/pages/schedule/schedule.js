@@ -1,4 +1,5 @@
 const app = getApp();
+const { normalizeDateStr } = require("../../utils/date.js");
 
 Page({
   data: {
@@ -41,7 +42,7 @@ Page({
   },
 
   getDateStr(year, month, date) {
-    return year + "-" + String(month).padStart(2, "0") + "-" + String(date).padStart(2, "0");
+    return normalizeDateStr(year, month, date);
   },
 
   generateCalendar() {
@@ -61,7 +62,8 @@ Page({
       days.push({ date: i, fullDate: fd, isCurrentMonth: true, isToday: fd === today, isSelected: fd === selectedDate, isWeekend: dow === 0 || dow === 6, events: calendarEventsMap[fd] || [] });
     }
     const totalRows = Math.ceil(days.length / 7);
-    const needFill = (totalRows < 5 ? 5 : 6) * 7 - days.length;
+    const needRows = totalRows > 5 ? 6 : 5;
+    const needFill = needRows * 7 - days.length;
     for (let i = 1; i <= needFill; i++) {
       const fd = this.getDateStr(currentYear, currentMonth + 1, i);
       days.push({ date: i, fullDate: fd, isCurrentMonth: false, isToday: fd === today, isSelected: fd === selectedDate, isWeekend: false, events: [] });
@@ -96,6 +98,7 @@ Page({
     if (!iscurrentmonth) {
       const d = new Date(date);
       this.setData({ currentYear: d.getFullYear(), currentMonth: d.getMonth() + 1, selectedDate: date }, () => {
+        this.generateCalendar();
         this.loadCalendarEvents(this.data.currentYear, this.data.currentMonth);
         this.loadScheduleForDate(date);
       });
@@ -112,6 +115,7 @@ Page({
     if (currentMonth === 1) { currentYear--; currentMonth = 12; }
     else { currentMonth--; }
     this.setData({ currentYear, currentMonth, calendarView: "month" }, () => {
+      this.generateCalendar();
       this.loadCalendarEvents(currentYear, currentMonth);
     });
   },
@@ -121,6 +125,7 @@ Page({
     if (currentMonth === 12) { currentYear++; currentMonth = 1; }
     else { currentMonth++; }
     this.setData({ currentYear, currentMonth, calendarView: "month" }, () => {
+      this.generateCalendar();
       this.loadCalendarEvents(currentYear, currentMonth);
     });
   },
@@ -144,9 +149,17 @@ Page({
   },
 
   onGoToday() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
     const ts = this.data.today;
-    this.setData({ selectedDate: ts, calendarView: "month" }, () => {
-      this.calcWeekStartIndex();
+    this.setData({
+      selectedDate: ts,
+      currentYear: year,
+      currentMonth: month,
+      calendarView: "month"
+    }, () => {
+      this.loadCalendarEvents(year, month);
       this.loadScheduleForDate(ts);
     });
   },
@@ -175,9 +188,10 @@ Page({
   },
 
   mapEvent(e) {
+    const time = this.normalizeEventTime(e.time || (e.start ? e.start + ":00" : ""));
     return {
       id: e.id, title: e.title || e.name || e.subject || "",
-      time: e.time || (e.start ? e.start + ":00" : ""),
+      time: time,
       endTime: e.end_time || "",
       location: e.location || "",
       eventType: e.event_type || "todo",
@@ -187,16 +201,29 @@ Page({
     };
   },
 
+  normalizeEventTime(value) {
+    if (!value) return "";
+    if (/^\d{2}:\d{2}/.test(value)) return value.substring(0, 5);
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return String(parsed.getHours()).padStart(2, "0") + ":" + String(parsed.getMinutes()).padStart(2, "0");
+  },
+
   sortEvents(events) {
     return events.sort((a, b) => (a.sortKey || 99) - (b.sortKey || 99) || (a.time || "").localeCompare(b.time || ""));
   },
 
   calcEventStatus(events) {
     const now = new Date();
+    const selected = this.data.selectedDate.split("-").map(Number);
+    const eventDay = new Date(selected[0], selected[1] - 1, selected[2]);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return events.map(e => {
       if (!e.time) return { ...e, statusLabel: "", isActive: false };
       const [h, m] = e.time.split(":").map(Number);
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0);
+      const start = new Date(eventDay.getFullYear(), eventDay.getMonth(), eventDay.getDate(), h || 0, m || 0);
+      if (eventDay < today) return { ...e, statusLabel: "已结束", isActive: false };
+      if (eventDay > today) return { ...e, statusLabel: "未开始", isActive: false };
       if (e.endTime) {
         const [eh, em] = e.endTime.split(":").map(Number);
         const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh || 0, em || 0);
@@ -274,7 +301,7 @@ Page({
       const userId = this.getUserId();
       await app.request({
         method: "POST",
-        url: "/api/v1/courses?user_id=" + userId,
+        url: "/api/v1/today/courses?user_id=" + userId,
         data: {
           name: name, teacher: "", location: location,
           schedule: [{ weekday: weekday, start: slot.start, end: slot.end, weeks: "1-16" }],
@@ -342,7 +369,7 @@ Page({
       const userId = this.getUserId();
       await app.request({
         method: "POST",
-        url: "/api/v1/exams?user_id=" + userId,
+        url: "/api/v1/today/exams?user_id=" + userId,
         data: {
           subject: subject, exam_date: examDate,
           start_time: startTime, end_time: "", location: location,
@@ -414,5 +441,14 @@ Page({
     }
   },
 
-  goBack() { wx.navigateBack(); }
+  onShow() {
+    if (this._hasShown && this.data.selectedDate) {
+      this.loadCalendarEvents(this.data.currentYear, this.data.currentMonth);
+      this.loadScheduleForDate(this.data.selectedDate);
+    }
+    this._hasShown = true;
+  },
+
+  onFabTap() { this.toggleFab(); },
+  goBack() { wx.switchTab({ url: "/pages/index/index" }); }
 });

@@ -2,7 +2,19 @@
   <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
 </view>
 
-<scroll-view class="scroll-content" scroll-y>
+<view class="profile-state" wx:if="{{loading}}">
+  <view class="state-spinner"></view>
+  <text class="state-text">正在加载个人资料</text>
+</view>
+
+<view class="profile-state" wx:elif="{{profileError}}">
+  <text class="state-icon">📡</text>
+  <text class="state-title">个人资料加载失败</text>
+  <text class="state-text">请检查网络后重试</text>
+  <button class="retry-btn" bindtap="retryProfile">重新加载</button>
+</view>
+
+<scroll-view class="scroll-content" scroll-y wx:else>
   <view class="user-card" bindtap="editProfile">
     <image class="user-avatar" src="/images/mascot1.png" mode="aspectFit"></image>
     <view class="user-info">

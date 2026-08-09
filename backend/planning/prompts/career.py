@@ -117,12 +117,12 @@ CAREER_ANALYSIS_STRATEGY: dict = {
     ],
     "question_topics": [
         "专业背景与学业情况",
-        "为什么选择就业而非考研/考公",
-        "理想的职业方向是什么",
+        "选择就业的个人动机",
+        "理想职业方向偏好",
         "已掌握的技能和项目经验",
         "期望的工作城市和环境",
-        "对薪资和工作强度的预期",
-        "最大的求职顾虑是什么",
+        "薪资、成长、稳定和工作强度的价值排序",
+        "最大的求职顾虑或现实约束",
     ],
     "topic_order": [
         "professional_bg", "motivation", "career_direction", "skills_projects",

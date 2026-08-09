@@ -49,7 +49,7 @@ def _clean_message(msg: str) -> str:
         cleaned.append(line)
     return chr(10).join(cleaned).strip()
 
-router = APIRouter(prefix="/sandbox", tags=["sandbox"])
+router = APIRouter(tags=["sandbox"])
 
 # ── Sandbox singleton ──────────────────────────────────────────
 _sandbox: DecisionSandbox | None = None
@@ -77,8 +77,25 @@ def get_sandbox() -> DecisionSandbox:
 # The API layer accesses them through sandbox methods with auth checks.
 
 
-def _load_session(sandbox, session_id, user_id=""):
+def _load_session(sandbox, session_id, user_id="", db=None):
     session = sandbox.get_session(session_id)
+    if session is None and user_id and db is not None:
+        # Process-local sessions may disappear after a restart. Restore the
+        # latest serialized context owned by this user before returning 404.
+        try:
+            from services.memory_service import memory_service
+            memory_service.wait_for_pending(user_id, timeout=5.0)
+            state = memory_service.load_context(
+                db, user_id=user_id, context_kind="sandbox", context_id=session_id,
+            )
+            if state:
+                restored = sandbox.restore_session(state)
+                if restored.user_id == user_id and restored.session_id == session_id:
+                    session = restored
+                else:
+                    sandbox._sessions.pop(restored.session_id, None)
+        except Exception as exc:
+            logger.warning("Sandbox context restore failed: {}", exc)
     if session is None:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Session not found")
@@ -168,7 +185,7 @@ async def chat(
 
     The message is processed through the current phase of the workflow.
     """
-    session = _load_session(sandbox, request.session_id, request.user_id)
+    session = _load_session(sandbox, request.session_id, request.user_id, db)
 
     if session.finished:
         # Session already complete — return cached result
@@ -299,9 +316,7 @@ async def sandbox_chat_stream(
     db: Session = Depends(get_db),
 ):
     """Stream sandbox chat response via SSE."""
-    session = sandbox.get_session(request.session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = _load_session(sandbox, request.session_id, request.user_id, db)
 
     async def event_stream():
         async for event, data in sandbox.chat_stream(session, request.message, db_session=db):
@@ -322,7 +337,9 @@ async def sandbox_chat_stream(
 async def handoff_to_agent(
     session_id: str = __import__("fastapi").Query(..., description="Sandbox session ID"),
     path_type: str = __import__("fastapi").Query(..., description="Chosen path type (career/graduate/civil/major)"),
+    user_id: str = __import__("fastapi").Query("", description="Session owner for persisted-context restore"),
     sandbox: DecisionSandbox = Depends(get_sandbox),
+    db: Session = Depends(get_db),
 ):
     """Hand off sandbox context to a planning agent.
 
@@ -339,6 +356,8 @@ async def handoff_to_agent(
         - agent_state: initial PlanningState for growth/chat
     """
     try:
+        if sandbox.get_session(session_id) is None and user_id:
+            _load_session(sandbox, session_id, user_id, db)
         result = sandbox.handoff_to_agent(
             session_id=session_id,
             path_type=path_type,
@@ -353,12 +372,12 @@ async def handoff_to_agent(
 @router.get("/result/{session_id}")
 async def get_result(
     session_id: str,
+    user_id: str = __import__("fastapi").Query("", description="Session owner for persisted-context restore"),
     sandbox: DecisionSandbox = Depends(get_sandbox),
+    db: Session = Depends(get_db),
 ):
     """Get the final projection result for a completed session."""
-    session = sandbox.get_session(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = _load_session(sandbox, session_id, user_id, db)
 
     # Extract match scores from projection_result
     matches = []
@@ -367,11 +386,11 @@ async def get_result(
     matrix = proj.get("comparison_matrix", {})
     matrix_scores = matrix.get("scores", {})
     
-    # Try to find "???" dimension index
+    # Try to find the user-fit dimension index.
     match_dim_idx = None
     dims = matrix.get("dimensions", [])
     for i, d in enumerate(dims):
-        if "??" in str(d):
+        if "匹配" in str(d) or "适配" in str(d) or "契合" in str(d):
             match_dim_idx = i
             break
     

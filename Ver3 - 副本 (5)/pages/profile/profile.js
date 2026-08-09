@@ -1,9 +1,12 @@
 const app = getApp();
+const { buildProfileList, persistUserField, toApiField } = require("../../utils/profile.js");
 
 Page({
   data: {
     statusBarHeight: 44,
     userId: "",
+    loading: true,
+    profileError: false,
     userInfo: { name: "", school: "", studentId: "" },
     stats: { dayCount: 0 },
     
@@ -37,46 +40,36 @@ Page({
     this.loadMemoryStats();
   },
 
+  onShow() {
+    if (this._hasShown) this.loadProfile();
+    this._hasShown = true;
+  },
+
   async loadProfile() {
     if (!this.data.userId) return;
-    wx.showLoading({ title: "加载中..." });
+    this.setData({ loading: true, profileError: false });
     try {
       const res = await app.request({ url: `/api/v1/users/${this.data.userId}` });
-      wx.hideLoading();
       
       const profileData = {
-        name: res.name || "吴同学",
-        school: res.school || "青岛大学",
+        name: res.name || "未设置姓名",
+        school: res.school || "未设置学校",
         studentId: res.student_id || res.studentId || ""
       };
       
       // 更新个人信息列表
-      const profileList = [
-        { label: "姓名", value: res.name || "吴同学", field: "name" },
-        { label: "年级", value: res.grade || "大二", field: "grade" },
-        { label: "学院", value: res.college || "计算机科学与技术学院", field: "college" },
-        { label: "专业", value: res.major || "计算机科学与技术", field: "major" },
-        { label: "入学年份", value: res.enroll_year || "2022", field: "enrollYear" }
-      ];
+      const profileList = buildProfileList(res, false);
       
       this.setData({
         userInfo: profileData,
         profileList: profileList,
-        stats: { dayCount: res.day_count || 0 }
+        stats: { dayCount: res.day_count || 0 },
+        loading: false,
+        profileError: false
       });
     } catch (err) {
-      wx.hideLoading();
-      // 使用默认数据
-      this.setData({
-        userInfo: { name: "吴同学", school: "青岛大学", studentId: "" },
-        profileList: [
-          { label: "姓名", value: "吴同学", field: "name" },
-          { label: "年级", value: "大二", field: "grade" },
-          { label: "学院", value: "计算机科学与技术学院", field: "college" },
-          { label: "专业", value: "计算机科学与技术", field: "major" },
-          { label: "入学年份", value: "2022", field: "enrollYear" }
-        ]
-      });
+      console.error("加载个人资料失败:", err);
+      this.setData({ loading: false, profileError: true });
     }
   },
 
@@ -139,7 +132,7 @@ Page({
         wx.showLoading({ title: "保存中..." });
         try {
           const updateData = {};
-          const apiField = field === 'enrollYear' ? 'enroll_year' : field;
+          const apiField = toApiField(field);
           updateData[apiField] = res.content;
           
           await app.request({
@@ -167,6 +160,7 @@ Page({
               'userInfo.name': res.content
             });
           }
+          persistUserField(app, apiField, res.content);
         } catch (err) {
           wx.hideLoading();
           wx.showToast({ title: "修改失败", icon: "none" });
@@ -198,6 +192,7 @@ Page({
   },
 
   goToSettings() { wx.navigateTo({ url: "/pages/settings/settings" }); },
+  retryProfile() { this.loadProfile(); },
 
   // 退出登录
   logout() {
@@ -206,10 +201,7 @@ Page({
       content: "退出后需要重新登录",
       success: (res) => {
         if (res.confirm) {
-          wx.removeStorageSync("token");
-          wx.removeStorageSync("userId");
-          app.globalData.userId = "";
-          app.globalData.token = "";
+          app.clearAuth();
           wx.reLaunch({ url: "/pages/login/login" });
         }
       }

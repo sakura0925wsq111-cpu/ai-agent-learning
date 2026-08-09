@@ -93,7 +93,7 @@
       <view class="empty-state" wx:elif="{{activeTab === 'archived'}}">
         <view class="empty-illustration"><text class="empty-emoji">📦</text></view>
         <text class="empty-text">归档为空</text>
-        <text class="empty-hint">完成的任务会自动归档到这里</text>
+        <text class="empty-hint">在“已完成”中归档的任务会显示在这里</text>
       </view>
     </view>
     <view style="height: 120rpx;"></view>

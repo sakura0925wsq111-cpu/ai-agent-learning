@@ -9,9 +9,7 @@
       <text class="back-icon">‹</text>
     </view>
     <view class="nav-title">成长模式</view>
-    <view class="nav-right">
-      <text class="more-icon">⋯</text>
-    </view>
+    <view class="nav-right nav-history" bindtap="goHistory">历史</view>
   </view>
 </view>
 
@@ -22,6 +20,18 @@
   <view class="growth-header">
     <view class="growth-title">探索你的未来方向</view>
     <view class="growth-subtitle">选择一个方向，AI将为你提供个性化建议</view>
+  </view>
+
+  <view wx:if="{{activeSession}}" class="active-plan-card" bindtap="continueSession">
+    <view class="active-plan-main">
+      <view class="active-plan-label">最近规划</view>
+      <view class="active-plan-title">{{activeSession.name}}</view>
+      <view class="active-plan-desc">{{activeSession.stepText}}</view>
+    </view>
+    <view class="active-plan-action">
+      <text class="active-plan-stage">{{activeSession.stageText}}</text>
+      <text class="active-plan-arrow">→</text>
+    </view>
   </view>
 
   <!-- 功能网格 -->

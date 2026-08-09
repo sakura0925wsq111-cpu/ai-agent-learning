@@ -8,13 +8,16 @@ async extraction, relevant-memory retrieval, and consolidation triggers.
 
 from __future__ import annotations
 
+import json
 import threading
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from crud.memory import memory as memory_crud
+from crud.memory import memory as memory_crud, normalize_key
 from models.memory import Memory
 from schemas.memory import MemoryCreate, MemoryUpdate, MemoryResponse
 from core.exceptions import NotFoundException
@@ -23,6 +26,7 @@ from core.exceptions import NotFoundException
 
 MEMORY_MAX_PER_USER = 50
 MEMORY_CONSOLIDATE_THRESHOLD = int(MEMORY_MAX_PER_USER * 0.8)  # 40
+SANDBOX_CONTEXT_TTL_HOURS = 24 * 30
 
 # Display labels for memory types
 MEMORY_TYPE_LABELS = {
@@ -30,26 +34,78 @@ MEMORY_TYPE_LABELS = {
     "goal": "成长目标",
     "action": "行动记录",
     "fact": "其他信息",
+    "context": "会话上下文",
 }
 
 
 class MemoryService:
     """Service layer for Memory CRUD operations."""
 
+    def __init__(self) -> None:
+        self._registry_lock = threading.Lock()
+        self._user_locks: dict[str, threading.RLock] = {}
+        self._pending_by_user: dict[str, list[threading.Thread]] = {}
+
+    def _lock_for_user(self, user_id: str) -> threading.RLock:
+        with self._registry_lock:
+            return self._user_locks.setdefault(user_id, threading.RLock())
+
+    def _start_user_worker(
+        self, user_id: str, target, args: tuple[Any, ...], *, name: str,
+    ) -> threading.Thread:
+        # Preserve turn order.  Parallel requests may finish extraction in a
+        # different order; serialising per user keeps the newest turn as the
+        # eventual winner for equal-confidence memories.
+        with self._registry_lock:
+            predecessors = [
+                item for item in self._pending_by_user.get(user_id, [])
+                if item.is_alive()
+            ]
+
+        def runner() -> None:
+            try:
+                for predecessor in predecessors:
+                    predecessor.join()
+                target(*args)
+            finally:
+                current = threading.current_thread()
+                with self._registry_lock:
+                    pending = self._pending_by_user.get(user_id, [])
+                    self._pending_by_user[user_id] = [item for item in pending if item is not current and item.is_alive()]
+
+        thread = threading.Thread(target=runner, daemon=True, name=name)
+        with self._registry_lock:
+            self._pending_by_user.setdefault(user_id, []).append(thread)
+        thread.start()
+        return thread
+
+    def wait_for_pending(self, user_id: str, timeout: float = 5.0) -> bool:
+        """Wait for pending context/extraction writes before starting a new session."""
+        deadline = time.monotonic() + max(0.0, timeout)
+        while True:
+            with self._registry_lock:
+                pending = [item for item in self._pending_by_user.get(user_id, []) if item.is_alive()]
+                self._pending_by_user[user_id] = pending
+            if not pending:
+                return True
+            for thread in pending:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                thread.join(remaining)
+
     def save_memory(self, db: Session, *, data: MemoryCreate) -> MemoryResponse:
         """Save a new memory or update an existing one (upsert)."""
         logger.info(f"Saving memory: user={data.user_id}, key={data.key}, type={data.memory_type}")
 
-        obj = memory_crud.upsert(
-            db,
-            user_id=data.user_id,
-            key=data.key,
-            value=data.value,
-            memory_type=data.memory_type,
-            importance=data.importance,
-            confidence=data.confidence,
-            source=data.source,
-        )
+        with self._lock_for_user(data.user_id):
+            memory_crud.reconcile_user_memories(db, user_id=data.user_id)
+            obj = memory_crud.upsert(
+                db, user_id=data.user_id, key=data.key, value=data.value,
+                memory_type=data.memory_type, importance=data.importance,
+                confidence=data.confidence, source=data.source,
+                expires_at=data.expires_at,
+            )
         logger.debug(f"Memory saved: id={obj.id}")
         return MemoryResponse.model_validate(obj)
 
@@ -64,19 +120,31 @@ class MemoryService:
 
         Triggers consolidation check asynchronously after saving.
         """
-        results: list[MemoryResponse] = []
+        # Remove exact duplicates within the same extraction result. Conflicting
+        # values remain and are processed from low to high confidence so the
+        # winning value is deterministic and the alternatives stay in history.
+        unique: dict[tuple[str, str], dict[str, Any]] = {}
         for item in items:
-            obj = memory_crud.upsert(
-                db,
-                user_id=user_id,
-                key=item["key"],
-                value=item["value"],
-                memory_type=item.get("memory_type", "fact"),
-                importance=item.get("importance", 1),
-                confidence=item.get("confidence", 1.0),
-                source=item.get("source", ""),
-            )
-            results.append(MemoryResponse.model_validate(obj))
+            key = normalize_key(str(item.get("key", "")))
+            value = str(item.get("value", "")).strip()
+            if key and value:
+                unique[(key, value.casefold())] = {**item, "key": key, "value": value}
+        ordered = sorted(unique.values(), key=lambda item: (item["key"], float(item.get("confidence", 1.0))))
+
+        results_by_key: dict[str, MemoryResponse] = {}
+        with self._lock_for_user(user_id):
+            memory_crud.reconcile_user_memories(db, user_id=user_id)
+            for item in ordered:
+                obj = memory_crud.upsert(
+                    db, user_id=user_id, key=item["key"], value=item["value"],
+                    memory_type=item.get("memory_type", "fact"),
+                    importance=item.get("importance", 1),
+                    confidence=item.get("confidence", 1.0),
+                    source=item.get("source", ""),
+                    expires_at=item.get("expires_at"),
+                )
+                results_by_key[obj.key] = MemoryResponse.model_validate(obj)
+        results = list(results_by_key.values())
         logger.info(f"Batch saved {len(results)} memories for user={user_id}")
 
         self._maybe_consolidate_async(db, user_id)
@@ -96,10 +164,14 @@ class MemoryService:
             as_dict: If True, return {key: value} dict.
             memory_type: Optional filter (profile/goal/action/fact).
         """
+        with self._lock_for_user(user_id):
+            memory_crud.reconcile_user_memories(db, user_id=user_id)
         if as_dict:
-            return memory_crud.as_dict(db, user_id=user_id)
+            return memory_crud.as_dict(db, user_id=user_id, include_context=False)
 
         memories = memory_crud.get_by_user(db, user_id=user_id, memory_type=memory_type)
+        if memory_type is None or memory_type == "all":
+            memories = [item for item in memories if item.memory_type != "context"]
         return [MemoryResponse.model_validate(m) for m in memories]
 
     def load_memory_by_type(
@@ -110,8 +182,106 @@ class MemoryService:
         memory_type: str,
     ) -> list[MemoryResponse]:
         """Load memories of a specific type for a user."""
+        with self._lock_for_user(user_id):
+            memory_crud.reconcile_user_memories(db, user_id=user_id)
         memories = memory_crud.get_by_type(db, user_id=user_id, memory_type=memory_type)
         return [MemoryResponse.model_validate(m) for m in memories]
+
+    def load_growth_context(
+        self, db: Session, *, user_id: str, agent_type: str,
+    ) -> dict[str, Any]:
+        """Load categorized long-term memories relevant to one growth agent."""
+        with self._lock_for_user(user_id):
+            memory_crud.reconcile_user_memories(db, user_id=user_id)
+        memories = list(memory_crud.get_by_user(db, user_id=user_id, limit=200))
+        profile_field_map = {
+            "姓名": "nickname", "学校": "school", "学院": "college",
+            "专业": "major", "年级": "grade", "入学年份": "enroll_year",
+            "性格": "personality", "兴趣": "interests", "职业": "career_preference",
+            "地域": "location_preference", "优势": "strengths", "劣势": "weaknesses",
+            "技能": "skills", "学习能力": "learning_ability", "执行力": "execution",
+            "当前困惑": "core_confusion",
+        }
+        result: dict[str, Any] = {
+            "profile": {}, "goal": "", "action_plan": "", "analysis": "",
+            "memory_ids": [],
+        }
+        generic_goal = ""
+        target_keys = {
+            f"growth:{agent_type}:goal": "goal",
+            f"growth:{agent_type}:action_plan": "action_plan",
+            f"growth:{agent_type}:analysis": "analysis",
+        }
+        for memory in memories:
+            if memory.memory_type == "context":
+                continue
+            is_growth_profile = memory.memory_type == "profile" or memory.key == "当前困惑"
+            if is_growth_profile and memory.key in profile_field_map and memory.confidence >= 0.6:
+                result["profile"][profile_field_map[memory.key]] = memory.value
+                result["memory_ids"].append(memory.id)
+            if memory.key in {"目标", "current_goal"} and memory.memory_type == "goal":
+                generic_goal = memory.value
+            target = target_keys.get(memory.key)
+            if target:
+                result[target] = memory.value
+                result["memory_ids"].append(memory.id)
+        if not result["goal"]:
+            result["goal"] = generic_goal
+        if not result["analysis"]:
+            legacy_analysis = next(
+                (item.value for item in memories if item.key == "latest_analysis"), "",
+            )
+            result["analysis"] = legacy_analysis
+        return result
+
+    def save_context(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        context_kind: str,
+        context_id: str,
+        payload: dict[str, Any],
+        ttl_hours: int = 168,
+        source: str = "session_context",
+    ) -> MemoryResponse:
+        """Persist resumable context separately from long-term facts."""
+        key = f"context:{context_kind}:{context_id}"
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=max(1, ttl_hours))
+        with self._lock_for_user(user_id):
+            memory_crud.reconcile_user_memories(db, user_id=user_id)
+            obj = memory_crud.upsert(
+                db, user_id=user_id, key=key,
+                value=json.dumps(payload, ensure_ascii=False), memory_type="context",
+                importance=1, confidence=1.0, source=source, expires_at=expires_at,
+            )
+        return MemoryResponse.model_validate(obj)
+
+    def load_context(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        context_kind: str,
+        context_id: str,
+    ) -> dict[str, Any] | None:
+        """Load an unexpired context payload, enforcing ownership and type."""
+        key = f"context:{context_kind}:{context_id}"
+        memory = memory_crud.get_by_key(db, user_id=user_id, key=key)
+        if memory is None or memory.memory_type != "context":
+            return None
+        expires_at = memory.expires_at
+        if expires_at is not None:
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at <= datetime.now(timezone.utc):
+                memory_crud.delete_by_key(db, user_id=user_id, key=key)
+                return None
+        try:
+            parsed = json.loads(memory.value)
+            return parsed if isinstance(parsed, dict) else None
+        except (json.JSONDecodeError, TypeError):
+            return None
 
     # ── Relevant memory retrieval (P1) ──────────────────────────
 
@@ -128,7 +298,10 @@ class MemoryService:
         Uses jieba + Jaccard similarity. Profile memories get a 1.5x boost.
         Falls back to top by importance if jieba unavailable or query empty.
         """
-        all_memories = memory_crud.get_by_user(db, user_id=user_id)
+        all_memories = [
+            item for item in memory_crud.get_by_user(db, user_id=user_id)
+            if item.memory_type != "context"
+        ]
         if not all_memories:
             return []
 
@@ -221,6 +394,7 @@ class MemoryService:
         user_id: str,
         messages: list[dict[str, str]],
         run_async: bool = True,
+        source_context: str = "conversation",
     ) -> Optional[list[MemoryResponse]]:
         """Extract user profile from conversation history and save to DB.
 
@@ -234,27 +408,30 @@ class MemoryService:
             List of saved MemoryResponse when run_async=False, None otherwise.
         """
         if run_async:
-            thread = threading.Thread(
-                target=self._extract_and_save_sync,
-                args=(user_id, messages),
-                daemon=True,
+            self._start_user_worker(
+                user_id,
+                self._run_per_turn_extraction,
+                (user_id, list(messages), source_context),
                 name=f"memory-extract-{user_id[:8]}",
             )
-            thread.start()
             logger.debug(
                 "Started async memory extraction for user={}, {} messages",
                 user_id, len(messages),
             )
             return None
-        else:
-            return self._extract_and_save_sync(user_id, messages)
+        return self._extract_and_save_in_db(
+            db, user_id=user_id, messages=messages, source_context=source_context,
+        )
 
-    def _extract_and_save_sync(
+    def _extract_and_save_in_db(
         self,
+        db: Session,
+        *,
         user_id: str,
         messages: list[dict[str, str]],
+        source_context: str,
     ) -> list[MemoryResponse]:
-        """Synchronous extraction + save."""
+        """Extract and save with the caller-owned session."""
         from memory.async_extractor import extract_profile_from_history
 
         try:
@@ -269,11 +446,15 @@ class MemoryService:
         if not memories:
             logger.debug("extract_and_save: no memories extracted for user={}", user_id)
             return []
-
-        from database.session import SessionLocal
-        db = SessionLocal()
         try:
-            results = self.save_batch(db, user_id=user_id, items=memories)
+            tagged_memories = []
+            for item in memories:
+                evidence = str(item.get("source", "")).strip()
+                tagged_memories.append({
+                    **item,
+                    "source": f"{source_context} | {evidence}" if evidence else source_context,
+                })
+            results = self.save_batch(db, user_id=user_id, items=tagged_memories)
             logger.info(
                 "extract_and_save: saved {} memories for user={}",
                 len(results), user_id,
@@ -285,14 +466,12 @@ class MemoryService:
                 user_id, exc,
             )
             return []
-        finally:
-            db.close()
 
     # ── Consolidation trigger (P2) ──────────────────────────────
 
     def _maybe_consolidate_async(self, db: Session, user_id: str) -> None:
         """Check and trigger consolidation if memory count exceeds threshold."""
-        count = memory_crud.count_by_user(db, user_id=user_id)
+        count = self.load_memory_count(db, user_id=user_id)
         if count >= MEMORY_CONSOLIDATE_THRESHOLD:
             logger.info(
                 "Memory count {} >= threshold {} for user={}, triggering consolidation",
@@ -341,7 +520,20 @@ class MemoryService:
             raise NotFoundException(f"Memory key '{key}' not found for user {user_id}")
 
         update_data = data.model_dump(exclude_unset=True)
-        obj = memory_crud.update(db, db_obj=obj, obj_in=update_data)
+        source_detail = str(update_data.get("source") or "").strip()
+        source = f"user_edit | {source_detail}" if source_detail else "user_edit"
+        with self._lock_for_user(user_id):
+            obj = memory_crud.upsert(
+                db,
+                user_id=user_id,
+                key=key,
+                value=update_data.get("value", obj.value),
+                memory_type=update_data.get("memory_type", obj.memory_type),
+                importance=update_data.get("importance", obj.importance),
+                confidence=update_data.get("confidence", 1.0),
+                source=source,
+                expires_at=update_data.get("expires_at", obj.expires_at),
+            )
         logger.info(f"Memory updated: user={user_id}, key={key}")
         return MemoryResponse.model_validate(obj)
 
@@ -366,6 +558,8 @@ class MemoryService:
         grouped: dict[str, list[Memory]] = {"profile": [], "goal": [], "action": [], "fact": []}
         for m in all_memories:
             mtype = getattr(m, "memory_type", "fact")
+            if mtype == "context":
+                continue
             if mtype not in grouped:
                 mtype = "fact"
             grouped[mtype].append(m)
@@ -385,8 +579,29 @@ class MemoryService:
         return "\n\n".join(sections) if sections else ""
 
     def load_memory_count(self, db: Session, *, user_id: str) -> int:
-        """Return the total number of memories for a user."""
-        return memory_crud.count_by_user(db, user_id=user_id)
+        """Return the number of user-visible long-term memories."""
+        return len([
+            item for item in memory_crud.get_by_user(db, user_id=user_id, limit=1000)
+            if item.memory_type != "context"
+        ])
+
+    def load_context_metadata(self, db: Session, *, user_id: str) -> list[dict[str, Any]]:
+        """Return safe context summaries without exposing serialized chat payloads."""
+        contexts = memory_crud.get_by_user(
+            db, user_id=user_id, memory_type="context", limit=100,
+        )
+        result: list[dict[str, Any]] = []
+        for item in contexts:
+            parts = item.key.split(":", 2)
+            kind = parts[1] if len(parts) > 1 else "session"
+            context_id = parts[2] if len(parts) > 2 else ""
+            result.append({
+                "kind": kind,
+                "context_id": context_id,
+                "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+                "expires_at": item.expires_at.isoformat() if item.expires_at else None,
+            })
+        return result
 
 
 
@@ -397,7 +612,8 @@ class MemoryService:
         user_id: str,
         user_message: str,
         assistant_message: str = "",
-    ) -> None:
+        source_context: str = "conversation_turn",
+    ) -> threading.Thread | None:
         """Fire a background thread to extract memories from the latest turn.
 
         Called after each user message in growth mode and sandbox mode.
@@ -409,7 +625,7 @@ class MemoryService:
             assistant_message: The assistant's response (optional, for context).
         """
         if not user_message.strip():
-            return
+            return None
 
         # Build minimal message list for extraction
         messages: list[dict[str, str]] = [
@@ -418,26 +634,28 @@ class MemoryService:
         if assistant_message.strip():
             messages.append({"role": "assistant", "content": assistant_message[:2000]})
 
-        thread = threading.Thread(
-            target=self._run_per_turn_extraction,
-            args=(user_id, messages),
-            daemon=True,
+        thread = self._start_user_worker(
+            user_id,
+            self._run_per_turn_extraction,
+            (user_id, messages, source_context),
             name=f"mem-extract-{user_id[:8]}",
         )
-        thread.start()
         logger.debug("Memory: fired async extraction for user={}", user_id)
+        return thread
 
     def _run_per_turn_extraction(
         self,
         user_id: str,
         messages: list[dict[str, str]],
+        source_context: str,
     ) -> None:
         """Background thread: extract memories and save to DB."""
         from database.session import SessionLocal
         db = SessionLocal()
         try:
-            result = self.extract_and_save(
+            result = self._extract_and_save_in_db(
                 db, user_id=user_id, messages=messages,
+                source_context=source_context,
             )
             logger.info(
                 "Memory: async extraction saved {} items for user={}",
@@ -447,6 +665,40 @@ class MemoryService:
             logger.warning("Memory: async extraction failed for user={}: {}", user_id, exc)
         finally:
             db.close()
+
+    def persist_sandbox_state(
+        self,
+        db: Session,
+        *,
+        user_id: str,
+        session_id: str,
+        session_state: dict[str, Any],
+        profile_items: list[dict[str, Any]],
+    ) -> MemoryResponse:
+        """Synchronously persist handoff-critical sandbox state.
+
+        Only the optional LLM extraction remains asynchronous; this state is
+        committed before the sandbox response returns so a process restart
+        cannot break handoff to Growth mode.
+        """
+        if profile_items:
+            tagged = [
+                {
+                    **item,
+                    "source": f"sandbox_profile:{session_id}",
+                }
+                for item in profile_items
+            ]
+            self.save_batch(db, user_id=user_id, items=tagged)
+        return self.save_context(
+            db,
+            user_id=user_id,
+            context_kind="sandbox",
+            context_id=session_id,
+            payload=session_state,
+            ttl_hours=SANDBOX_CONTEXT_TTL_HOURS,
+            source=f"sandbox_context:{session_id}",
+        )
 
 
 # Singleton

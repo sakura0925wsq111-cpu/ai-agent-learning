@@ -1,6 +1,6 @@
 page {
   background: #F5F7FA;
-  font-family: -apple-system, BlinkMacSystemFont, '.萍方-简', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 .status-bar {
@@ -30,14 +30,30 @@ page {
 }
 
 .share-btn {
+  margin: 0;
   padding: 16rpx;
+  border: none;
+  background: transparent;
+  line-height: 1;
 }
+
+.nav-left,
+.nav-right {
+  min-width: 96rpx;
+  box-sizing: border-box;
+}
+
+.nav-right {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.share-btn::after { border: none; }
 
 .share-icon {
   font-size: 36rpx;
 }
 
-/* 只修改 report-container，其他不变 */
 .report-container {
   padding: 0 32rpx;
   height: calc(100vh - 88rpx - 44rpx - 120rpx);
@@ -45,6 +61,26 @@ page {
   box-sizing: border-box;
   overflow-x: hidden;
 }
+
+.report-state {
+  height: calc(100vh - 132rpx);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  box-sizing: border-box;
+}
+
+.report-state-title { color: #667085; font-size: 30rpx; }
+.report-state-desc { margin-top: 12rpx; color: #98A2B3; font-size: 25rpx; text-align: center; }
+.report-retry-btn {
+  margin-top: 28rpx; padding: 0 32rpx; height: 72rpx; line-height: 72rpx;
+  border: none; border-radius: 36rpx; background: #667EEA; color: #FFFFFF; font-size: 26rpx;
+}
+.report-retry-btn::after { border: none; }
+
+.report-safe-space { height: 160rpx; }
 
 /* 报告头部 */
 .report-header {
@@ -280,7 +316,7 @@ page {
   margin-top: 12rpx;
 }
 
-/* ========== 修改：底部固定栏（三按钮布局）========== */
+/* 底部固定栏 */
 .bottom-bar {
   position: fixed;
   bottom: 0;

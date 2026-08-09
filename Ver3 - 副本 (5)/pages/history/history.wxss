@@ -107,3 +107,39 @@ page {
 .empty-title { font-size: 32rpx; color: #999999; margin-bottom: 12rpx; }
 
 .empty-desc { font-size: 26rpx; color: #BBBBBB; text-align: center; }
+
+.state-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 32rpx;
+}
+
+.state-title {
+  color: #667085;
+  font-size: 30rpx;
+}
+
+.state-desc {
+  margin-top: 12rpx;
+  color: #98A2B3;
+  font-size: 25rpx;
+}
+
+.state-button,
+.empty-button {
+  margin-top: 28rpx;
+  padding: 0 32rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  border: none;
+  border-radius: 36rpx;
+  background: #667EEA;
+  color: #FFFFFF;
+  font-size: 26rpx;
+}
+
+.state-button::after,
+.empty-button::after {
+  border: none;
+}

@@ -13,13 +13,15 @@ Page({
     password: "",
     agreed: false,
     canSubmit: false,
-    yearOptions: ["2020", "2021", "2022", "2023", "2024", "2025"],
+    yearOptions: [],
     gradeOptions: ["大一", "大二", "大三", "大四", "研一", "研二", "研三"]
   },
 
   onLoad(options) {
     const info = wx.getSystemInfoSync();
-    this.setData({ statusBarHeight: info.statusBarHeight });
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({ length: 8 }, (_, index) => String(currentYear - 7 + index));
+    this.setData({ statusBarHeight: info.statusBarHeight, yearOptions });
   },
 
   onNameInput(e) { this.setData({ name: e.detail.value }); this.checkCanSubmit(); },

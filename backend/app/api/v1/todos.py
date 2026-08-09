@@ -12,6 +12,7 @@ from core.exceptions import NotFoundException
 from crud.base import CRUDBase
 from models.todo import Todo
 from crud.user import user as user_crud
+from utils.auth import get_current_user_id, require_user_access
 
 router = APIRouter(prefix="/todos", tags=["todos"])
 todo_crud = CRUDBase[Todo](Todo)
@@ -48,8 +49,10 @@ def create_todo(
     payload: TodoCreate,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Create a new todo item."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
 
@@ -71,8 +74,10 @@ def list_todos(
     user_id: str = Query(..., description="User ID"),
     status: str = Query(default="pending", description="Filter: pending / done / archived / all"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """List todos for a user, optionally filtered by status."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
 
@@ -97,8 +102,10 @@ def update_todo(
     payload: TodoUpdate,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Update a todo (title, status, deadline)."""
+    require_user_access(user_id, current_user_id)
     obj = db.query(Todo).filter(Todo.id == todo_id, Todo.user_id == user_id).first()
     if obj is None:
         raise NotFoundException(f"Todo {todo_id} not found")
@@ -120,8 +127,10 @@ def delete_todo(
     todo_id: str,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Permanently delete a todo."""
+    require_user_access(user_id, current_user_id)
     obj = db.query(Todo).filter(Todo.id == todo_id, Todo.user_id == user_id).first()
     if obj is None:
         raise NotFoundException(f"Todo {todo_id} not found")
@@ -135,9 +144,11 @@ def toggle_todo(
     todo_id: str,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Toggle todo status: pending -> done -> archived.
     After archived, the item is effectively removed from active view."""
+    require_user_access(user_id, current_user_id)
     obj = db.query(Todo).filter(Todo.id == todo_id, Todo.user_id == user_id).first()
     if obj is None:
         raise NotFoundException(f"Todo {todo_id} not found")

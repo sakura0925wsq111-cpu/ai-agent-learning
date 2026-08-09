@@ -35,7 +35,7 @@ Page({
 
   async loadPaths() {
     try {
-      const res = await app.request({ url: "/sandbox/paths" });
+      const res = await app.request({ url: "/api/v1/sandbox/paths" });
       if (res && res.paths && res.paths.length) {
         const icons = { graduate: "/images/icon-postgrad.png", employment: "/images/icon-job.png", career: "/images/icon-job.png", civil: "/images/icon-civil.png", major: "/images/icon-transfer.png" };
         const colors = { graduate: "#4A90D9", employment: "#52C41A", career: "#52C41A", civil: "#FA8C16", major: "#722ED1" };
@@ -57,7 +57,9 @@ Page({
   async loadResult() {
     wx.showLoading({ title: "分析中..." });
     try {
-      const res = await app.request({ url: "/sandbox/result/" + this.data.sandboxSessionId });
+      const res = await app.request({
+        url: "/api/v1/sandbox/result/" + this.data.sandboxSessionId + "?user_id=" + encodeURIComponent(this.getUserId())
+      });
       this.setData({
         summary: res.summary || "基于你的回答，AI为你生成了个性化的决策分析...",
         messageCount: res.message_count || 0,
@@ -83,7 +85,7 @@ Page({
   updateDirections(matches) {
     let dirs = this.data.directions.map(d => {
       const m = matches.find(m => m.type === d.type);
-      return { ...d, matchScore: m ? Math.round(m.score * 100) : Math.floor(Math.random() * 30) + 50, recommended: m ? m.recommended : false };
+      return { ...d, matchScore: m ? Math.round(m.score * 100) : 0, recommended: m ? m.recommended : false };
     });
     dirs.sort((a, b) => {
       if (a.recommended !== b.recommended) return b.recommended - a.recommended;
@@ -107,7 +109,11 @@ Page({
       const res = await app.request({
         method: "POST",
         url: "/api/v1/growth/start",
-        data: { agent: agentType, user_id: this.getUserId() }
+        data: {
+          agent: agentType,
+          user_id: this.getUserId(),
+          sandbox_session_id: this.data.sandboxSessionId
+        }
       });
       wx.hideLoading();
       wx.navigateTo({ url: "/pages/chatroom/chatroom?mode=agent&agent=" + agentType + "&session_id=" + (res.session_id || "") });

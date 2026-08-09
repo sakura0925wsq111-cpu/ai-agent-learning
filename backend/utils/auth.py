@@ -7,6 +7,8 @@ import time
 import json
 import base64
 
+from fastapi import Header, HTTPException, status
+
 from core.config import settings
 
 
@@ -83,3 +85,40 @@ def verify_token(token: str) -> str | None:
         return payload["sub"]
     except Exception:
         return None
+
+
+def get_current_user_id(authorization: str | None = Header(default=None)) -> str:
+    """Resolve and validate the current user from a Bearer token."""
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="请先登录",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    scheme, separator, token = authorization.partition(" ")
+    if not separator or scheme.lower() != "bearer" or not token.strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录凭证格式错误",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_id = verify_token(token.strip())
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录已过期，请重新登录",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user_id
+
+
+def require_user_access(requested_user_id: str, current_user_id: str) -> str:
+    """Reject attempts to access another user's resources."""
+    if not requested_user_id or requested_user_id != current_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权访问该用户的数据",
+        )
+    return current_user_id

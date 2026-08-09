@@ -50,6 +50,8 @@ class LLMService:
         system_prompt: str = "",
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        request_timeout: float | None = None,
+        max_retries: int | None = None,
     ) -> str:
         """Send a single-turn message to the LLM and return the reply."""
         messages: list[dict[str, str]] = []
@@ -57,7 +59,16 @@ class LLMService:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": user_message})
 
-        response = self._client.chat.completions.create(
+        client = self._client
+        if request_timeout is not None or max_retries is not None:
+            options = {}
+            if request_timeout is not None:
+                options["timeout"] = max(1.0, float(request_timeout))
+            if max_retries is not None:
+                options["max_retries"] = max(0, int(max_retries))
+            client = self._client.with_options(**options)
+
+        response = client.chat.completions.create(
             model=self._model,
             messages=messages,
             temperature=temperature,

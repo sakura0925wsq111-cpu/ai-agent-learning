@@ -46,7 +46,7 @@ def batch_upsert_memory(payload: MemoryBatchUpsert, db: Session = Depends(get_db
 def get_user_memories(
     user_id: str,
     as_dict: bool = Query(default=False, description="Return as {key: value} dict"),
-    memory_type: str = Query(default="all", description="Filter by type: all/profile/goal/action/fact"),
+    memory_type: str = Query(default="all", pattern=r"^(all|profile|goal|action|fact|context)$", description="Filter by type: all/profile/goal/action/fact/context"),
     db: Session = Depends(get_db),
 ):
     """Get all memory entries for a user, optionally filtered by type."""
@@ -65,7 +65,7 @@ def get_user_memories(
 @router.get("/panel/{user_id}", response_model=APIResponse[dict])
 def get_memory_panel(
     user_id: str,
-    memory_type: str = Query(default="all", description="Filter by type"),
+    memory_type: str = Query(default="all", pattern=r"^(all|profile|goal|action|fact|context)$", description="Filter by type"),
     db: Session = Depends(get_db),
 ):
     """Get the user-visible memory panel, grouped by type."""
@@ -74,10 +74,12 @@ def get_memory_panel(
 
     mtype = None if memory_type == "all" else memory_type
     memories = memory_service.load_memory(db, user_id=user_id, memory_type=mtype)
+    visible_memories = [m for m in memories if m.memory_type != "context"]
     total = memory_service.load_memory_count(db, user_id=user_id)
+    contexts = memory_service.load_context_metadata(db, user_id=user_id)
 
     panel_items: list[dict[str, Any]] = []
-    for m in memories:
+    for m in visible_memories:
         panel_items.append({
             "key": m.key,
             "value": m.value,
@@ -101,6 +103,8 @@ def get_memory_panel(
         "max_capacity": 50,
         "type_counts": type_counts,
         "memories": panel_items,
+        "context_count": len(contexts),
+        "contexts": contexts,
     })
 
 
@@ -110,6 +114,7 @@ def delete_memory_panel_item(user_id: str, key: str, db: Session = Depends(get_d
     memory_service.delete_memory(db, user_id=user_id, key=key)
     return APIResponse.ok(data={"deleted": {"user_id": user_id, "key": key}})
 
+@router.get("/{user_id}/{key}", response_model=APIResponse[MemoryResponse])
 def get_user_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
     """Get a specific memory entry by key."""
     result = memory_service.get_memory(db, user_id=user_id, key=key)
@@ -117,7 +122,6 @@ def get_user_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)
         raise NotFoundException(f"Memory key '{key}' not found for user {user_id}")
     return APIResponse.ok(data=result)
 
-@router.get("/{user_id}/{key}", response_model=APIResponse[MemoryResponse])
 # === Memory Panel endpoints (P3) ======================================
 
 

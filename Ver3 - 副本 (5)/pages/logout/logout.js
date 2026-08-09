@@ -24,10 +24,7 @@ Page({
       });
       
       // 清除本地数据
-      wx.removeStorageSync("token");
-      wx.removeStorageSync("userId");
-      app.globalData.userId = "";
-      app.globalData.token = "";
+      app.clearAuth();
       
       // 延迟跳转，让用户看到完成状态
       setTimeout(() => {

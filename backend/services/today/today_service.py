@@ -257,16 +257,16 @@ class TodayService:
         context = "\n".join(context_parts)
 
         system_prompt = (
-            "?? CampusPal ? AI ???????"
-            "???????????????????????????"
-            "???????????????????"
-            "????????????????80??"
+            "你是 CampusPal 的 AI 今日助手。"
+            "请根据用户今天的课程、待办、考试、天气和成长规划进度，"
+            "给出具体、可执行且不过度安排的建议。"
+            "优先指出最值得完成的一件事，并帮助用户留出休息时间。"
             "\n\n"
-            "☀️ 天气：????????????"
+            "☀️ 天气：只依据提供的信息建议出行与穿着，不要猜测。"
             "\n"
-            "⏳ 空闲：????????????"
+            "⏳ 空闲：结合真实空闲时段安排任务，不要制造时间。"
             "\n"
-            "📋 计划：??????????????"
+            "📋 计划：最多突出三个优先事项，避免堆砌任务。"
             "\n\n"
             "重要规则："
             "如果今日无课，绝对不要编造课程时间；"
@@ -529,10 +529,21 @@ class TodayService:
             Todo.status == "pending",
         ).order_by(Todo.created_at.desc()).all()
         for t in todos:
+            time_value = ""
+            if t.deadline:
+                try:
+                    deadline = datetime.fromisoformat(t.deadline.replace("Z", "+00:00"))
+                    if deadline.date() != target:
+                        continue
+                    time_value = deadline.strftime("%H:%M")
+                except (TypeError, ValueError):
+                    continue
+            elif target != date_type.today():
+                continue
             events.append({
                 "id": t.id,
                 "title": t.title,
-                "time": t.deadline or "",
+                "time": time_value,
                 "end_time": "",
                 "location": "",
                 "event_type": "ai_plan" if t.source == "ai_plan" else "todo",

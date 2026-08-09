@@ -13,13 +13,26 @@ from schemas.user import (
 from crud.user import user as user_crud
 from core.exceptions import NotFoundException
 from core.config import settings
-from utils.auth import hash_password, verify_password, create_token
+from utils.auth import (
+    create_token,
+    get_current_user_id,
+    hash_password,
+    require_user_access,
+    verify_password,
+)
 from services.memory_service import memory_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-def _sync_user_to_memory(db: Session, user_id: str, user_data: dict) -> None:
+def _sync_user_to_memory(
+    db: Session,
+    user_id: str,
+    user_data: dict,
+    *,
+    source: str = "user_profile_sync",
+    confidence: float = 0.99,
+) -> None:
     """Sync user profile fields into the memory system."""
     memory_items = []
     field_map = {
@@ -37,8 +50,8 @@ def _sync_user_to_memory(db: Session, user_id: str, user_data: dict) -> None:
                 "value": str(value),
                 "memory_type": "profile",
                 "importance": 7,
-                "confidence": 1.0,
-                "source": "user_registration",
+                "confidence": confidence,
+                "source": source,
             })
 
     if memory_items:
@@ -54,11 +67,11 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """Login with student_id and password."""
     user_obj = user_crud.get_by_student_id(db, student_id=payload.student_id)
     if user_obj is None:
-        raise HTTPException(status_code=401, detail="Invalid student_id or password")
+        raise HTTPException(status_code=401, detail="学号或密码错误")
     if not user_obj.password_hash:
-        raise HTTPException(status_code=401, detail="Invalid student_id or password")
+        raise HTTPException(status_code=401, detail="学号或密码错误")
     if not verify_password(payload.password, user_obj.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid student_id or password")
+        raise HTTPException(status_code=401, detail="学号或密码错误")
 
     token = create_token(user_obj.id)
     user_resp = UserResponse.model_validate(user_obj)
@@ -110,15 +123,20 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
         "major": obj.major,
         "enroll_year": obj.enroll_year,
         "grade": obj.grade,
-    })
+    }, source="user_registration", confidence=1.0)
 
     logger.info(f"User registered: {obj.student_id}")
     return APIResponse.ok(data=LoginResponse(token=token, user_id=obj.id, user=user_resp))
 
 
 @router.get("/{user_id}", response_model=APIResponse[UserResponse])
-def get_user(user_id: str, db: Session = Depends(get_db)):
+def get_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Get a user by ID."""
+    require_user_access(user_id, current_user_id)
     obj = user_crud.get(db, id=user_id)
     if obj is None:
         raise NotFoundException(f"User {user_id} not found")
@@ -126,8 +144,14 @@ def get_user(user_id: str, db: Session = Depends(get_db)):
 
 
 @router.put("/{user_id}", response_model=APIResponse[UserResponse])
-def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db)):
+def update_user(
+    user_id: str,
+    payload: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Update a user (partial update)."""
+    require_user_access(user_id, current_user_id)
     obj = user_crud.get(db, id=user_id)
     if obj is None:
         raise NotFoundException(f"User {user_id} not found")
@@ -137,22 +161,22 @@ def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db)
     # Sync updated fields to memory
     changed = {k: v for k, v in update_data.items() if v is not None}
     if changed:
-        _sync_user_to_memory(db, obj.id, {
-            "name": obj.name,
-            "student_id": obj.student_id,
-            "school": obj.school,
-            "college": obj.college,
-            "major": obj.major,
-            "enroll_year": obj.enroll_year,
-            "grade": obj.grade,
-        })
+        _sync_user_to_memory(
+            db, obj.id, changed,
+            source="user_profile_update", confidence=1.0,
+        )
 
     return APIResponse.ok(data=UserResponse.model_validate(obj))
 
 
 @router.delete("/{user_id}", response_model=APIResponse[dict])
-def delete_user(user_id: str, db: Session = Depends(get_db)):
+def delete_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Delete a user."""
+    require_user_access(user_id, current_user_id)
     obj = user_crud.delete(db, id=user_id)
     if obj is None:
         raise NotFoundException(f"User {user_id} not found")

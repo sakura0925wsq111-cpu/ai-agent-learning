@@ -8,13 +8,27 @@
     <view class="nav-left" bindtap="goBack">
       <text class="back-icon">‹</text>
     </view>
-    <view class="nav-title">天气</view>
+    <picker class="city-picker" mode="selector" range="{{cityOptions}}" bindchange="onCityChange">
+      <view class="nav-title">{{city}} <text class="city-arrow">⌄</text></view>
+    </picker>
     <view class="nav-right"></view>
   </view>
 </view>
 
+<view class="weather-state" wx:if="{{loading}}">
+  <view class="weather-spinner"></view>
+  <text>正在获取天气</text>
+</view>
+
+<view class="weather-state" wx:elif="{{hasError}}">
+  <text class="error-icon">📡</text>
+  <text class="error-title">天气加载失败</text>
+  <text class="error-desc">{{errorMsg}}</text>
+  <button class="retry-btn" bindtap="retryWeather">重新加载</button>
+</view>
+
 <!-- 天气内容区 -->
-<view class="weather-content">
+<view class="weather-content" wx:else>
   
   <!-- 温度显示 -->
   <view class="temp-section">
@@ -24,7 +38,7 @@
   
   <!-- 天气状况 -->
   <view class="condition-section">
-    <image class="condition-icon" src="{{weather.icon}}" mode="aspectFit"></image>
+    <text class="condition-icon">{{weather.icon}}</text>
     <text class="condition-text">{{weather.condition}}</text>
   </view>
   

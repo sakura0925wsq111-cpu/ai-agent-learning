@@ -31,3 +31,7 @@
 .memory-desc { font-size: 13px; color: #999; }
 .memory-count { font-size: 15px; font-weight: 700; color: #4A90D9; }
 .bottom-safe { height: 40px; }
+.load-error { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:120rpx 40rpx; color:#666; font-size:28rpx; }
+.load-error-icon { font-size:80rpx; margin-bottom:20rpx; }
+.load-retry { margin-top:28rpx; padding:12rpx 40rpx; border:0; border-radius:36rpx; background:#4A90D9; color:#fff; font-size:26rpx; }
+.load-retry::after { border:0; }

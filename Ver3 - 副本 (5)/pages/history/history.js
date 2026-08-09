@@ -1,75 +1,108 @@
 const app = getApp();
 
+const TYPE_NAMES = {
+  graduate: "考研规划",
+  employment: "就业指导",
+  career: "就业指导",
+  civil: "考公评估",
+  major: "转专业分析"
+};
+
+const TYPE_COLORS = {
+  graduate: "#4A90D9",
+  employment: "#52C41A",
+  career: "#52C41A",
+  civil: "#FA8C16",
+  major: "#722ED1"
+};
+
 Page({
-  data: { statusBarHeight: 44, userId: "", currentTab: "plan", currentFilter: "全部", planHistory: [], chatHistory: [] },
+  data: {
+    statusBarHeight: 44,
+    userId: "",
+    currentTab: "plan",
+    currentFilter: "全部",
+    rawSessions: [],
+    planHistory: [],
+    chatHistory: [],
+    loading: true,
+    error: false
+  },
 
   onLoad(options) {
-    const info = wx.getSystemInfoSync(); const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
-    this.setData({ statusBarHeight: info.statusBarHeight, userId, currentTab: options.type === "chat" ? "chat" : "plan" });
+    const info = wx.getSystemInfoSync();
+    const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
+    this.setData({
+      statusBarHeight: info.statusBarHeight,
+      userId,
+      currentTab: options.type === "chat" ? "chat" : "plan"
+    });
     this.loadData();
   },
 
   async loadData() {
-    if (this.data.currentTab === "plan") { await this.loadPlanHistory(); }
-    if (this.data.currentTab === "chat") { await this.loadChatHistory(); }
-  },
-
-  async loadPlanHistory() {
-    wx.showLoading({ title: "加载中..." });
+    this.setData({ loading: true, error: false });
     try {
       const res = await app.request({ url: `/api/v1/growth/history/${this.data.userId}` });
-      this.setData({ planHistory: this.formatPlanHistory(res.sessions || []) });
-    } catch (err) { this.setData({ planHistory: [] }); }
-    wx.hideLoading();
+      this.setData({ rawSessions: res.sessions || [], loading: false });
+      this.applyFilter();
+    } catch (err) {
+      this.setData({ rawSessions: [], planHistory: [], chatHistory: [], loading: false, error: true });
+    }
   },
 
-  async loadChatHistory() {
-    wx.showLoading({ title: "加载中..." });
-    try {
-      const res = await app.request({ url: `/api/v1/growth/history/${this.data.userId}` });
-      this.setData({ chatHistory: this.formatChatHistory(res.sessions || []) });
-    } catch (err) { this.setData({ chatHistory: [] }); }
-    wx.hideLoading();
-  },
-
-  formatPlanHistory(list) {
-    const typeNames = { graduate: "考研规划", employment: "就业指导", civil: "考公评估", major: "转专业分析", career: "就业指导" };
-    const colors = { graduate: "#4A90D9", employment: "#52C41A", civil: "#FA8C16", major: "#722ED1", career: "#52C41A" };
-    const statusTexts = { completed: "已完成", in_progress: "进行中", abandoned: "已放弃" };
-    return list.map(item => ({
-      ...item, agent_type: item.agent,
-      typeName: typeNames[item.agent] || item.agent,
-      color: colors[item.agent] || "#999",
-      statusText: statusTexts[item.status] || item.status,
-      title: item.title || `${typeNames[item.agent] || "规划"} - ${(item.session_id || "").slice(0, 8)}`,
-      summary: item.summary || `${item.message_count || 0} 条消息`
-    }));
-  },
-
-  formatChatHistory(list) {
-    const typeNames = { graduate: "考研规划", employment: "就业指导", civil: "考公评估", major: "转专业分析", career: "就业指导" };
-    return list.map(item => ({
+  applyFilter() {
+    const filter = this.data.currentFilter;
+    const sessions = this.data.rawSessions.filter((item) => {
+      return filter === "全部" || TYPE_NAMES[item.agent] === filter;
+    });
+    const plans = sessions.filter((item) => item.finished && item.has_report).map((item) => ({
       ...item,
-      title: item.title || (typeNames[item.agent] || "对话") + "咨询",
-      last_message: item.summary || item.last_message || "暂无消息",
-      last_message_time: item.updated_at || item.created_at || "",
+      agent_type: item.agent,
+      typeName: TYPE_NAMES[item.agent] || "成长规划",
+      color: TYPE_COLORS[item.agent] || "#667085",
+      statusText: "已完成",
+      title: TYPE_NAMES[item.agent] || "成长规划",
+      summary: `${item.message_count || 0} 条对话 · 已生成完整报告`,
+      displayTime: this.formatTime(item.updated_at || item.created_at)
+    }));
+    const chats = sessions.map((item) => ({
+      ...item,
+      title: (TYPE_NAMES[item.agent] || "成长规划") + "咨询",
+      last_message: item.finished ? "报告已生成，可继续咨询" : this.getStageText(item.stage),
+      displayTime: this.formatTime(item.updated_at || item.created_at),
       message_count: item.message_count || 0
     }));
+    this.setData({ planHistory: plans, chatHistory: chats });
+  },
+
+  getStageText(stage) {
+    const texts = {
+      questioning: "信息收集中，点击继续",
+      awaiting: "信息已收集，等待开始分析",
+      analyzing: "初步分析已完成，等待确认",
+      report: "报告已生成"
+    };
+    return texts[stage] || "规划进行中，点击继续";
+  },
+
+  formatTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
   },
 
   switchTab(e) {
-    const t = e.currentTarget.dataset.tab;
-    if (t === this.data.currentTab) return;
-    this.setData({ currentTab: t });
-    this.loadData();
+    const tab = e.currentTarget.dataset.tab;
+    if (tab !== this.data.currentTab) this.setData({ currentTab: tab });
   },
 
   showFilter() {
+    const options = ["全部", "考研规划", "就业指导", "考公评估", "转专业分析"];
     wx.showActionSheet({
-      itemList: ["全部", "考研规划", "就业指导", "考公评估", "转专业分析"],
-      success: (res) => {
-        this.setData({ currentFilter: ["全部", "考研规划", "就业指导", "考公评估", "转专业分析"][res.tapIndex] });
-      }
+      itemList: options,
+      success: (res) => this.setData({ currentFilter: options[res.tapIndex] }, () => this.applyFilter())
     });
   },
 
@@ -79,8 +112,16 @@ Page({
   },
 
   viewChatDetail(e) {
-    wx.navigateTo({ url: `/pages/chatroom/chatroom?mode=resume&session_id=${e.currentTarget.dataset.id}` });
+    const { id, agent } = e.currentTarget.dataset;
+    wx.navigateTo({ url: `/pages/chatroom/chatroom?mode=resume&session_id=${id}&agent=${agent}` });
   },
 
-  goBack() { wx.navigateBack(); }
+  startGrowth() {
+    wx.switchTab({ url: "/pages/growth/growth" });
+  },
+
+  goBack() {
+    if (getCurrentPages().length > 1) wx.navigateBack({ delta: 1 });
+    else wx.switchTab({ url: "/pages/growth/growth" });
+  }
 });

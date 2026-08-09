@@ -39,6 +39,11 @@ from planning.state import (
 )
 
 
+ADVISORY_ACK_MAX: int = 30
+ADVISORY_INSIGHT_MAX: int = 70
+ADVISORY_QUESTION_MAX: int = 40
+
+
 # ── Unified Output JSON Schema ──────────────────────────────────
 
 UNIFIED_OUTPUT_SCHEMA: dict[str, Any] = {
@@ -121,6 +126,7 @@ class PlanningAgent(ABC):
     def restore_state(self, saved: PlanningState) -> None:
         """Restore agent from a previously saved state."""
         self.state = saved
+        self._last_asked_question = saved.last_asked_question
 
     def chat(self, message: str) -> dict[str, Any]:
         """Main entry: process one user message and advance the workflow."""
@@ -184,37 +190,108 @@ class PlanningAgent(ABC):
             self.state.advance_step()
             return self._continue_workflow("")
 
-    def _handle_follow_up(self, message: str) -> dict[str, Any]:
-        """Step 2: Dynamic follow-up questions (3-7 rounds).
+    def _handle_follow_up(
+        self,
+        message: str,
+        turn_analysis: dict[str, Any] | None = None,
+        knowledge_context: str = "",
+    ) -> dict[str, Any]:
+        """Step 2: Answer first, then ask only a valuable clarification.
 
         Records user answers and advances the conversation. The LLM-generated
-        response (via _generate_dynamic_question) now includes acknowledgment,
-        info confirmation, and the next question."""
-        is_ambiguous = self.state.is_ambiguous(message)
+        response can include analysis and domain knowledge before at most one
+        high-value personal question.
+        """
+        from planning.readiness import classify_answer_availability
 
-        # —— Skip detection: user wants to jump to analysis ——
-        skip_keywords = ["开始规划", "开始分析", "直接规划", "跳过", "不用问了", "可以了"]
-        if any(kw in message for kw in skip_keywords) and self.state.follow_up_round >= 2:
+        turn_analysis = turn_analysis or {}
+        readiness = dict(turn_analysis.get("readiness", {}) or {})
+        if readiness:
+            self.state.advice_readiness = readiness
+        is_ambiguous = self.state.is_ambiguous(message)
+        availability = str(readiness.get("current_availability", ""))
+        if availability not in ("answered", "unknown", "declined", "not_answered"):
+            availability = classify_answer_availability(message)
+        stop_all_keywords = [
+            "开始规划", "开始分析", "直接规划", "不用问了", "别再问", "不再回答",
+            "没有其他补充", "没有别的信息", "没有补充", "就是这些", "主要情况",
+            "能想到的", "可以了",
+        ]
+        wants_to_stop_questions = any(kw in message for kw in stop_all_keywords)
+
+        # Store the previous question (the one the user just answered)
+        prev_q = (
+            self.state.last_asked_question
+            or self._last_asked_question
+            or f"follow_up_{self.state.follow_up_round + 1}"
+        )
+        resolved_message = self._resolve_former_latter(prev_q, message)
+        current_dimension = (
+            self.state.last_asked_dimension
+            or str(readiness.get("current_dimension", ""))
+        )
+        if wants_to_stop_questions and availability == "answered":
+            availability = "declined"
+        self.state.record_follow_up(
+            prev_q,
+            resolved_message,
+            dimension=current_dimension,
+            availability=availability,
+        )
+
+        # Respect an explicit request to stop.  Missing information becomes an
+        # uncertainty boundary, never a reason to force more answers.
+        if wants_to_stop_questions:
+            advice_level = (
+                "personalized"
+                if readiness.get("ready_for_personalized_advice")
+                else "conditional"
+            )
+            readiness.update({"ready": True, "can_ask": False, "advice_level": advice_level})
+            self.state.advice_readiness = readiness
             self.state.follow_up_complete = True
             self.state.advance_step()
-            logger.info("PlanningAgent[{}]: user skipped follow-up at round {}", self.agent_type, self.state.follow_up_round)
-            trigger_msg = "好的，信息收集得差不多了，可以开始规划了。准备好了就说【开始规划】吧！"
+            advisory = self._generate_dynamic_question(
+                is_retry=False,
+                last_answer=message,
+                turn_analysis={
+                    **turn_analysis,
+                    "should_ask": False,
+                    "ready_for_advice": True,
+                    "advice_level": advice_level,
+                    "readiness": readiness,
+                },
+                knowledge_context=knowledge_context,
+            )
+            if advice_level == "conditional":
+                status = "可以先按现有信息做条件式规划，未确认部分会明确列为假设。"
+            else:
+                status = "现有信息已经可以形成初步判断。"
+            self._last_asked_question = ""
+            self.state.last_asked_question = ""
+            self.state.last_asked_dimension = ""
             return self._build_response(
-                step="awaiting", finished=False, message=trigger_msg,
+                step="awaiting",
+                finished=False,
+                message=f"{advisory}\n\n{status}回复“开始规划”即可。",
                 follow_up_round=self.state.follow_up_round,
             )
 
-        # Store the previous question (the one the user just answered)
-        prev_q = self._last_asked_question or f"follow_up_{self.state.follow_up_round + 1}"
-        resolved_message = self._resolve_former_latter(prev_q, message)
-        self.state.record_follow_up(prev_q, resolved_message)
-
-        if is_ambiguous:
+        # “不知道 / 不清楚 / 不方便回答” means this variable is currently
+        # unavailable.  Do not rephrase and pressure the user; move to another
+        # useful dimension if one remains.
+        if is_ambiguous and availability == "answered":
             self.state.ambiguous_count += 1
             if self.state.retry_count < MAX_RETRIES_PER_QUESTION:
                 self.state.retry_count += 1
-                next_msg = self._generate_dynamic_question(is_retry=True, last_answer=message)
+                next_msg = self._generate_dynamic_question(
+                    is_retry=True,
+                    last_answer=message,
+                    turn_analysis=turn_analysis,
+                    knowledge_context=knowledge_context,
+                )
                 self._last_asked_question = next_msg
+                self.state.mark_question_asked(next_msg, current_dimension)
                 return self._build_response(
                     step="follow_up", finished=False, message=next_msg,
                     follow_up_round=self.state.follow_up_round,
@@ -223,11 +300,49 @@ class PlanningAgent(ABC):
         else:
             self.state.retry_count = 0
 
-        if self.state.should_continue_follow_up():
-            next_msg = self._generate_dynamic_question(is_retry=False, last_answer=message)
+        analysis_wants_question = (
+            bool(turn_analysis.get("should_ask"))
+            if isinstance(turn_analysis, dict) and "should_ask" in turn_analysis
+            else self.state.should_continue_follow_up()
+        )
+        should_ask = self.state.should_continue_follow_up() and analysis_wants_question
+
+        if should_ask:
+            next_msg = self._generate_dynamic_question(
+                is_retry=False,
+                last_answer=message,
+                turn_analysis=turn_analysis,
+                knowledge_context=knowledge_context,
+            )
             self._last_asked_question = next_msg
+            next_dimension = str(readiness.get("next_dimension", ""))
+            self.state.mark_question_asked(next_msg, next_dimension)
             return self._build_response(
                 step="follow_up", finished=False, message=next_msg,
+                follow_up_round=self.state.follow_up_round,
+            )
+
+        ready_for_advice = bool(turn_analysis.get("ready_for_advice", True))
+        if not ready_for_advice:
+            advisory = self._generate_dynamic_question(
+                is_retry=False,
+                last_answer=message,
+                turn_analysis={**turn_analysis, "should_ask": False, "advice_level": "general_only"},
+                knowledge_context=knowledge_context,
+            )
+            missing_labels = readiness.get("missing_labels", [])
+            missing_text = "、".join(missing_labels[:3])
+            suffix = (
+                f"目前还缺少{missing_text}，暂时只做通用分析。"
+                if missing_text else "目前信息还不足，暂时只做通用分析。"
+            )
+            self._last_asked_question = ""
+            self.state.last_asked_question = ""
+            self.state.last_asked_dimension = ""
+            return self._build_response(
+                step="insufficient",
+                finished=False,
+                message=f"{advisory}{suffix}你之后想补充时，直接告诉我就好。",
                 follow_up_round=self.state.follow_up_round,
             )
 
@@ -235,7 +350,21 @@ class PlanningAgent(ABC):
         self.state.advance_step()
         logger.info("PlanningAgent[{}]: follow-up complete after {} rounds, awaiting trigger",
                     self.agent_type, self.state.follow_up_round)
-        trigger_msg = "信息收集完毕，可以开始规划了。准备好了就说\"开始规划\"吧！"
+        advisory = self._generate_dynamic_question(
+            is_retry=False,
+            last_answer=message,
+            turn_analysis={**(turn_analysis or {}), "should_ask": False},
+            knowledge_context=knowledge_context,
+        )
+        advice_level = str(turn_analysis.get("advice_level", "personalized"))
+        if advice_level == "conditional":
+            readiness_line = "现有信息可以形成条件式判断；未确认部分会作为假设并标明不确定性。"
+        else:
+            readiness_line = "已有信息足够形成初步判断。"
+        trigger_msg = f"{advisory}\n\n{readiness_line}如果你希望生成完整方案，回复“开始规划”即可。"
+        self._last_asked_question = ""
+        self.state.last_asked_question = ""
+        self.state.last_asked_dimension = ""
         return self._build_response(
             step="awaiting",
             finished=False,
@@ -267,6 +396,17 @@ class PlanningAgent(ABC):
 
         context = self.state.build_context_for_llm()
         system_prompt = self.build_analyze_prompt()
+        system_prompt += (
+            "\n\n事实边界：只能使用用户画像和问答记录中明确出现的信息。"
+            "不得补写学校层次、成绩、项目、能力、家庭条件、偏好或目标；"
+            "标记为‘不知道/未回答’的字段保持未知。推断必须写明是推断，"
+            "缺少可靠来源时不得给出精确薪资、概率、名额或政策数字。"
+        )
+        if self.state.advice_readiness.get("advice_level") == "conditional":
+            system_prompt += (
+                "\n\n当前只能生成条件式分析：对缺失信息不得擅自补全；"
+                "方向判断必须写明适用前提，并降低结论确定性。"
+            )
 
         try:
             raw = self.llm.chat(
@@ -276,7 +416,7 @@ class PlanningAgent(ABC):
                 max_tokens=2048,
             )
             self.state.analysis_raw = raw
-            analysis = self._parse_json_output(raw)
+            analysis = self._parse_analysis_output(raw)
 
             if analysis and "current_status" in analysis:
                 self.state.analysis = analysis
@@ -317,7 +457,11 @@ class PlanningAgent(ABC):
 
         try:
             raw = self.llm.chat(
-                user_message=f"缺口：\n{gaps_text}",
+                user_message=(
+                    f"用户情况：\n{self.state.build_context_for_llm()}\n\n"
+                    f"初步分析：\n{json.dumps(self.state.analysis, ensure_ascii=False)}\n\n"
+                    f"能力缺口：\n{gaps_text}"
+                ),
                 system_prompt=system_prompt,
                 temperature=0.5,
                 max_tokens=256,
@@ -366,6 +510,7 @@ class PlanningAgent(ABC):
                 tasks = [f"完成{phase}阶段核心学习任务" for _ in range(count)]
 
             action_plan.append({
+                "phase_key": phase_cfg["key"],
                 "phase": phase,
                 "tasks": tasks,
                 "expected_outcome": f"完成{phase}阶段的{count}项任务，进入下一阶段",
@@ -496,6 +641,12 @@ class PlanningAgent(ABC):
         high_gaps = [g["skill"] for g in gaps if g.get("priority") == "high"]
         main_problem = "、".join(high_gaps[:3]) if high_gaps else "需进一步明确方向后制定针对性计划"
 
+        readiness = self.state.advice_readiness
+        assumptions = []
+        if readiness.get("advice_level") == "conditional":
+            missing = "、".join(readiness.get("missing_labels", [])) or "部分个人变量"
+            assumptions.append(f"{missing}尚未确认，方案按情景假设给出，需在获得新信息后复核")
+
         return {
             "summary": goal,
             "current_status": analysis.get("current_status", ""),
@@ -505,6 +656,9 @@ class PlanningAgent(ABC):
             "risks": risks[:MIN_RISKS + 2],
             "action_plan": plan,
             "next_question": "你想深入了解哪个阶段的计划？或者有什么需要调整的地方？",
+            "advice_level": readiness.get("advice_level", "personalized"),
+            "information_gaps": readiness.get("missing_labels", []),
+            "assumptions": assumptions,
         }
 
     def _validate_output(self, output: dict[str, Any]) -> list[str]:
@@ -636,6 +790,48 @@ class PlanningAgent(ABC):
                 result[str_field] = str(result.get(str_field, ""))
         return result
 
+    def _parse_analysis_output(self, raw: str) -> dict[str, Any] | None:
+        """Parse the preliminary analysis without dropping direction data."""
+        from utils.json_parser import safe_json_parse
+
+        parsed = safe_json_parse(raw)
+        if not isinstance(parsed, dict):
+            logger.warning("PlanningAgent[{}]: failed to parse analysis JSON", self.agent_type)
+            return None
+
+        current_status = parsed.get("current_status", "")
+        directions = parsed.get("directions", [])
+        advantages = parsed.get("advantages", [])
+        if not isinstance(current_status, str) or not current_status.strip():
+            return None
+        if not isinstance(directions, list):
+            directions = []
+        if not isinstance(advantages, list):
+            advantages = []
+
+        normalized_directions: list[dict[str, Any]] = []
+        for item in directions[:3]:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "")).strip()
+            if not name:
+                continue
+            try:
+                score = max(0, min(100, int(item.get("match_score", 0))))
+            except (TypeError, ValueError):
+                score = 0
+            normalized_directions.append({
+                "name": name,
+                "match_score": score,
+                "reasoning": str(item.get("reasoning", "")).strip(),
+            })
+
+        return {
+            "current_status": current_status.strip(),
+            "directions": normalized_directions,
+            "advantages": advantages,
+        }
+
     def _parse_task_lines(self, raw: str, expected_count: int) -> list[str]:
         """Parse LLM output into exactly expected_count task lines."""
         lines = [l.strip() for l in raw.strip().split("\n") if l.strip()]
@@ -665,17 +861,266 @@ class PlanningAgent(ABC):
             "next_question": "是否愿意重新开始一轮规划？",
         }
 
-    # ── Dynamic Question Generation (unchanged) ─────────────────
+    # ── Advisory Turn Generation ────────────────────────────────
 
-    def _generate_dynamic_question(self, is_retry: bool, last_answer: str) -> str:
-        """Generate the next dynamic follow-up question via LLM.
+    @staticmethod
+    def _trim_advisory_part(text: str, limit: int, ending: str = "") -> str:
+        """Trim one response part without leaving an obviously broken clause."""
+        import re
 
-        Uses a clean system prompt (role + style) and a focused user prompt
-        (context + instruction) for higher-quality, human-like responses.
+        cleaned = re.sub(r"\s+", "", str(text or "")).strip()
+        if not cleaned:
+            return ""
+        if len(cleaned) > limit:
+            candidate = cleaned[:limit]
+            cut = max(candidate.rfind(mark) for mark in "，；、。！？")
+            if cut >= max(8, limit // 2):
+                cleaned = candidate[:cut + 1]
+            else:
+                cleaned = candidate[: max(1, limit - 1)].rstrip("，；、。！？") + "…"
+        if ending and not cleaned.endswith(("。", "！", "？", "…")):
+            cleaned = cleaned.rstrip("，；、") + ending
+        return cleaned
+
+    @staticmethod
+    def _soften_advisory_text(text: str) -> str:
+        """Replace common commanding or absolute phrases with calibrated ones."""
+        replacements = (
+            ("你必须", "可以考虑"),
+            ("你应该", "可以先"),
+            ("显然", "从目前信息看"),
+            ("肯定会", "更可能"),
+            ("肯定是", "更可能是"),
+            ("绝对不能", "通常不建议"),
+            ("绝对", "通常"),
+            ("不适合", "目前匹配度可能有限"),
+        )
+        softened = str(text or "")
+        for source, target in replacements:
+            softened = softened.replace(source, target)
+        return softened
+
+    def _fallback_acknowledgement(self, last_answer: str) -> str:
+        from planning.readiness import classify_answer_availability
+
+        answer = str(last_answer or "").strip().strip("。！？?!")
+        if not answer:
+            return ""
+        if any(marker in answer for marker in ("没有其他补充", "没有别的信息", "没有补充", "主要情况", "就是这些", "能想到的")):
+            return "现有信息我已经记下了。"
+        availability = classify_answer_availability(answer)
+        if availability == "unknown":
+            return "这项暂时不确定也没关系。"
+        if availability == "declined":
+            return "这项可以先跳过。"
+        snippet = self._trim_advisory_part(answer, 12).rstrip("。！？?!…")
+        return f"你提到“{snippet}”，我先接着这个重点说。"
+
+    @staticmethod
+    def _acknowledgement_mentions_answer(acknowledgement: str, last_answer: str) -> bool:
+        """Use lightweight phrase overlap to reject generic acknowledgements."""
+        import re
+
+        answer = re.sub(r"\s+", "", str(last_answer or ""))
+        acknowledgement = re.sub(r"\s+", "", str(acknowledgement or ""))
+        ignored = {"我更", "比较", "目前", "大概", "可以", "就是", "这个", "那个", "还是"}
+        signals = {
+            answer[index:index + 2]
+            for index in range(max(0, len(answer) - 1))
+            if answer[index:index + 2] not in ignored
+        }
+        return any(signal in acknowledgement for signal in signals)
+
+    def _safe_personal_question(self) -> str:
+        """Fallback when the model accidentally emits a knowledge-test question."""
+        return {
+            "graduate": "你更看重目标岗位门槛，还是读研的时间成本？",
+            "career": "你更看重成长、稳定，还是工作强度？",
+            "civil": "你更看重稳定性，还是备考的时间成本？",
+            "major": "你更看重目标专业，还是转专业的时间成本？",
+        }.get(self.agent_type, "你更看重哪项个人目标或现实约束？")
+
+    def _compose_advisory_turn(
+        self,
+        payload: dict[str, Any],
+        *,
+        should_ask: bool,
+        last_answer: str,
+        advice_level: str = "personalized",
+        grounding_context: str = "",
+    ) -> str:
+        """Assemble a short, gentle response with code-enforced limits."""
+        import re
+
+        acknowledgement = self._soften_advisory_text(payload.get("acknowledgement", ""))
+        insight = self._soften_advisory_text(payload.get("insight", ""))
+        question = self._soften_advisory_text(payload.get("question", ""))
+
+        compact_context = re.sub(r"\s+", "", grounding_context)
+        declared_facts = payload.get("user_facts_used", [])
+        if not isinstance(declared_facts, list):
+            declared_facts = []
+        valid_facts = [
+            str(fact).strip() for fact in declared_facts
+            if len(str(fact).strip()) >= 2
+            and re.sub(r"\s+", "", str(fact).strip()) in compact_context
+        ]
+        unsupported_fact = len(valid_facts) != len(declared_facts)
+        knowledge_evidence = str(payload.get("knowledge_evidence", "")).strip()
+        unsupported_evidence = bool(
+            knowledge_evidence
+            and re.sub(r"\s+", "", knowledge_evidence) not in compact_context
+        )
+        specific_user_claim = any(
+            marker in insight
+            for marker in (
+                "你的专业是", "你目前是", "你已经有", "你已经具备", "你具备",
+                "你缺少", "你的基础", "你的成绩", "你的家庭", "你的学校", "你所在",
+            )
+        )
+        unsupported_numbers = any(
+            token not in compact_context
+            for token in re.findall(r"\d+(?:\.\d+)?(?:%|万|元|k|K|名|分)?", insight)
+        )
+        if (
+            unsupported_fact
+            or unsupported_evidence
+            or unsupported_numbers
+            or (specific_user_claim and not valid_facts)
+        ):
+            insight = {
+                "general_only": "现有信息还不足以支持个性化结论，可以先比较目标门槛、当前基础和时间成本。",
+                "conditional": "如果未确认信息与当前判断一致，可以先按目标、基础和时间成本分情形比较。",
+            }.get(
+                advice_level,
+                "基于已确认信息，可以先比较目标门槛、当前基础和时间成本。",
+            )
+
+        if advice_level == "general_only":
+            # Last-resort lexical guard in addition to the prompt and workflow
+            # gate.  Information-collection turns may explain dimensions, but
+            # must not sound like a personalized verdict.
+            for source, target in (
+                ("你更适合", "是否适合仍需结合"),
+                ("建议你选择", "可以先比较"),
+                ("建议你优先", "可以先了解"),
+                ("最适合你", "是否匹配仍需判断"),
+                ("直接选择", "先比较"),
+            ):
+                insight = insight.replace(source, target)
+        elif advice_level == "conditional" and not any(
+            marker in insight[:18] for marker in ("如果", "前提", "假设", "情形", "取决于")
+        ):
+            insight = f"如果未确认信息与当前判断一致，{insight}"
+
+        # Acknowledgement is code-grounded in the user's actual answer.  This
+        # prevents a fluent model from adding an experience or preference the
+        # user never stated.
+        if last_answer:
+            acknowledgement = self._fallback_acknowledgement(last_answer)
+
+        acknowledgement = self._trim_advisory_part(
+            acknowledgement, ADVISORY_ACK_MAX, "。"
+        )
+        insight = self._trim_advisory_part(
+            insight or "可以先结合目标、基础和时间成本做判断",
+            ADVISORY_INSIGHT_MAX,
+            "。",
+        )
+
+        if should_ask:
+            if any(
+                phrase in question
+                for phrase in ("你知道", "你了解", "了解过", "是否了解", "是否知道")
+            ):
+                question = self._safe_personal_question()
+            question = question.replace("?", "？")
+            first_question_end = question.find("？")
+            if first_question_end >= 0:
+                question = question[:first_question_end + 1]
+            question = re.sub(r"[？?]+", "？", question)
+            if not question.strip():
+                question = "你目前更看重哪一项？"
+            question = self._trim_advisory_part(
+                question, ADVISORY_QUESTION_MAX, "？"
+            )
+            if question and not question.endswith("？"):
+                question = question.rstrip("。！…") + "？"
+        else:
+            question = ""
+
+        return "".join(part for part in (acknowledgement, insight, question) if part)
+
+    def _parse_advisory_output(
+        self,
+        raw: str,
+        *,
+        should_ask: bool,
+        last_answer: str,
+        advice_level: str = "personalized",
+        grounding_context: str = "",
+    ) -> str:
+        """Parse structured output, with a compatibility fallback for plain text."""
+        import re
+        from utils.json_parser import safe_json_parse
+
+        parsed = safe_json_parse(raw)
+        if isinstance(parsed, dict) and any(
+            key in parsed for key in ("acknowledgement", "insight", "question")
+        ):
+            return self._compose_advisory_turn(
+                parsed,
+                should_ask=should_ask,
+                last_answer=last_answer,
+                advice_level=advice_level,
+                grounding_context=grounding_context,
+            )
+
+        sentences = [
+            sentence.strip()
+            for sentence in re.findall(r"[^。！？?]+[。！？?]?", str(raw or ""))
+            if sentence.strip()
+        ]
+        question = ""
+        if should_ask:
+            for index in range(len(sentences) - 1, -1, -1):
+                if sentences[index].endswith(("？", "?")):
+                    question = sentences.pop(index)
+                    break
+        acknowledgement = sentences.pop(0) if last_answer and len(sentences) > 1 else ""
+        insight = "".join(sentences)
+        return self._compose_advisory_turn(
+            {
+                "acknowledgement": acknowledgement,
+                "insight": insight,
+                "question": question,
+            },
+            should_ask=should_ask,
+            last_answer=last_answer,
+            advice_level=advice_level,
+            grounding_context=grounding_context,
+        )
+
+    def _generate_dynamic_question(
+        self,
+        is_retry: bool,
+        last_answer: str,
+        turn_analysis: dict[str, Any] | None = None,
+        knowledge_context: str = "",
+    ) -> str:
+        """Generate an answer-first advisory response with an optional question.
+
+        The legacy method name is kept for compatibility.  Unlike the old
+        questionnaire behavior, the response must first use known information
+        and relevant domain knowledge, then ask at most one personal question.
         """
         strategy = self.build_analysis_strategy()
         topics = strategy.get("question_topics", [])
+        special_rules = strategy.get("special_rules", [])
         history = self.state.follow_up_history
+        turn_analysis = turn_analysis or {}
+        should_ask = True if is_retry else bool(turn_analysis.get("should_ask", True))
+        advice_level = str(turn_analysis.get("advice_level", "personalized"))
 
         # Only keep recent 5 rounds to control context length
         recent_history = history[-5:] if len(history) > 5 else history
@@ -688,40 +1133,76 @@ class PlanningAgent(ABC):
         if is_retry:
             instruction = (
                 f"用户刚才的回答「{last_answer}」比较简短，"
-                f"请换一个角度温和地引导用户说得更具体一些。"
+                "先给出一个简短的判断框架或可选项，再用一个更容易回答的问题帮助用户表达偏好。"
             )
         else:
-            covered = len(history)
-            remaining = MAX_FOLLOW_UP_ROUNDS - covered
-            if remaining <= 1:
-                instruction = (
-                    f"当前已是第{covered}轮追问，接近尾声。"
-                    f"请用一个收尾性的问题，为进入分析阶段做准备。"
-                )
+            critical_variable = str(turn_analysis.get("critical_variable", "")).strip()
+            if not should_ask:
+                if advice_level == "conditional":
+                    instruction = (
+                        "当前不再继续追问。请给出条件式判断，明确使用“如果/在……前提下”等表述，"
+                        "不要把未确认信息当作事实，也不要在结尾添加问题。"
+                    )
+                elif advice_level == "general_only":
+                    instruction = (
+                        "当前信息未达到个性化建议标准。只提供通用框架或客观信息，"
+                        "不要给方向性结论，也不要在结尾添加问题。"
+                    )
+                else:
+                    instruction = (
+                        "当前不需要继续追问。请直接回答用户并给出基于现有信息的阶段性判断，"
+                        "不要在结尾添加问题。"
+                    )
             else:
-                instruction = (
-                    f"当前是第{covered}轮追问，还剩{remaining}轮。"
-                    f"请根据已有信息和尚未覆盖的话题，提出下一个最有价值的问题。"
+                level_instruction = (
+                    "当前尚未达到个性化建议标准，只能提供通用信息，不能提前替用户下结论。"
+                    if advice_level == "general_only" else ""
+                )
+                instruction = level_instruction + (
+                    "先回答用户能由AI回答的部分，再指出真正影响建议的变量，最后只问一个问题。"
+                    + (f"本轮优先澄清：{critical_variable}。" if critical_variable else "")
                 )
 
         user_context = self.state.build_context_for_llm()
         today = __import__("datetime").date.today().strftime("%Y年%m月%d日")
 
-        # System prompt: stable persona + style rules
-        system_prompt = f"""你是{self.agent_label}领域的专业顾问，同时也是一位温暖、善于倾听的学长/学姐。
+        # System prompt: answer first; question is optional and must be personal.
+        system_prompt = f"""你是专业、耐心的{self.agent_label}顾问。用户来这里是为了获得分析和建议，不是接受知识测验。
 
-## 聊天风格
-- 先简短回应对方上一句话，让对方感到被认真倾听
-- 然后自然地过渡到下一个问题，像朋友聊天一样流畅
-- 每次只问一个问题，不要一次抛出多个问题
-- 回复长度控制在 80‑200 字，简洁有温度
+每轮回复按以下顺序组织：
+1. 如果用户刚回答了问题，先用一句话具体承接回答，不能只说“好的、明白、感谢分享”。
+2. 给出一条简短、有用的判断或领域信息。
+3. 仅在确有必要时，最后提出一个高价值澄清问题。
 
-## 行为准则
-- 追问阶段你的工作就是倾听和提问，把分析留给后续的报告生成阶段
-- 结合用户已透露的信息来追问，体现你在认真跟进
-- 不问用户已经明确回答过的问题
-- 如果用户回答模糊，温和地引导对方展开，而不是直接跳到下一个话题
-- 如果用户用“前者”“后者”等代词回答，先明确复述他们选的是什么（如“你选择了技术路线，这个方向很有前景”）再做回应"""
+核心规则：
+- AI能够回答的客观信息必须直接回答，禁止反问“你知道……吗”“你了解……吗”。
+- 只能询问用户本人才能回答的信息：经历、能力现状、目标偏好、价值排序、可投入时间和现实约束。
+- 允许本轮零提问；如果单轮分析要求不追问，回复中不能出现问题句。
+- 每轮最多一个核心问题，不重复历史问题，不一次索取一整套资料。
+- 没有可靠、带时间范围的依据时，不得编造精确薪资、报录比、录取率或政策数字。
+- 已知事实与合理推断要区分；信息不足时可以明确假设，但仍应先提供通用分析。
+- advice_level=general_only 时，只能给客观信息、判断维度或通用路径，禁止输出个性化推荐结论。
+- advice_level=conditional 时，要用情景或假设表达，不得把用户不知道或不愿回答的内容当作事实。
+- 用户回答“不知道、不清楚、不方便回答”时，温和接住并换一个信息维度，不追问同一项。
+- 语气柔和、克制，不说“你必须、你应该、显然、肯定、绝对、不适合”。
+- 多用“可以先、更可能、相对来说、从目前信息看”，但不要堆叠安慰或过度表扬。
+- acknowledgement 不超过30字，insight 不超过70字，question 不超过40字。
+- 总回复建议80到140字，禁止标题、列表和大段铺垫。
+
+禁止示例：
+“你知道考研和就业的薪资区别吗？”
+“你是否了解公务员考试内容和竞争程度？”
+
+正确方式：先柔和承接用户的具体回答，再说明差异或规则，最后询问会改变建议的个人偏好或约束。
+
+事实约束：
+- 只能使用“已知用户信息、已完成对话、可引用的领域知识”中出现的事实。
+- 不得补写用户未提到的学校、成绩、项目、家庭、能力、城市、偏好或目标。
+- 用户说不知道或跳过的字段属于未知，不能按常见情况替用户填上。
+- user_facts_used 必须逐字摘自输入；knowledge_evidence 必须逐字摘自给定领域知识。没有依据就留空。
+
+只输出合法JSON：
+{{"acknowledgement":"对上一条回答的具体、柔和承接；首次对话可为空","insight":"一条简短分析或领域信息","question":"最多一个邀请式问题；无需追问时为空","user_facts_used":["仅列实际使用且能在输入中找到的用户事实原文"],"knowledge_evidence":"实际引用的领域知识原文；没有则为空"}}"""
 
         # User prompt: current context and specific instruction
         user_prompt = f"""当前日期：{today}
@@ -732,29 +1213,63 @@ class PlanningAgent(ABC):
 本轮需要覆盖的话题方向：
 {chr(10).join(f"- {t}" for t in topics)}
 
+本领域特别规则：
+{chr(10).join(f"- {rule}" for rule in special_rules) or "（无）"}
+
+单轮分析结果：
+{json.dumps(turn_analysis, ensure_ascii=False) if turn_analysis else "（未提供，按通用策略判断）"}
+
+可引用的领域知识：
+{knowledge_context or "（没有额外知识材料；避免给出未经验证的精确数据）"}
+
 已完成的对话：
 {history_text}
 
 本轮任务：
 {instruction}
 
-请直接输出你的回复（纯文本，不要 JSON，不要 Markdown）。"""
+请只输出约定的 JSON，不要 Markdown 或其他文字。"""
 
         try:
             response = self.llm.chat(
                 user_message=user_prompt,
                 system_prompt=system_prompt,
-                temperature=0.65,
-                max_tokens=700,
+                temperature=0.5,
+                max_tokens=400,
             )
-            return response.strip()
+            return self._parse_advisory_output(
+                response,
+                should_ask=should_ask,
+                last_answer=last_answer,
+                advice_level=advice_level,
+                grounding_context=f"{user_context}\n{last_answer}\n{knowledge_context}",
+            )
         except Exception:
             if is_retry:
-                return "我理解你可能还在思考。没关系，我们可以换个角度——你目前最关心的是什么？"
-            elif len(history) >= 5:
-                return "感谢你的分享，我已经对你的情况有了比较全面的了解。在进入分析之前，还有什么想补充的吗？"
+                fallback = {
+                    "acknowledgement": "暂时没想清楚也没关系。",
+                    "insight": "可以先从岗位范围、时间成本和发展节奏反推。",
+                    "question": "你现在最不愿意承担哪一种成本？",
+                }
+            elif turn_analysis.get("should_ask") is False:
+                fallback = {
+                    "acknowledgement": "",
+                    "insight": "从现有信息看，可以先比较岗位门槛、能力积累和时间成本；具体数据以对应年份的可靠来源为准。",
+                    "question": "",
+                }
             else:
-                return "我明白了。接下来我想更深入地了解你的具体情况，方便的话可以详细说说吗？"
+                fallback = {
+                    "acknowledgement": "",
+                    "insight": "可以先从目标门槛、当前基础和机会成本判断。",
+                    "question": "你更看重短期确定性还是长期发展空间？",
+                }
+            return self._compose_advisory_turn(
+                fallback,
+                should_ask=should_ask,
+                last_answer=last_answer,
+                advice_level=advice_level,
+                grounding_context=f"{user_context}\n{last_answer}\n{knowledge_context}",
+            )
 
     def free_chat(self, message: str) -> str:
         """Generate a natural conversational response during await_trigger phase.

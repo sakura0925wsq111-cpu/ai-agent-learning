@@ -9,6 +9,7 @@ from loguru import logger
 from database.session import get_db
 from schemas.response import APIResponse
 from services.today import TodayService
+from utils.auth import get_current_user_id, require_user_access
 
 router = APIRouter()
 
@@ -25,8 +26,10 @@ async def get_overview(
     user_id: str = Query(..., description="User ID"),
     city: str = Query("北京", description="City for weather"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Get today's overview: greeting, weather, courses, todos, nearest exam."""
+    require_user_access(user_id, current_user_id)
     service = _get_today_service()
     overview = service.get_overview(db, user_id=user_id)
 
@@ -65,8 +68,10 @@ def get_timeline(
     user_id: str = Query(..., description="User ID"),
     date: str | None = Query(None, description="Date in YYYY-MM-DD format, defaults to today"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Get a merged timeline of courses + exams + todos for a given date."""
+    require_user_access(user_id, current_user_id)
     from datetime import date as date_type
     target = None
     if date:
@@ -86,12 +91,14 @@ def get_calendar(
     year: int = Query(..., ge=2020, le=2100, description="Year"),
     month: int = Query(..., ge=1, le=12, description="Month"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Get a full month calendar with daily events.
 
     Returns all events for every day of the month, grouped by date.
     Frontend can crop this into week/month views without extra requests.
     """
+    require_user_access(user_id, current_user_id)
     service = TodayService()
     result = service.get_calendar(db, user_id=user_id, year=year, month=month)
     return APIResponse.ok(data=result)

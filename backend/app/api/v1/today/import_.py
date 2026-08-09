@@ -20,8 +20,26 @@ from schemas.response import APIResponse
 from schemas.today import ImportConfirmRequest
 from models.today import Course, Exam
 from services.llm_service import get_llm_service
+from utils.auth import get_current_user_id, require_user_access
 
 router = APIRouter()
+
+@router.get("/import/preview", response_model=APIResponse[dict])
+def get_import_preview(
+    import_id: str = Query(..., description="Import preview ID"),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    """Get import preview data by import_id."""
+    preview = _preview_store.get(import_id)
+    if preview is None:
+        return APIResponse.error(code=404, message="Preview not found or expired")
+    require_user_access(preview["user_id"], current_user_id)
+    return APIResponse.ok(data={
+        "import_id": import_id,
+        "import_type": preview["import_type"],
+        "total": len(preview["items"]),
+        "items": preview["items"],
+    })
 _preview_store: dict[str, dict[str, Any]] = {}
 
 WEEKDAY_KW = ["星期一","星期二","星期三","星期四","星期五","星期六","星期日"]
@@ -397,7 +415,9 @@ async def import_pdf(
         description="Semester start date YYYY-MM-DD. Overrides auto-detection.",
     ),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
+    require_user_access(user_id, current_user_id)
     if file.content_type and "pdf" not in file.content_type:
         return APIResponse.error(
             code=400,
@@ -441,7 +461,9 @@ async def import_excel(
     file: UploadFile = File(...),
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
+    require_user_access(user_id, current_user_id)
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
         return APIResponse.error(code=400, message="Only .xlsx / .xls files supported")
 
@@ -460,10 +482,16 @@ async def import_excel(
 
 
 @router.post("/import/confirm", response_model=APIResponse[dict])
-def confirm_import(payload: ImportConfirmRequest, db: Session = Depends(get_db)):
-    preview = _preview_store.pop(payload.import_id, None)
+def confirm_import(
+    payload: ImportConfirmRequest,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    preview = _preview_store.get(payload.import_id)
     if preview is None:
         return APIResponse.error(code=404, message="Preview not found or already confirmed")
+    require_user_access(preview["user_id"], current_user_id)
+    _preview_store.pop(payload.import_id, None)
 
     user_id, itype, items = preview["user_id"], preview["import_type"], preview["items"]
     saved = 0

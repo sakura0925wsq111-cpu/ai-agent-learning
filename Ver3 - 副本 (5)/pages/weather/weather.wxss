@@ -39,6 +39,8 @@ page {
   font-weight: 600;
   color: #1A1A1A;
 }
+.city-picker { flex: 1; text-align: center; }
+.city-arrow { color: #777777; font-size: 26rpx; }
 
 .nav-right {
   width: 80rpx;
@@ -52,6 +54,25 @@ page {
   align-items: center;
   padding-top: 120rpx;
 }
+
+.weather-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #666666;
+  font-size: 28rpx;
+  padding: 60rpx;
+  text-align: center;
+}
+.weather-spinner { width: 56rpx; height: 56rpx; border: 6rpx solid #E2EDF8; border-top-color: #4A90D9; border-radius: 50%; margin-bottom: 24rpx; animation: weather-spin .8s linear infinite; }
+@keyframes weather-spin { to { transform: rotate(360deg); } }
+.error-icon { font-size: 88rpx; margin-bottom: 20rpx; }
+.error-title { color: #1A1A1A; font-size: 32rpx; font-weight: 600; margin-bottom: 12rpx; }
+.error-desc { line-height: 1.5; }
+.retry-btn { margin-top: 32rpx; padding: 14rpx 44rpx; border-radius: 40rpx; background: #4A90D9; color: #FFFFFF; font-size: 28rpx; }
+.retry-btn::after { border: 0; }
 
 /* 温度显示 */
 .temp-section {
@@ -84,8 +105,8 @@ page {
 }
 
 .condition-icon {
-  width: 80rpx;
-  height: 80rpx;
+  font-size: 72rpx;
+  line-height: 1;
   margin-right: 16rpx;
 }
 

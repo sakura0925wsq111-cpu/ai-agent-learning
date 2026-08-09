@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Growth Agent schemas ? chat-based growth flow request/response models.
+"""Growth Agent schemas for the chat-based growth flow.
 
 Replaces the old card-based schemas with conversation-driven state flow.
 """
@@ -24,6 +24,7 @@ class AgentTypeEnum(str, Enum):
 
 class AgentStageEnum(str, Enum):
     QUESTIONING = "questioning"
+    AWAITING = "awaiting"
     ANALYZING = "analyzing"
     REPORT = "report"
     ERROR = "error"
@@ -32,7 +33,7 @@ class AgentStageEnum(str, Enum):
 # Request Models
 
 class GrowthChatRequest(BaseModel):
-    """POST /growth/chat ? send a message to the growth agent."""
+    """POST /growth/chat sends a message to the growth agent."""
     user_id: str = Field(..., description="User ID")
     agent: AgentTypeEnum = Field(AgentTypeEnum.CAREER, description="Agent type")
     message: str = Field("", min_length=0, max_length=2000, description="User message (empty when creating new session)")
@@ -40,7 +41,7 @@ class GrowthChatRequest(BaseModel):
 
 
 class GrowthStartRequest(BaseModel):
-    """POST /growth/start ? start a new growth session."""
+    """POST /growth/start starts a new growth session."""
     user_id: str = Field(..., description="User ID")
     agent: AgentTypeEnum = Field(AgentTypeEnum.CAREER, description="Agent type")
 
@@ -76,6 +77,7 @@ class GrowthStateResponse(BaseModel):
     """Response for GET /growth/state/{user_id}."""
     session_id: str | None = None
     agent: str | None = None
+    status: str | None = None
     stage: str | None = None
     finished: bool = False
     current_step: int = 0
@@ -109,8 +111,11 @@ class GrowthSessionSummary(BaseModel):
     session_id: str
     agent: str
     status: str
+    stage: str = "questioning"
     finished: bool
+    has_report: bool = False
     created_at: datetime
+    updated_at: datetime | None = None
     message_count: int = 0
 
     model_config = {"from_attributes": True}

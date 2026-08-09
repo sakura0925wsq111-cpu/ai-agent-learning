@@ -33,6 +33,8 @@ cf_log.txt
 
 # Temp / debug
 test_*.py
+!backend/tests/test_growth_conversation.py
+!backend/tests/test_non_ai_auth.py
 temp_*.txt
 test_*.xlsx
 test_*.pdf

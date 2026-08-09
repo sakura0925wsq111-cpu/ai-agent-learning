@@ -12,9 +12,11 @@ App({
   onLaunch() {
     var token = wx.getStorageSync("token");
     var userId = wx.getStorageSync("userId");
+    var userInfo = wx.getStorageSync("userInfo");
     if (token && userId) {
       this.globalData.token = token;
       this.globalData.userId = userId;
+      this.globalData.userInfo = userInfo || null;
     }
   },
 
@@ -24,16 +26,26 @@ App({
     var method = options.method || "GET";
     var data = options.data || {};
     return new Promise(function(resolve, reject) {
+      var headers = { "Content-Type": "application/json" };
+      if (that.globalData.token) {
+        headers.Authorization = "Bearer " + that.globalData.token;
+      }
       wx.request({
         url: that.globalData.baseUrl + url,
         method: method,
         data: data,
-        header: Object.assign({ "Content-Type": "application/json", "Authorization": "Bearer " + that.globalData.token }, options.header || {}),
+        timeout: options.timeout || 60000,
+        header: Object.assign(headers, options.header || {}),
         success: function(res) {
-          if (res.statusCode === 401) {
-            that.clearAuth();
-            wx.reLaunch({ url: "/pages/login/login" });
-            reject(new Error("登录已过期"));
+          var errorMessage = res.data && (res.data.message || res.data.detail);
+          var isLoginRequest = url === "/api/v1/users/login";
+          if (res.statusCode === 401 && !isLoginRequest && options.authRedirect !== false) {
+            if (!that._authRedirecting) {
+              that._authRedirecting = true;
+              that.clearAuth();
+              wx.reLaunch({ url: "/pages/login/login" });
+            }
+            reject(new Error(errorMessage || "登录已过期，请重新登录"));
             return;
           }
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -43,7 +55,7 @@ App({
               else { reject(new Error(body.message || "请求失败")); }
             } else { resolve(body); }
           } else {
-            reject(new Error((res.data && res.data.message) || "请求失败"));
+            reject(new Error(errorMessage || "请求失败"));
           }
         },
         fail: function(err) { reject(err); }
@@ -52,6 +64,7 @@ App({
   },
 
   setAuth: function(token, userId, userInfo) {
+    this._authRedirecting = false;
     this.globalData.token = token;
     this.globalData.userId = userId;
     this.globalData.userInfo = userInfo;
@@ -64,6 +77,8 @@ App({
     this.globalData.token = "";
     this.globalData.userId = "";
     this.globalData.userInfo = null;
+    this.globalData.aiSuggestionFull = null;
+    this.globalData.suggestionCache = null;
     wx.removeStorageSync("token");
     wx.removeStorageSync("userId");
     wx.removeStorageSync("userInfo");

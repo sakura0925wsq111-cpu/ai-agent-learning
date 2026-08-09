@@ -4,7 +4,7 @@ page {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, '.萍方-简', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 /* 固定顶部区域 */
@@ -45,6 +45,19 @@ page {
   padding: 0 16rpx;
 }
 
+.nav-left,
+.nav-right {
+  min-width: 96rpx;
+  box-sizing: border-box;
+}
+
+.nav-history {
+  color: #4A90D9;
+  font-size: 26rpx;
+  text-align: right;
+  padding: 16rpx 8rpx;
+}
+
 /* 可滚动内容区 */
 .scroll-content {
   flex: 1;
@@ -75,6 +88,59 @@ page {
   font-size: 26rpx;
   color: #999999;
   margin-top: 12rpx;
+}
+
+.active-plan-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+  padding: 24rpx 28rpx;
+  border-radius: 20rpx;
+  background: #FFFFFF;
+  box-shadow: 0 6rpx 24rpx rgba(31, 55, 95, 0.08);
+}
+
+.active-plan-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.active-plan-label {
+  color: #4A90D9;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.active-plan-title {
+  margin-top: 6rpx;
+  color: #1A1A1A;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.active-plan-desc {
+  margin-top: 6rpx;
+  color: #8A94A6;
+  font-size: 24rpx;
+}
+
+.active-plan-action {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-shrink: 0;
+}
+
+.active-plan-stage {
+  color: #667EEA;
+  font-size: 24rpx;
+}
+
+.active-plan-arrow {
+  color: #9AA4B2;
+  font-size: 30rpx;
 }
 
 /* 功能网格 */
@@ -233,9 +299,9 @@ page {
   color: #999999;
 }
 
-/* ????????? */
+/* 多路径对比入口 */
 .sandbox-entry-card {
-  margin: 24rpx;
+  margin: 24rpx 0 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 24rpx;
   padding: 32rpx;

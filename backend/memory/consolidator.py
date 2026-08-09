@@ -62,7 +62,12 @@ def consolidate_memories(
     Groups by (key_prefix, memory_type) to avoid merging
     profile facts with goal targets.
     """
-    all_memories = list(memory_crud.get_by_user(db, user_id=user_id))
+    # Session contexts are resumable state, not semantic facts. They must never
+    # be summarized or merged by an LLM.
+    all_memories = [
+        item for item in memory_crud.get_by_user(db, user_id=user_id)
+        if getattr(item, "memory_type", "fact") != "context"
+    ]
     current_count = len(all_memories)
 
     if current_count < CONSOLIDATE_THRESHOLD:
@@ -199,7 +204,7 @@ def _llm_consolidate_group(
     try:
         data = _json.loads(json_str)
     except _json.JSONDecodeError as exc:
-        logger.warning("Failed to parse consolidation JSON: {} — raw: {}", exc, raw[:200])
+        logger.warning("Failed to parse consolidation JSON: {} - raw: {}", exc, raw[:200])
         return {
             "key": f"{group_key}概览",
             "value": "；".join([f"{m['key']}: {m['value']}" for m in memories]),

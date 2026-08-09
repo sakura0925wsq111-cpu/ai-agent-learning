@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-"""PlanningAgent Framework ? state management for the 7-step planning workflow.
+"""PlanningAgent framework for the seven-step planning workflow.
 
 Steps:
     1. Read user profile
-    2. Dynamic follow-up questions (5-7 rounds max)
+    2. Answer-first advisory turns (up to 5 high-value clarifications)
     3. Analyze user situation
     4. Identify main problems
     5. Set long-term goals
     6. Decompose into 90-day action plan
     7. Generate structured JSON output
 
-All agents share this state model ? only prompts, analysis strategies,
+All agents share this state model; only prompts, analysis strategies,
 and output templates differ per agent type.
 """
 
@@ -45,9 +45,12 @@ WORKFLOW_ORDER: list[WorkflowStep] = [
     WorkflowStep.GENERATE_OUTPUT,
 ]
 
+# The first useful analysis should not be blocked by a fixed questionnaire.
+# A turn-level readiness decision now controls whether another clarification is
+# needed; this value is only a hard safety cap.
 MAX_FOLLOW_UP_ROUNDS: int = 5
-MIN_FOLLOW_UP_ROUNDS: int = 5
-MAX_RETRIES_PER_QUESTION: int = 2
+MIN_FOLLOW_UP_ROUNDS: int = 0
+MAX_RETRIES_PER_QUESTION: int = 1
 
 
 AMBIGUOUS_PATTERNS: frozenset[str] = frozenset({
@@ -89,13 +92,18 @@ class PlanningState:
 
     # Step 2: Follow-up rounds
     follow_up_round: int = 0
+    questions_asked: int = 0
     follow_up_answers: dict[str, str] = field(default_factory=dict)
     follow_up_history: list[dict[str, str]] = field(default_factory=list)
+    unavailable_dimensions: dict[str, str] = field(default_factory=dict)
     ambiguous_count: int = 0
     retry_count: int = 0
     follow_up_complete: bool = False
+    last_asked_question: str = ""
+    last_asked_dimension: str = ""
+    advice_readiness: dict[str, Any] = field(default_factory=dict)
 
-    # Step 3: Analyze (?? B: LLM ?? ? parsed into this)
+    # Step 3: Analyze (LLM output parsed into this structure)
     analysis_raw: str = ""
     analysis: dict[str, Any] = field(default_factory=dict)
     # Expected shape:
@@ -105,24 +113,24 @@ class PlanningState:
     #     "advantages": [{"point": "...", "detail": "..."}],
     # }
 
-    # Step 4: Identified problems (?? B: ????, no longer LLM)
+    # Step 4: Identified problems (computed by deterministic rules)
     identified_problems: list[dict[str, Any]] = field(default_factory=list)
     # Expected shape:
-    # [{"skill": "Redis??", "status": "??", "priority": "high"}, ...]
+    # [{"skill": "Redis基础", "status": "缺失", "priority": "high"}, ...]
 
-    # Step 5: Long-term goal (?? B: LLM generates text only)
+    # Step 5: Long-term goal (LLM generates text only)
     long_term_goal: str = ""
 
-    # Step 6: Action plan (?? B: ???? + LLM per phase)
+    # Step 6: Action plan (deterministic skeleton + LLM tasks per phase)
     action_plan: list[dict[str, Any]] = field(default_factory=list)
 
-    # Step 7: Final unified output (?? B: 100% ????)
+    # Step 7: Final unified output (assembled and validated by code)
     output: dict[str, Any] = field(default_factory=dict)
 
     # Error tracking
     error_message: str = ""
 
-    # ?? Step Helpers ??????????????????????????????????????????
+    # Step helpers
 
     def advance_step(self) -> WorkflowStep:
         """Move to the next workflow step."""
@@ -148,28 +156,41 @@ class PlanningState:
         cleaned = text.strip()
         return any(p in cleaned for p in AMBIGUOUS_PATTERNS)
 
-    def record_follow_up(self, question: str, answer: str) -> None:
-        """Record a follow-up Q&A pair."""
+    def record_follow_up(
+        self,
+        question: str,
+        answer: str,
+        *,
+        dimension: str = "",
+        availability: str = "answered",
+    ) -> None:
+        """Record a follow-up Q&A pair and whether the answer was available."""
         self.follow_up_answers[question] = answer
-        self.follow_up_history.append({"q": question, "a": answer})
+        entry = {"q": question, "a": answer}
+        if dimension:
+            entry["dimension"] = dimension
+        if availability != "answered":
+            entry["availability"] = availability
+            if dimension and availability in ("unknown", "declined"):
+                self.unavailable_dimensions[dimension] = availability
+        self.follow_up_history.append(entry)
         # Only count if it is not an ambiguous/non-answer
-        if not self.is_ambiguous(answer):
+        if availability == "answered" and not self.is_ambiguous(answer):
             self.follow_up_round += 1
 
-    def should_continue_follow_up(self) -> bool:
-        """Determine if more follow-up questions are needed.
+    def mark_question_asked(self, question: str, dimension: str = "") -> None:
+        """Count one user-facing clarification and remember its information target."""
+        self.questions_asked += 1
+        self.last_asked_question = question
+        self.last_asked_dimension = dimension
 
-        Strategy:
-        - Rounds 1-4: always continue (build sufficient context)
-        - Rounds 5-6: continue only if still ambiguous (probe deeper),
-          or stop if user has been consistently clear
-        - Round 7: always stop (hard cap)
+    def should_continue_follow_up(self) -> bool:
+        """Return whether the hard clarification cap still allows a question.
+
+        Whether a question is actually valuable is decided by the turn-analysis
+        layer.  This method deliberately has no minimum-round requirement.
         """
-        if self.follow_up_round >= MAX_FOLLOW_UP_ROUNDS:
-            return False
-        if self.follow_up_round < MIN_FOLLOW_UP_ROUNDS:
-            return True
-        return self.ambiguous_count >= 2
+        return self.questions_asked < MAX_FOLLOW_UP_ROUNDS
 
     def build_context_for_llm(self) -> str:
         """Assemble all collected context for LLM analysis."""
@@ -185,6 +206,17 @@ class PlanningState:
             for i, entry in enumerate(self.follow_up_history, 1):
                 parts.append(f"Q{i}: {entry['q']}")
                 parts.append(f"A{i}: {entry['a']}")
+                if entry.get("availability") in ("unknown", "declined"):
+                    reason = "用户暂时不知道" if entry["availability"] == "unknown" else "用户选择不回答"
+                    parts.append(f"信息状态: {reason}；后续不要重复追问这一项")
+
+        if self.advice_readiness:
+            missing = "、".join(self.advice_readiness.get("missing_labels", [])) or "无"
+            parts.append("\n## 建议充分度")
+            parts.append(f"- 建议层级: {self.advice_readiness.get('advice_level', 'general_only')}")
+            parts.append(f"- 尚缺信息: {missing}")
+            if self.advice_readiness.get("advice_level") == "conditional":
+                parts.append("- 只能给条件式建议：明确列出假设和不确定性，不能伪装成充分个性化结论")
 
         return "\n".join(parts)
 
@@ -211,7 +243,7 @@ class PlanningState:
 
         return skills
 
-    # ?? Serialization ?????????????????????????????????????????
+    # Serialization
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -222,10 +254,15 @@ class PlanningState:
             "has_profile": self.has_profile,
             "user_profile": self.user_profile,
             "follow_up_round": self.follow_up_round,
+            "questions_asked": self.questions_asked,
             "follow_up_answers": self.follow_up_answers,
             "follow_up_history": self.follow_up_history,
+            "unavailable_dimensions": self.unavailable_dimensions,
             "ambiguous_count": self.ambiguous_count,
             "follow_up_complete": self.follow_up_complete,
+            "last_asked_question": self.last_asked_question,
+            "last_asked_dimension": self.last_asked_dimension,
+            "advice_readiness": self.advice_readiness,
             "analysis": self.analysis,
             "identified_problems": self.identified_problems,
             "long_term_goal": self.long_term_goal,
@@ -235,6 +272,9 @@ class PlanningState:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PlanningState":
+        history = data.get("follow_up_history", [])
+        last_question = data.get("last_asked_question", "")
+        inferred_questions = len(history) + (1 if last_question else 0)
         state = cls(
             agent_type=data.get("agent_type", "career"),
             step_index=data.get("step_index", 0),
@@ -242,10 +282,15 @@ class PlanningState:
             user_profile=data.get("user_profile", {}),
             has_profile=data.get("has_profile", False),
             follow_up_round=data.get("follow_up_round", 0),
+            questions_asked=data.get("questions_asked", inferred_questions),
             follow_up_answers=data.get("follow_up_answers", {}),
-            follow_up_history=data.get("follow_up_history", []),
+            follow_up_history=history,
+            unavailable_dimensions=data.get("unavailable_dimensions", {}),
             ambiguous_count=data.get("ambiguous_count", 0),
             follow_up_complete=data.get("follow_up_complete", False),
+            last_asked_question=last_question,
+            last_asked_dimension=data.get("last_asked_dimension", ""),
+            advice_readiness=data.get("advice_readiness", {}),
             analysis=data.get("analysis", {}),
             identified_problems=data.get("identified_problems", []),
             long_term_goal=data.get("long_term_goal", ""),

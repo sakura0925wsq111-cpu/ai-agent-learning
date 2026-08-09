@@ -128,7 +128,7 @@
           <view class="event-header">
             <view class="event-title">{{item.title}}</view>
             <view class="event-status-wrap">
-              <text class="status-badge {{item.status}}">{{item.statusText}}</text>
+              <text class="status-badge {{item.status}}" wx:if="{{item.statusLabel}}">{{item.statusLabel}}</text>
             </view>
           </view>
           <view class="event-location" wx:if="{{item.location}}">{{item.location}}</view>

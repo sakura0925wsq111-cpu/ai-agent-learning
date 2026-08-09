@@ -15,6 +15,7 @@ from crud.user import user as user_crud
 from models.today import Course
 from schemas.today import CourseCreate, CourseUpdate, CourseResponse, CourseListResponse, CourseSchedule
 from crud.base import CRUDBase
+from utils.auth import get_current_user_id, require_user_access
 
 router = APIRouter()
 course_crud = CRUDBase[Course](Course)
@@ -40,8 +41,10 @@ def create_course(
     payload: CourseCreate,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Manually create a course."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
 
@@ -66,8 +69,10 @@ def list_courses(
     user_id: str = Query(..., description="User ID"),
     weekday: int | None = Query(None, ge=1, le=7, description="Filter by weekday 1-7"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """List all courses for a user, optionally filtered by weekday."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
 
@@ -94,9 +99,12 @@ def list_courses(
 def get_course(
     course_id: str,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Get a single course by ID."""
-    obj = db.query(Course).filter(Course.id == course_id).first()
+    obj = db.query(Course).filter(
+        Course.id == course_id, Course.user_id == current_user_id
+    ).first()
     if obj is None:
         raise NotFoundException(f"Course {course_id} not found")
     return APIResponse.ok(data=_course_to_dict(obj))
@@ -108,8 +116,10 @@ def update_course(
     payload: CourseUpdate,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Update a course."""
+    require_user_access(user_id, current_user_id)
     obj = db.query(Course).filter(
         Course.id == course_id, Course.user_id == user_id
     ).first()
@@ -138,8 +148,10 @@ def delete_course(
     course_id: str,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Delete a course."""
+    require_user_access(user_id, current_user_id)
     obj = db.query(Course).filter(
         Course.id == course_id, Course.user_id == user_id
     ).first()
@@ -170,8 +182,10 @@ def batch_create_courses(
     payload: CourseBatchRequest,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Batch create multiple courses at once (manual or after PDF preview edit)."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
 
