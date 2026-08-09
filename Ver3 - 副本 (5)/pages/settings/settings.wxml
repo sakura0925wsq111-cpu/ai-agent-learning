@@ -12,6 +12,12 @@
       <view class="loading-dots"><view class="dot"></view><view class="dot"></view><view class="dot"></view></view>
     </view>
 
+    <view class="load-error" wx:elif="{{loadError}}">
+      <text class="load-error-icon">📡</text>
+      <text>设置加载失败</text>
+      <button class="load-retry" bindtap="retryLoad">重新加载</button>
+    </view>
+
     <block wx:else>
       <!-- 个人信息 -->
       <view class="section-card">
@@ -46,7 +52,7 @@
       <view class="section-card">
         <view class="section-header"><text class="section-title">关于</text></view>
         <view class="info-list">
-          <view class="info-item">
+          <view class="info-item" bindtap="showAbout">
             <view class="info-left"><text class="info-label">关于 iCampus</text></view>
             <view class="info-right"><text class="info-arrow">›</text></view>
           </view>

@@ -2,8 +2,8 @@
 """DecisionSandbox — orchestrator for the multi-path comparison system.
 
 Phases:
-    1. DISCOVERY      — Collect universal user profile (5-7 rounds)
-    2. PATH_PROBE     — 1-2 path-specific questions per selected path
+    1. DISCOVERY      — Analyze known context + collect critical personal variables
+    2. PATH_PROBE     — At most 1 path-specific clarification per selected path
     3. PARALLEL_SIM   — Inject context into planning agents, generate reports
     4. PROJECTION     — ProjectionAgent compares N reports
 
@@ -15,8 +15,8 @@ Integrates with:
 
 from __future__ import annotations
 
+import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
 import uuid
 from typing import Any
 
@@ -38,6 +38,7 @@ from sandbox.prompts.discovery import (
 from sandbox.prompts.path_probe import build_path_probe_prompt
 from sandbox.projection import ProjectionAgent
 from planning.base import PlanningAgent, UNIFIED_OUTPUT_SCHEMA
+from planning.conversation import normalize_advisory_text
 from utils.json_parser import safe_json_parse
 
 
@@ -55,17 +56,38 @@ def _safe_json(raw):
             pass
     return None
 
+
+def _matrix_match_score(matrix: dict[str, Any], path_type: str) -> int:
+    """Return a safe 0-100 fit score without assuming a fixed column index."""
+    dimensions = matrix.get("dimensions", []) if isinstance(matrix, dict) else []
+    scores = matrix.get("scores", {}) if isinstance(matrix, dict) else {}
+    match_index = next(
+        (
+            index for index, dimension in enumerate(dimensions)
+            if any(keyword in str(dimension) for keyword in ("匹配", "适配", "契合"))
+        ),
+        0 if dimensions else None,
+    )
+    values = scores.get(path_type, []) if isinstance(scores, dict) else []
+    if match_index is None or not isinstance(values, list) or match_index >= len(values):
+        return 0
+    try:
+        value = float(values[match_index])
+    except (TypeError, ValueError):
+        return 0
+    return max(0, min(100, round(value if value > 10 else value * 10)))
+
 def _build_disco_sys(session, mem_ctx=""):
     """Build discovery system prompt with profile context."""
     import json
     from sandbox.prompts.discovery import DISCOVERY_SYSTEM_PROMPT
     prompt = DISCOVERY_SYSTEM_PROMPT
     if mem_ctx:
-        prompt += "\n\n## ????????????\n" + mem_ctx
+        prompt += "\n\n## 已知长期记忆\n" + mem_ctx
     if session.user_profile:
         filled = {k: v for k, v in session.user_profile.items() if v}
         if filled:
-            prompt += "\n\n## ?????\n" + json.dumps(filled, ensure_ascii=False, indent=2) + "\n????????"
+            prompt += "\n\n## 当前用户画像\n" + json.dumps(filled, ensure_ascii=False, indent=2) + "\n请避免重复询问已知信息。"
     return prompt
 
 
@@ -139,6 +161,7 @@ class DecisionSandbox:
         # Load memory snapshot from DB
         if self.memory and db_session:
             try:
+                self.memory.wait_for_pending(user_id, timeout=5.0)
                 memories = self.memory.load_memory(
                     db_session, user_id=user_id, as_dict=True
                 )
@@ -242,13 +265,12 @@ class DecisionSandbox:
                     extra={"error": True},
                 )
 
-            # Fire memory persistence + LLM extraction in background thread
-            if self.memory and db_session:
-                threading.Thread(
-                    target=self._persist_memory,
-                    args=(session, db_session, message, result.get("message", "")),
-                    daemon=True,
-                ).start()
+            # The memory service owns its DB session and serial worker. Never
+            # pass this request-scoped session into a background thread.
+            if self.memory:
+                self._persist_memory(
+                    session, db_session, message, result.get("message", ""),
+                )
 
             return result
 
@@ -268,56 +290,59 @@ class DecisionSandbox:
 
     async def chat_stream(self, session, message, db_session=None):
         """Stream sandbox response. Yields (event, data) tuples for SSE."""
-        from sandbox.state import SessionPhase, MAX_DISCOVERY_ROUNDS
+        from sandbox.state import MAX_DISCOVERY_ROUNDS
         import json as _json
 
         if not message.strip():
             yield ("done", _json.dumps({"phase": session.current_phase.value, "finished": False, "message": "请输入内容"}, ensure_ascii=False))
             return
 
-        session.discovery_history.append({"role": "user", "content": message})
-        session.add_answer("latest_message", message)
-
-        if session.current_phase == SessionPhase.DISCOVERY:
+        if session.current_phase == SandboxPhase.DISCOVERY:
             yield ("status", _json.dumps({"phase": "discovery", "status": "thinking"}, ensure_ascii=False))
             
             is_first = (session.discovery_round == 0)
             mem_ctx = self._format_memory(session)
             system_prompt = _build_disco_sys(session, mem_ctx)
             
-            history_text = "\n".join([
-                f"{h['role']}: {h['content']}" 
-                for h in session.discovery_history[-10:]
-            ])
-            user_prompt = (
-                "开始第一轮。友好打招呼，了解用户当前最大的困惑。只输出JSON。"
-                if is_first else
-                history_text + "\n\n用户说: " + message + "\n\n给出下一个问题（只一个）。只输出JSON。"
+            history_text = session.build_discovery_context()
+            user_prompt = build_discovery_user_prompt(
+                history_text=history_text,
+                latest_message=message,
+                is_first_turn=is_first,
             )
 
             try:
                 full = ""
                 for chunk in self.llm.chat_stream(user_prompt, system_prompt, temperature=0.7, max_tokens=1024):
                     full += chunk
-                    yield ("token", chunk)
                 
                 parsed = _safe_json(full)
-                nq = parsed.get("next_question", "") if parsed else full
+                nq = parsed.get("next_question", "") if parsed else ""
+                visible_response = (
+                    parsed.get("response", "") or nq or full
+                    if parsed else full
+                )
+                visible_response = normalize_advisory_text(visible_response)
                 finish = parsed.get("finish", False) if parsed else False
                 
                 if parsed and parsed.get("updated_profile"):
                     for k, v in parsed["updated_profile"].items():
                         if v: session.user_profile[k] = v
                 
-                session.discovery_history.append({"role": "assistant", "content": nq or full})
-                session.discovery_round += 1
+                session.record_discovery(nq or visible_response, message)
                 
                 if finish or session.discovery_round >= MAX_DISCOVERY_ROUNDS:
-                    session.current_phase = SessionPhase.PATH_PROBE
+                    session.advance_phase()
+                    visible_response = (
+                        f"{visible_response}\n\n接下来可以比较就业规划、考研规划、"
+                        "考公考编规划或转专业规划。你想重点比较哪些方向？"
+                    )
+
+                yield ("token", visible_response)
                 
                 yield ("done", _json.dumps({
                     "phase": session.current_phase.value, "finished": False,
-                    "message": nq or full,
+                    "message": visible_response,
                     "discovery_round": session.discovery_round,
                     "max_discovery_rounds": MAX_DISCOVERY_ROUNDS,
                     "path_selections": session.path_selections,
@@ -333,7 +358,7 @@ class DecisionSandbox:
                 }, ensure_ascii=False))
             return
 
-        elif session.current_phase == SessionPhase.PATH_PROBE:
+        elif session.current_phase == SandboxPhase.PATH_PROBE:
             yield ("status", _json.dumps({"phase": "path_probe", "status": "thinking"}, ensure_ascii=False))
 
             if not session.path_selections:
@@ -362,18 +387,35 @@ class DecisionSandbox:
                 yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
                 return
 
-            question_prompt = build_path_probe_prompt(session, current_path)
+            question_system_prompt = build_path_probe_prompt(
+                current_path,
+                session.build_discovery_context(),
+            )
+            question_user_prompt = "请先给出一段路径信息，再生成一个高价值的个人澄清问题。"
             full_question = ""
             try:
-                for chunk in self.llm.chat_stream(question_prompt, temperature=0.7, max_tokens=512):
+                for chunk in self.llm.chat_stream(
+                    question_user_prompt,
+                    question_system_prompt,
+                    temperature=0.7,
+                    max_tokens=512,
+                ):
                     full_question += chunk
-                    yield ("token", chunk)
             except Exception:
-                full_question = "Let me ask you a couple of questions about this direction."
+                full_question = "这条路径需要同时考虑目标、基础和时间成本。你最大的个人顾虑是什么？"
 
-            question = full_question.strip()
+            parsed_question = _safe_json(full_question)
+            if parsed_question:
+                insight = str(parsed_question.get("insight", "")).strip()
+                questions = parsed_question.get("questions", [])
+                next_question = str(questions[0]).strip() if questions else ""
+                question = normalize_advisory_text(f"{insight}{next_question}".strip(), 140)
+            else:
+                question = normalize_advisory_text(full_question.strip(), 140)
             if not question:
-                question = "What would you like to know about this direction?"
+                question = "这条路径需要结合你的个人目标判断。你目前最想优先解决什么问题？"
+
+            yield ("token", question)
 
             yield ("done", _json.dumps({
                 "phase": "path_probe", "finished": False,
@@ -382,10 +424,10 @@ class DecisionSandbox:
                 "show_cards": False, "state": session.to_dict(),
             }, ensure_ascii=False))
 
-        elif session.current_phase in (SessionPhase.PARALLEL_SIM, SessionPhase.PROJECTION):
+        elif session.current_phase in (SandboxPhase.PARALLEL_SIM, SandboxPhase.PROJECTION):
             yield ("status", _json.dumps({"phase": session.current_phase.value, "status": "analyzing"}, ensure_ascii=False))
 
-            if session.current_phase == SessionPhase.PARALLEL_SIM:
+            if session.current_phase == SandboxPhase.PARALLEL_SIM:
                 result = self._handle_parallel_sim(session)
             else:
                 result = self._handle_projection(session)
@@ -462,9 +504,13 @@ class DecisionSandbox:
                 next_q = raw.strip()[:200]
             else:
                 next_q = "接下来我想更了解你的情况——你觉得目前最大的困惑是什么？"
+            visible_response = normalize_advisory_text(next_q)
             session.record_discovery(next_q, message)
         else:
-            next_q = parsed.get("next_question", "请详细说说你的想法？")
+            next_q = parsed.get("next_question", "")
+            visible_response = normalize_advisory_text(
+                parsed.get("response", "") or next_q or "我先基于现有信息帮你梳理。"
+            )
             # Update cumulative profile
             updated = parsed.get("updated_profile", {})
             if isinstance(updated, dict):
@@ -472,22 +518,26 @@ class DecisionSandbox:
                     if v:  # Only store non-empty values
                         session.user_profile[k] = v
                         session._profile_dirty = True
-            session.record_discovery(next_q, message)
+            session.record_discovery(next_q or visible_response, message)
 
         # Check if we should advance
         if parsed and parsed.get("finish", False):
             logger.info("Discovery: LLM signaled finish")
             session.discovery_complete = True
             # Transition to PATH_PROBE
-            return self._transition_to_path_probe(session)
+            transition = self._transition_to_path_probe(session)
+            transition["message"] = f"{visible_response}\n\n{transition.get('message', '')}".strip()
+            return transition
 
         if not session.should_continue_discovery():
             logger.info("Discovery: max rounds reached, transitioning to path probe")
             session.discovery_complete = True
-            return self._transition_to_path_probe(session)
+            transition = self._transition_to_path_probe(session)
+            transition["message"] = f"{visible_response}\n\n{transition.get('message', '')}".strip()
+            return transition
 
         return self._build_response(
-            session, next_q,
+            session, visible_response,
             extra={
                 "discovery_round": session.discovery_round,
                 "max_discovery_rounds": MAX_DISCOVERY_ROUNDS,
@@ -681,9 +731,13 @@ class DecisionSandbox:
             parsed = safe_json_parse(raw)
             if parsed and "questions" in parsed:
                 questions = parsed["questions"]
-                if questions:
-                    return questions[0]
-            return raw.strip()[:300] if raw else "关于这条路，你还有什么想补充的吗？"
+                insight = str(parsed.get("insight", "")).strip()
+                question = str(questions[0]).strip() if questions else ""
+                if insight and question:
+                    return normalize_advisory_text(f"{insight}{question}", 140)
+                if insight or question:
+                    return normalize_advisory_text(insight or question, 140)
+            return normalize_advisory_text(raw, 140) if raw else "关于这条路，你还有什么想补充的吗？"
         except Exception as exc:
             logger.warning("Path probe question generation failed: {}", exc)
             label = SANDBOX_PATHS.get(path_type, path_type)
@@ -843,6 +897,8 @@ class DecisionSandbox:
                 user_message=comparison_prompt,
                 temperature=0.7,
                 max_tokens=2048,
+                request_timeout=18.0,
+                max_retries=0,
             )
             report = safe_json_parse(raw)
             if report and isinstance(report, dict):
@@ -938,9 +994,6 @@ class DecisionSandbox:
 
         # Per-path detail
         path_labels = SANDBOX_PATHS
-        scores = matrix.get("scores", {})
-        match_idx = 5  # match degree in comparison_matrix dimensions
-
         for idx, proj in enumerate(projections):
             pt = proj.get("path_type", "")
             label = path_labels.get(pt, pt)
@@ -952,11 +1005,8 @@ class DecisionSandbox:
             deal_breakers = proj.get("deal_breakers", "")
 
             # Match score
-            match_pct = ""
-            if pt in scores:
-                score_list = scores[pt]
-                if isinstance(score_list, list) and len(score_list) > match_idx:
-                    match_pct = str(int(score_list[match_idx] * 10)) + "%"
+            match_score = _matrix_match_score(matrix, pt)
+            match_pct = f"{match_score}%" if match_score else ""
 
             # Divider
             if idx > 0:
@@ -1062,7 +1112,6 @@ class DecisionSandbox:
 
         projections = projection.get("projections", [])
         matrix = projection.get("comparison_matrix", {})
-        scores = matrix.get("scores", {})
 
         card_icons = {
             "career": "/images/icon-job.png", "graduate": "/images/icon-postgrad.png",
@@ -1081,10 +1130,7 @@ class DecisionSandbox:
         high_score = -1
         for proj in projections:
             pt = proj.get("path_type", "")
-            score_list = scores.get(pt, [])
-            match_score = 0
-            if isinstance(score_list, list) and len(score_list) > 5:
-                match_score = int(score_list[5] * 10)
+            match_score = _matrix_match_score(matrix, pt)
             if match_score > high_score:
                 high_score = match_score
 
@@ -1095,10 +1141,7 @@ class DecisionSandbox:
             time_proj = proj.get("time_projection", {})
             challenges = proj.get("challenges", [])
 
-            score_list = scores.get(pt, [])
-            match_score = 0
-            if isinstance(score_list, list) and len(score_list) > 5:
-                match_score = int(score_list[5] * 10)
+            match_score = _matrix_match_score(matrix, pt)
 
             time_label = time_proj.get("short_term", "") if time_proj else ""
             risk_label = ""
@@ -1138,14 +1181,11 @@ class DecisionSandbox:
     ) -> None:
         """Write accumulated user profile data to the Memory DB.
 
-        Only persists when profile has meaningful changes (dirty flag),
-        avoiding redundant database writes on every chat turn.
+        Context is saved after every turn; canonical upsert makes unchanged
+        profile fields idempotent.
         """
         if not self.memory:
             return
-        if not getattr(session, "_profile_dirty", True):
-            return
-
         items: list[dict] = []
 
         # Map session profile fields to memory keys
@@ -1170,7 +1210,9 @@ class DecisionSandbox:
                 items.append({
                     "key": label,
                     "value": str(val),
+                    "memory_type": "profile",
                     "importance": 2,
+                    "confidence": 0.9,
                 })
 
         # Also save path preferences
@@ -1179,44 +1221,36 @@ class DecisionSandbox:
             items.append({
                 "key": "关注路径",
                 "value": "、".join(path_labels),
+                "memory_type": "goal",
                 "importance": 3,
+                "confidence": 0.95,
             })
 
-        if items:
-            try:
-                self.memory.save_batch(
-                    db_session,
+        if db_session is None:
+            logger.warning("Sandbox: skipped context persistence without a DB session")
+            return
+        try:
+            self.memory.persist_sandbox_state(
+                db_session,
+                user_id=session.user_id,
+                session_id=session.session_id,
+                session_state=copy.deepcopy(session.to_dict()),
+                profile_items=items,
+            )
+            if user_message.strip() and user_message.strip() not in {"开始", "继续"}:
+                self.memory.extract_from_turn_async(
                     user_id=session.user_id,
-                    items=items,
+                    user_message=user_message,
+                    assistant_message=assistant_message,
+                    source_context=f"sandbox_turn:{session.session_id}",
                 )
-                logger.info("Sandbox: persisted {} memory items for user {}",
-                            len(items), session.user_id)
-            except Exception as exc:
-                logger.warning("Sandbox: failed to persist memory: {}", exc)
-
-        # ── Also fire async LLM extraction from conversation ─────
-        # The orchestrator.chat() passes the user message through
-        # but _persist_memory doesn't receive it directly.
-        # We extract the last user message from session.discovery_history
-        # or from the most recent interaction.
-        last_user_msg = ""
-        if session.discovery_history:
-            last_user_msg = session.discovery_history[-1].get("user", "")
-        if not last_user_msg and session.path_probe_history:
-            for msgs in session.path_probe_history.values():
-                if msgs:
-                    last_user_msg = msgs[-1].get("user", "")
-                    if last_user_msg:
-                        break
-        if last_user_msg:
-            try:
-                from services.memory_service import memory_service
-                memory_service.extract_from_turn_async(
-                    user_id=session.user_id,
-                    user_message=last_user_msg,
-                )
-            except Exception:
-                pass  # Non-blocking
+            session._profile_dirty = False
+            logger.info(
+                "Sandbox: persisted context and {} categorized memories for user {}",
+                len(items), session.user_id,
+            )
+        except Exception as exc:
+            logger.warning("Sandbox: failed to persist memory: {}", exc)
 
     def _format_memory(self, session: SandboxSession) -> str:
         """Format memory snapshot as a string for prompt injection."""
@@ -1234,17 +1268,29 @@ class DecisionSandbox:
         """
         key_mapping = {
             "major": "major",
+            "专业": "major",
             "grade": "grade",
+            "年级": "grade",
             "goal": "goal",
+            "目标": "goal",
             "school": "school",
+            "学校": "school",
             "college": "college",
+            "学院": "college",
             "enroll_year": "enroll_year",
+            "入学年份": "enroll_year",
             "career_direction": "career_direction",
+            "职业": "career_direction",
             "core_confusion": "core_confusion",
+            "当前困惑": "core_confusion",
             "personality": "personality",
+            "性格": "personality",
             "learning_ability": "learning_ability",
+            "学习能力": "learning_ability",
             "execution": "execution",
+            "执行力": "execution",
             "location_preference": "location_preference",
+            "地域": "location_preference",
         }
         for mem_key, field in key_mapping.items():
             if mem_key in session.memory_snapshot:

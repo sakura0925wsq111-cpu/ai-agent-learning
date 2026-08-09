@@ -2,7 +2,7 @@
 """Weather API - Open-Meteo (free, no key required)."""
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from loguru import logger
 
@@ -125,16 +125,18 @@ def _resolve_coords(city):
 
 
 def _condition_icon(cond):
-    """Map weather condition to icon path."""
-    if "雪" in cond:
-        return "/images/weather-snow.png"
-    if "雨" in cond:
-        return "/images/weather-rain.png"
-    if "晴" in cond:
-        return "/images/weather-sunny.png"
+    """Map weather condition to a platform-independent emoji."""
     if "雷" in cond:
-        return "/images/weather-storm.png"
-    return "/images/weather-cloudy.png"
+        return "⛈️"
+    if "雪" in cond:
+        return "❄️"
+    if "雨" in cond:
+        return "🌧️"
+    if "晴" in cond:
+        return "☀️"
+    if "雾" in cond:
+        return "🌫️"
+    return "☁️"
 
 
 def _build_advice(temp, cond):
@@ -197,10 +199,4 @@ async def get_weather(city: str = Query("北京", description="city name")):
         ))
     except Exception as e:
         logger.error("Weather failed: {}", e)
-        return APIResponse.ok(data=WeatherResponse(
-            temp=25, condition="多云",
-            icon="/images/weather-cloudy.png",
-            humidity=65, wind="微风 3级",
-            location=city,
-            advice="天气数据暂时获取不到，请稍后再试~",
-        ))
+        raise HTTPException(status_code=503, detail="天气数据暂时获取不到，请稍后重试")

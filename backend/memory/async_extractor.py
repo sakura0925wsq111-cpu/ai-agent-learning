@@ -60,6 +60,13 @@ EXTRACTION_SYSTEM_PROMPT = """你是一个信息抽取助手。你的任务是�
 """
 
 
+def _normalize_extracted_key(key: str) -> str:
+    """Apply the same canonical key mapping used by memory persistence."""
+    from crud.memory import normalize_key
+
+    return normalize_key(key)
+
+
 def extract_profile_from_history(
     messages: list[dict[str, str]],
     max_retries: int = 1,
@@ -123,7 +130,7 @@ def _parse_extraction_result(raw: str) -> list[dict[str, Any]]:
     try:
         data = _json.loads(json_str)
     except _json.JSONDecodeError as exc:
-        logger.warning("Failed to parse extraction JSON: {} — raw: {}", exc, raw[:300])
+        logger.warning("Failed to parse extraction JSON: {} - raw: {}", exc, raw[:300])
         return []
 
     if not isinstance(data, dict) or "memories" not in data:
@@ -134,32 +141,60 @@ def _parse_extraction_result(raw: str) -> list[dict[str, Any]]:
     if not isinstance(memories, list):
         return []
 
-    result: list[dict[str, Any]] = []
+    deduplicated: dict[str, dict[str, Any]] = {}
     for item in memories:
         if not isinstance(item, dict):
             continue
         if "key" not in item or "value" not in item:
             continue
 
+        key = _normalize_extracted_key(str(item["key"]))
+        if not key or key.lower().startswith("context:"):
+            continue
+        value_raw = item["value"]
+        if isinstance(value_raw, (dict, list)):
+            value = _json.dumps(value_raw, ensure_ascii=False)
+        else:
+            value = str(value_raw).strip()
+        if not value:
+            continue
         raw_memory_type = str(item.get("memory_type", "fact"))
         if raw_memory_type not in ("profile", "goal", "action", "fact"):
-            raw_memory_type = _infer_memory_type(str(item["key"]))
+            raw_memory_type = _infer_memory_type(key)
+        from crud.memory import canonical_memory_type
+        memory_type = canonical_memory_type(key, raw_memory_type)
+        try:
+            confidence = max(0.0, min(1.0, float(item.get("confidence", 0.5))))
+        except (TypeError, ValueError):
+            confidence = 0.5
+        try:
+            importance = max(1, min(10, int(item.get("importance", 1))))
+        except (TypeError, ValueError):
+            importance = 1
+        candidate = {
+            "key": key,
+            "value": value,
+            "memory_type": memory_type,
+            "confidence": confidence,
+            "source": str(item.get("source", ""))[:1000],
+            "importance": importance,
+        }
+        existing = deduplicated.get(key)
+        if existing is None or confidence >= existing["confidence"]:
+            deduplicated[key] = candidate
 
-        result.append({
-            "key": str(item["key"]),
-            "value": str(item["value"]),
-            "memory_type": raw_memory_type,
-            "confidence": float(item.get("confidence", 0.5)),
-            "source": str(item.get("source", "")),
-            "importance": int(item.get("importance", 1)),
-        })
-
-    logger.info("Extracted {} memory items from history", len(result))
+    result = list(deduplicated.values())
+    logger.info("Extracted {} unique memory items from history", len(result))
     return result
 
 
 def _infer_memory_type(key: str) -> str:
     """Infer memory_type from key name when LLM doesn't provide it."""
+    from crud.memory import canonical_memory_type
+
+    classified = canonical_memory_type(key, "fact")
+    if classified != "fact":
+        return classified
     goal_keys = {"goal", "目标", "plan", "计划", "deadline", "截止日期"}
     action_keys = {"task", "任务", "action", "行动", "完成", "done", "feedback", "反馈"}
     profile_keys = {"major", "专业", "grade", "年级", "personality", "性格",

@@ -87,6 +87,18 @@ async def growth_state(
     return APIResponse.ok(data=result).model_dump()
 
 
+@router.get("/session/{session_id}", response_model=APIResponse[GrowthStateResponse])
+async def growth_session_state(
+    session_id: str,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Get the resumable state of one growth session."""
+    llm = get_llm_service()
+    service = get_growth_service(llm)
+    result = service.get_session_state(db, session_id=session_id)
+    return APIResponse.ok(data=result).model_dump()
+
+
 @router.get("/history/{user_id}", response_model=APIResponse[GrowthHistoryResponse])
 async def growth_history(
     user_id: str,

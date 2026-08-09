@@ -3,7 +3,7 @@ page {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: -apple-system, BlinkMacSystemFont, '.萍方-简', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 .status-bar {
@@ -36,6 +36,19 @@ page {
 .more-icon {
   font-size: 40rpx;
   padding: 0 16rpx;
+}
+
+.nav-left,
+.nav-right {
+  min-width: 96rpx;
+  box-sizing: border-box;
+}
+
+.nav-history {
+  color: #4A90D9;
+  font-size: 26rpx;
+  text-align: right;
+  padding: 16rpx 8rpx;
 }
 
 /* ========== 新增：Growth 进度条样式 ========== */
@@ -158,7 +171,7 @@ page {
 }
 /* ========== 新增结束 ========== */
 
-/* 娑堟伅鍒楄〃 */
+/* 消息列表 */
 .message-list {
   flex: 1;
   padding: 24rpx;
@@ -167,7 +180,7 @@ page {
   width: 100%;
 }
 
-/* 娑堟伅椤?*/
+/* 消息项 */
 .message-item {
   display: flex;
   margin-bottom: 32rpx;
@@ -184,7 +197,7 @@ page {
   justify-content: flex-end;
 }
 
-/* 澶村儚 */
+/* 头像 */
 .avatar {
   width: 72rpx;
   height: 72rpx;
@@ -206,12 +219,12 @@ page {
   font-size: 28rpx;
 }
 
-/* 姘旀场 */
+/* 气泡 */
 .message-bubble {
   max-width: 70%;
   padding: 24rpx;
   border-radius: 24rpx;
-  word-break: break-all;
+  word-break: break-word;
   box-sizing: border-box;
 }
 
@@ -231,7 +244,7 @@ page {
   line-height: 1.6;
 }
 
-/* 鍔犺浇涓?*/
+/* 加载状态 */
 .loading-item {
   display: flex;
   align-items: flex-start;
@@ -254,6 +267,7 @@ page {
   padding: 32rpx 40rpx;
   display: flex;
   gap: 16rpx;
+  align-items: center;
 }
 
 .loading-dot {
@@ -272,12 +286,18 @@ page {
   animation-delay: 0.4s;
 }
 
+.loading-text {
+  margin-left: 8rpx;
+  color: #7A8494;
+  font-size: 24rpx;
+}
+
 @keyframes bounce {
   0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
   40% { transform: scale(1); opacity: 1; }
 }
 
-/* 蹇嵎閫夐」 */
+/* 快捷选项 */
 .quick-actions {
   display: flex;
   flex-wrap: wrap;
@@ -298,7 +318,7 @@ page {
   box-sizing: border-box;
 }
 
-/* 杈撳叆鍖?*/
+/* 输入区 */
 .input-area {
   background: #FFFFFF;
   padding: 16rpx 24rpx 32rpx;
@@ -348,7 +368,7 @@ page {
   font-size: 36rpx;
 }
 
-/* 鍐呰仈鏂瑰悜鍗＄墖 */
+/* 方向卡片 */
 .cards-section {
   padding: 16rpx 24rpx;
   flex-shrink: 0;
@@ -436,7 +456,7 @@ page {
   flex-shrink: 0;
 }
 
-/* 璺緞澶氶€夊崱鐗?*/
+/* 路径多选卡片 */
 .card-checkbox {
   font-size: 36rpx;
   margin-right: 16rpx;
@@ -502,22 +522,6 @@ page {
 
 .message-time { font-size: 20rpx; color: #BBB; margin-top: 4rpx; display: block; }
 
-.analysis-card-section {
-  background: #FFFFFF; margin: 16rpx 24rpx; border-radius: 20rpx;
-  padding: 24rpx; border: 2rpx solid #E8F4FD;
-}
-.analysis-card-header { display: flex; align-items: center; margin-bottom: 16rpx; }
-.analysis-card-icon { font-size: 40rpx; margin-right: 12rpx; }
-.analysis-card-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; }
-.analysis-card-desc { font-size: 26rpx; color: #666; margin-bottom: 20rpx; }
-.analysis-card-actions { display: flex; gap: 16rpx; }
-.analysis-btn {
-  flex: 1; height: 72rpx; line-height: 72rpx; text-align: center;
-  border-radius: 36rpx; font-size: 28rpx; font-weight: 500; border: none;
-}
-.analysis-btn::after { border: none; }
-.correct-btn { background: #F5F5F5; color: #666; }
-.approve-btn { background: linear-gradient(135deg, #4A90D9, #667EEA); color: #FFF; }
 .send-btn {
   width: 64rpx;
   height: 64rpx;
@@ -529,8 +533,63 @@ page {
   margin-left: 12rpx;
   flex-shrink: 0;
 }
+.send-disabled {
+  background: #B8C6D9;
+}
 .send-icon {
   color: #fff;
   font-size: 32rpx;
   font-weight: bold;
+}
+
+.user-time {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.bottom-anchor {
+  height: 20rpx;
+}
+
+.report-ready-card {
+  margin: 16rpx 24rpx;
+  padding: 24rpx;
+  border-radius: 20rpx;
+  background: #F0F7FF;
+  border: 2rpx solid #D8EAFE;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.report-ready-title {
+  display: block;
+  color: #1A1A1A;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.report-ready-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #667085;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.report-ready-btn {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 24rpx;
+  height: 68rpx;
+  line-height: 68rpx;
+  border-radius: 34rpx;
+  border: none;
+  background: #4A90D9;
+  color: #FFFFFF;
+  font-size: 26rpx;
+}
+
+.report-ready-btn::after {
+  border: none;
 }

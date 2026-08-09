@@ -2,7 +2,7 @@
 <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
 
 <!-- 返回按钮 -->
-<view class="nav-back" bindtap="goBack">
+<view class="nav-back" bindtap="goBack" wx:if="{{canGoBack}}">
   <text class="back-icon">‹</text>
 </view>
 
@@ -48,16 +48,6 @@
     <!-- 登录按钮 -->
     <button class="submit-btn {{canLogin ? 'active' : ''}}" bindtap="doLogin">登录</button>
     
-    <!-- 其他登录方式 -->
-    <view class="divider">
-      <view class="line"></view>
-      <text class="divider-text">其他登录方式</text>
-      <view class="line"></view>
-    </view>
-    
-    <button class="wechat-btn" open-type="getPhoneNumber" bind:getphonenumber="onWechatLogin">
-      <text>微信一键登录</text>
-    </button>
   </view>
   
   <!-- 底部链接 -->

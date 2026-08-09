@@ -1,4 +1,5 @@
 const app = getApp();
+const { buildProfileList, persistUserField, toApiField } = require("../../utils/profile.js");
 
 Page({
   data: {
@@ -13,7 +14,8 @@ Page({
       { label: "入学年份", value: "", field: "enrollYear" }
     ],
     memoryTotal: 0,
-    loading: true
+    loading: true,
+    loadError: false
   },
 
   onLoad() {
@@ -24,21 +26,17 @@ Page({
   },
 
   async loadData() {
-    this.setData({ loading: true });
+    this.setData({ loading: true, loadError: false });
     try {
-      const [userRes, memRes] = await Promise.all([
-        app.request({ url: "/api/v1/users/" + this.data.userId }),
-        app.request({ url: "/api/v1/memory/panel/" + this.data.userId })
-      ]);
+      const userRes = await app.request({ url: "/api/v1/users/" + this.data.userId });
+      let memRes = null;
+      try {
+        memRes = await app.request({ url: "/api/v1/memory/panel/" + this.data.userId });
+      } catch (memoryErr) {
+        console.error("加载记忆统计失败:", memoryErr);
+      }
 
-      const profileList = [
-        { label: "姓名", value: userRes.name || "", field: "name" },
-        { label: "昵称", value: userRes.nickname || "", field: "nickname" },
-        { label: "年级", value: userRes.grade || "", field: "grade" },
-        { label: "学院", value: userRes.college || "", field: "college" },
-        { label: "专业", value: userRes.major || "", field: "major" },
-        { label: "入学年份", value: userRes.enroll_year || "", field: "enrollYear" }
-      ];
+      const profileList = buildProfileList(userRes, true);
 
       const total = (memRes && memRes.total) ? memRes.total : 0;
 
@@ -50,7 +48,7 @@ Page({
       });
     } catch (err) {
       console.error("加载设置失败:", err);
-      this.setData({ loading: false });
+      this.setData({ loading: false, loadError: true });
       wx.showToast({ title: "加载失败", icon: "none" });
     }
   },
@@ -70,7 +68,7 @@ Page({
         wx.showLoading({ title: "保存中..." });
         try {
           const updateData = {};
-          const apiField = field === "enrollYear" ? "enroll_year" : field;
+          const apiField = toApiField(field);
           updateData[apiField] = res.content;
 
           await app.request({
@@ -87,6 +85,7 @@ Page({
             return p;
           });
           this.setData({ profileList });
+          persistUserField(app, apiField, res.content);
         } catch (err) {
           wx.hideLoading();
           wx.showToast({ title: "修改失败", icon: "none" });
@@ -96,6 +95,11 @@ Page({
   },
 
   goToMemory() { wx.navigateTo({ url: "/pages/memory/memory" }); },
+  retryLoad() { this.loadData(); },
+
+  showAbout() {
+    wx.showModal({ title: "关于 iCampus", content: "你的校园伙伴\n版本 2.1", showCancel: false });
+  },
 
   logout() {
     wx.showModal({
@@ -103,10 +107,7 @@ Page({
       content: "退出后需要重新登录",
       success: (res) => {
         if (res.confirm) {
-          wx.removeStorageSync("token");
-          wx.removeStorageSync("userId");
-          app.globalData.userId = "";
-          app.globalData.token = "";
+          app.clearAuth();
           wx.reLaunch({ url: "/pages/login/login" });
         }
       }

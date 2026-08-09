@@ -61,7 +61,7 @@ def _build_fallback_result(path_reports: dict[str, dict]) -> dict[str, Any]:
         "projections": projections,
         "comparison_matrix": {
             "dimensions": ["匹配度", "风险", "时间成本"],
-            "scores": {},
+            "scores": {pt: [5, 5, 5] for pt in path_reports},
         },
         "relationship_analysis": {
             "note": "由于系统原因，关系分析暂未完成。请查看各路径报告自行判断。",
@@ -158,6 +158,8 @@ class ProjectionAgent:
                 system_prompt=PROJECTION_SYSTEM_PROMPT,
                 temperature=0.3,  # low temperature for structured output
                 max_tokens=2048,  # reduced for faster response
+                request_timeout=15.0,
+                max_retries=0,
             )
 
             result = safe_json_parse(raw_response)
@@ -191,41 +193,126 @@ class ProjectionAgent:
         Returns:
             Normalized dict with all required fields.
         """
-        # Ensure projections
-        if "projections" not in raw or not isinstance(raw["projections"], list):
-            raw["projections"] = [
-                _build_fallback_projection(pt, self.PATH_LABELS.get(pt, pt))
-                for pt in path_reports
-            ]
+        # Ensure exactly one schema-safe projection per requested path. Models
+        # sometimes omit path_type/path_label even when the content is valid;
+        # assign unlabelled items by input order instead of returning a 500.
+        incoming = raw.get("projections")
+        incoming = incoming if isinstance(incoming, list) else []
+        by_path: dict[str, dict[str, Any]] = {}
+        unassigned: list[dict[str, Any]] = []
+        for item in incoming:
+            if not isinstance(item, dict):
+                continue
+            path_type = str(item.get("path_type", ""))
+            if path_type in path_reports and path_type not in by_path:
+                by_path[path_type] = item
+            else:
+                unassigned.append(item)
 
-        # Ensure each path in path_reports has a projection entry
-        existing_paths = {p.get("path_type", "") for p in raw["projections"]}
+        normalized_projections: list[dict[str, Any]] = []
+        for path_type in path_reports:
+            item = by_path.get(path_type)
+            if item is None and unassigned:
+                item = unassigned.pop(0)
+            fallback = _build_fallback_projection(
+                path_type, self.PATH_LABELS.get(path_type, path_type),
+            )
+            if item:
+                fallback.update(item)
+            fallback["path_type"] = path_type
+            fallback["path_label"] = self.PATH_LABELS.get(path_type, path_type)
+            for scalar_key in ("core_insight", "best_for", "deal_breakers"):
+                fallback[scalar_key] = str(fallback.get(scalar_key) or "")
+            if not isinstance(fallback.get("time_projection"), dict):
+                fallback["time_projection"] = {}
+            time_projection = fallback["time_projection"]
+            for time_key in ("short_term", "mid_term", "long_term"):
+                time_projection[time_key] = str(time_projection.get(time_key) or "")
+            milestones = time_projection.get("key_milestones")
+            time_projection["key_milestones"] = [str(item) for item in milestones] if isinstance(milestones, list) else []
+            for list_key in ("strengths", "challenges"):
+                values = fallback.get(list_key)
+                if not isinstance(values, list):
+                    values = []
+                fallback[list_key] = [
+                    ({str(key): str(value) for key, value in value.items()} if isinstance(value, dict) else {"factor": str(value)})
+                    for value in values
+                ]
+            normalized_projections.append(fallback)
+        raw["projections"] = normalized_projections
+
+        # Ensure comparison_matrix has aligned 1-10 scores for every path.
+        matrix = raw.get("comparison_matrix")
+        if not isinstance(matrix, dict):
+            matrix = {}
+            raw["comparison_matrix"] = matrix
+        dimensions = matrix.get("dimensions")
+        if not isinstance(dimensions, list) or not dimensions:
+            dimensions = ["匹配度", "风险", "时间成本"]
+        dimensions = [str(item) for item in dimensions]
+        matrix["dimensions"] = dimensions
+        scores = matrix.get("scores")
+        if not isinstance(scores, dict):
+            scores = {}
+            matrix["scores"] = scores
         for pt in path_reports:
-            if pt not in existing_paths:
-                raw["projections"].append(
-                    _build_fallback_projection(pt, self.PATH_LABELS.get(pt, pt))
-                )
-
-        # Ensure comparison_matrix
-        raw.setdefault("comparison_matrix", {"dimensions": ["匹配度", "风险", "时间成本"], "scores": {}})
+            values = scores.get(pt)
+            if not isinstance(values, list):
+                values = []
+            normalized_values: list[float] = []
+            for value in values[:len(dimensions)]:
+                try:
+                    normalized_values.append(round(max(1.0, min(10.0, float(value)))))
+                except (TypeError, ValueError):
+                    normalized_values.append(5.0)
+            normalized_values.extend([5] * (len(dimensions) - len(normalized_values)))
+            scores[pt] = normalized_values
 
         # Ensure relationship_analysis
-        raw.setdefault("relationship_analysis", {"note": "路径关系分析暂未完成。"})
+        if not isinstance(raw.get("relationship_analysis"), dict):
+            raw["relationship_analysis"] = {"note": "路径关系分析暂未完成。"}
+        relationship = raw["relationship_analysis"]
+        relationship["note"] = str(relationship.get("note") or "")
+        for key in ("mutually_exclusive", "can_be_sequential", "complementary"):
+            if not isinstance(relationship.get(key), list):
+                relationship[key] = []
 
         # Ensure decision_guide
-        raw.setdefault("decision_guide", {})
+        if not isinstance(raw.get("decision_guide"), dict):
+            raw["decision_guide"] = {}
         dg = raw["decision_guide"]
         dg.setdefault("questions_to_ask_yourself", ["你最看重的是什么？", "你能接受的最大风险是什么？"])
         dg.setdefault("if_you_value_X_then_Y", [])
         dg.setdefault("possible_hybrid_strategies", [])
+        dg["questions_to_ask_yourself"] = [str(item) for item in dg["questions_to_ask_yourself"]] if isinstance(dg["questions_to_ask_yourself"], list) else []
+        for key in ("if_you_value_X_then_Y", "possible_hybrid_strategies"):
+            values = dg[key] if isinstance(dg[key], list) else []
+            dg[key] = [
+                ({str(k): str(v) for k, v in item.items()} if isinstance(item, dict) else {"recommendation": str(item)})
+                for item in values
+            ]
 
         # Ensure key_uncertainties
-        if "key_uncertainties" not in raw or not isinstance(raw["key_uncertainties"], list):
-            raw["key_uncertainties"] = []
+        uncertainties = raw.get("key_uncertainties")
+        uncertainties = uncertainties if isinstance(uncertainties, list) else []
+        raw["key_uncertainties"] = [
+            (
+                {
+                    "factor": str(item.get("factor") or "待确认因素"),
+                    "impact": str(item.get("impact") or ""),
+                    "how_to_reduce": str(item.get("how_to_reduce") or ""),
+                }
+                if isinstance(item, dict)
+                else {"factor": str(item), "impact": "", "how_to_reduce": ""}
+            )
+            for item in uncertainties
+        ]
 
         # Ensure summary
         if "summary" not in raw or not raw.get("summary"):
             raw["summary"] = self._generate_basic_summary(path_reports)
+        else:
+            raw["summary"] = str(raw["summary"])
 
         return raw
 

@@ -234,15 +234,15 @@ Page({
           url: "/api/v1/todos/" + editId + "?user_id=" + userId,
           data: { title: formTitle.trim(), deadline: deadline }
         });
-        wx.showToast({ title: "已保存", icon: "success" });
       } else {
         await app.request({
           method: "POST",
           url: "/api/v1/todos?user_id=" + userId,
           data: { title: formTitle.trim(), deadline: deadline, source: "manual" }
         });
-        wx.showToast({ title: "创建成功", icon: "success" });
       }
+      wx.hideLoading();
+      wx.showToast({ title: isEdit ? "已保存" : "创建成功", icon: "success" });
       this.closeModal();
       this.loadTasks();
     } catch (err) {
@@ -251,6 +251,6 @@ Page({
     }
   },
 
-  async onRefresh() { this.loadTasks(); wx.stopPullDownRefresh(); },
+  async onRefresh() { await this.loadTasks(); wx.stopPullDownRefresh(); },
   goBack() { wx.navigateBack(); }
 });

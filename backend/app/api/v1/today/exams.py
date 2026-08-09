@@ -15,6 +15,7 @@ from crud.user import user as user_crud
 from models.today import Exam
 from schemas.today import ExamCreate, ExamUpdate
 from crud.base import CRUDBase
+from utils.auth import get_current_user_id, require_user_access
 
 router = APIRouter()
 exam_crud = CRUDBase[Exam](Exam)
@@ -36,8 +37,10 @@ def create_exam(
     payload: ExamCreate,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Manually create an exam."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
 
@@ -60,8 +63,10 @@ def list_exams(
     user_id: str = Query(..., description="User ID"),
     upcoming: bool = Query(False, description="Only exams in next 14 days"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """List exams for a user."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
 
@@ -83,9 +88,12 @@ def list_exams(
 def get_exam(
     exam_id: str,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Get a single exam by ID."""
-    obj = db.query(Exam).filter(Exam.id == exam_id).first()
+    obj = db.query(Exam).filter(
+        Exam.id == exam_id, Exam.user_id == current_user_id
+    ).first()
     if obj is None:
         raise NotFoundException(f"Exam {exam_id} not found")
     return APIResponse.ok(data=_exam_to_dict(obj))
@@ -97,8 +105,10 @@ def update_exam(
     payload: ExamUpdate,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Update an exam."""
+    require_user_access(user_id, current_user_id)
     obj = db.query(Exam).filter(
         Exam.id == exam_id, Exam.user_id == user_id
     ).first()
@@ -120,8 +130,10 @@ def delete_exam(
     exam_id: str,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Delete an exam."""
+    require_user_access(user_id, current_user_id)
     obj = db.query(Exam).filter(
         Exam.id == exam_id, Exam.user_id == user_id
     ).first()
@@ -152,8 +164,10 @@ def batch_create_exams(
     payload: ExamBatchRequest,
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Batch create multiple exams at once."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
 

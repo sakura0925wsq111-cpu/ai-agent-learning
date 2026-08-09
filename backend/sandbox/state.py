@@ -2,8 +2,8 @@
 """Sandbox Session — state machine for the DecisionSandbox multi-path comparison workflow.
 
 Phases:
-    1. DISCOVERY      — 5-7 rounds of general user profile building
-    2. PATH_PROBE     — 1-2 path-specific questions per selected path
+    1. DISCOVERY      — analysis plus up to 3 high-value clarifications
+    2. PATH_PROBE     — at most 1 path-specific clarification per selected path
     3. PARALLEL_SIM   — Inject context into each planning agent, generate reports
     4. PROJECTION     — ProjectionAgent compares N reports + timeline projections
     5. COMPLETED      — Final result ready
@@ -35,9 +35,9 @@ PHASE_ORDER: list[SandboxPhase] = [
     SandboxPhase.COMPLETED,
 ]
 
-MAX_DISCOVERY_ROUNDS: int = 7
-MIN_DISCOVERY_ROUNDS: int = 5
-MAX_PATH_PROBE_ROUNDS: int = 2
+MAX_DISCOVERY_ROUNDS: int = 3
+MIN_DISCOVERY_ROUNDS: int = 0
+MAX_PATH_PROBE_ROUNDS: int = 1
 
 # ── Canonical path registry (single source of truth) ──────────
 
@@ -166,12 +166,8 @@ class SandboxSession:
             self.ambiguous_count += 1
 
     def should_continue_discovery(self) -> bool:
-        """Determine if more discovery rounds are needed."""
-        if self.discovery_round >= MAX_DISCOVERY_ROUNDS:
-            return False
-        if self.discovery_round < MIN_DISCOVERY_ROUNDS:
-            return True
-        return self.ambiguous_count >= 2
+        """Return whether the hard discovery cap still allows another turn."""
+        return self.discovery_round < MAX_DISCOVERY_ROUNDS
 
     def record_path_probe(self, path_type: str, question: str, answer: str) -> None:
         """Record a path-specific probe Q&A pair."""

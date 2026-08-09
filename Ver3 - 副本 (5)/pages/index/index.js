@@ -3,26 +3,27 @@ const app = getApp();
 Page({
   data: {
     statusBarHeight: 44,
+    headerRightPadding: 16,
     userId: "",
     loading: true,
-    hasError: false,
-    errorMsg: "",
     userInfo: {
       name: "同学",
       greeting: "早上好",
-      weather: { temp: "--", condition: "--", location: "青岛", date: "" }
+      weather: { temp: "--", condition: "--", icon: "☁️", location: "青岛", date: "" }
     },
     encourageText: "新的一天，元气满满！",
     activeSession: null,
     todayOverview: [
       { key: "courses", icon: "/images/icon-calendar.png", num: 0, unit: "节", label: "今日课程", bgColor: "#E6F2FF", hasData: false, emptyText: "今日无课" },
       { key: "todos", icon: "/images/icon-task.png", num: 0, unit: "项", label: "待办任务", bgColor: "#FFF3E6", hasData: false, emptyText: "暂无待办" },
-      { key: "exam", icon: "/images/icon-book.png", num: null, unit: "天后", suffix: "", label: "最近考试", bgColor: "#E6F9ED", hasData: false, emptyText: "最近没有考试", isExam: true },
-      { key: "notice", icon: "/images/icon-notice.png", num: "--", unit: "", label: "校园通知", bgColor: "#F0E6FF", disabled: true }
+      { key: "exam", icon: "/images/icon-book.png", num: null, unit: "天后", suffix: "", label: "最近考试", bgColor: "#E6F9ED", hasData: false, emptyText: "最近没有考试", isExam: true }
     ],
     aiSuggestion: { icon: "/images/icon-ai-bulb.png", title: "", content: "", fullText: "", action: "查看详情", loading: false },
     todoList: [],
-    todosLoading: false
+    todosLoading: false,
+    weatherError: false,
+    overviewError: false,
+    todosError: false
   },
 
   getGreeting() {
@@ -66,45 +67,59 @@ Page({
   async onLoad() {
     const info = wx.getSystemInfoSync();
     const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
-    this.setData({ statusBarHeight: info.statusBarHeight, userId });
+    const menuRect = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;
+    const headerRightPadding = menuRect && menuRect.left
+      ? Math.max(16, info.windowWidth - menuRect.left + 8)
+      : 16;
+    this.setData({ statusBarHeight: info.statusBarHeight, headerRightPadding, userId });
     this.loadUserGreeting();
     await this.loadAllData();
   },
 
-  async onShow() { if (!this.data.loading) { this.refreshData(); } },
+  async onShow() {
+    this.loadUserGreeting();
+    if (!this.data.loading) await this.refreshData();
+  },
   async onPullDownRefresh() { await this.refreshData(); wx.stopPullDownRefresh(); },
-  onRetry() { this.setData({ hasError: false }); this.loadAllData(); },
 
   async loadAllData() {
-    this.setData({ loading: true, hasError: false, errorMsg: "" });
-    try {
-      await Promise.all([
-        this.loadWeather(), this.loadTodayOverview(), this.loadTodos(),
-        this.loadAISuggestion(), this.checkActiveSession()
-      ]);
-    } catch (err) {
-      console.error(err);
-      this.setData({ hasError: true, errorMsg: err.message || "网络异常，请下拉重试" });
-    } finally { this.setData({ loading: false }); }
+    this.setData({ loading: true });
+    const results = await Promise.allSettled([
+      this.loadWeather(), this.loadTodayOverview(), this.loadTodos(),
+      this.loadAISuggestion(), this.checkActiveSession()
+    ]);
+    results.filter(item => item.status === "rejected").forEach(item => console.error(item.reason));
+    this.setData({ loading: false });
   },
 
   async refreshData() {
-    try {
-      await Promise.all([
-        this.loadWeather(), this.loadTodayOverview(), this.loadTodos(),
-        this.loadAISuggestion(), this.checkActiveSession()
-      ]);
-    } catch (err) { console.error(err); }
+    const results = await Promise.allSettled([
+      this.loadWeather(), this.loadTodayOverview(), this.loadTodos(),
+      this.loadAISuggestion(), this.checkActiveSession()
+    ]);
+    results.filter(item => item.status === "rejected").forEach(item => console.error(item.reason));
   },
 
   async loadWeather() {
+    const city = wx.getStorageSync("weatherCity") || "青岛";
+    this.setData({ weatherError: false });
     try {
-      const res = await app.request({ url: "/api/v1/weather?city=" + encodeURIComponent("青岛") });
-      this.setData({ "userInfo.weather": { temp: res.temp || "--", condition: res.condition || "--", location: res.location || "青岛", date: this.formatDate(new Date()) } });
-    } catch (err) { this.setData({ "userInfo.weather.date": this.formatDate(new Date()) }); }
+      const res = await app.request({ url: "/api/v1/weather?city=" + encodeURIComponent(city), authRedirect: false });
+      this.setData({
+        weatherError: false,
+        "userInfo.weather": {
+          temp: res.temp ?? "--", condition: res.condition || "--", icon: res.icon || "☁️",
+          location: res.location || city, date: this.formatDate(new Date())
+        }
+      });
+    } catch (err) {
+      this.setData({ weatherError: true, "userInfo.weather.location": city, "userInfo.weather.date": this.formatDate(new Date()) });
+      throw err;
+    }
   },
 
   async loadTodayOverview() {
+    this.setData({ overviewError: false });
     try {
       const res = await app.request({ url: "/api/v1/today/overview?user_id=" + this.data.userId });
       if (res) {
@@ -131,22 +146,16 @@ Page({
           }
           return item;
         });
-        this.setData({ todayOverview: overview, encourageText: this.getEncourageText(overview) });
+        this.setData({ todayOverview: overview, encourageText: this.getEncourageText(overview), overviewError: false });
       }
     } catch (err) {
-      const emptyOverview = this.data.todayOverview.map(item => {
-        if (item.key === "courses") return { ...item, num: 0, hasData: false, emptyText: "今日无课" };
-        if (item.key === "todos") return { ...item, num: 0, hasData: false, emptyText: "暂无待办" };
-        if (item.key === "exam") return { ...item, num: null, suffix: "", hasData: false, emptyText: "最近没有考试" };
-        return item;
-      });
-      this.setData({ todayOverview: emptyOverview, encourageText: "新的一天，从规划开始～" });
+      this.setData({ overviewError: true });
       throw err;
     }
   },
 
   async loadTodos() {
-    this.setData({ todosLoading: true });
+    this.setData({ todosLoading: true, todosError: false });
     try {
       const res = await app.request({ url: "/api/v1/todos?user_id=" + this.data.userId + "&status=pending" });
       const list = (res && res.todos) ? res.todos.slice(0, 5) : [];
@@ -155,9 +164,10 @@ Page({
           id: item.id, title: item.title || "", time: item.deadline ? this.formatDeadline(item.deadline) : "",
           done: false, source: item.source || "manual"
         })),
-        todosLoading: false
+        todosLoading: false,
+        todosError: false
       });
-    } catch (err) { this.setData({ todosLoading: false }); throw err; }
+    } catch (err) { this.setData({ todosLoading: false, todosError: true }); throw err; }
   },
 
   async loadAISuggestion() {
@@ -228,6 +238,9 @@ Page({
   goToSchedule() { wx.switchTab({ url: "/pages/schedule/schedule" }); },
   goToWeather() { wx.navigateTo({ url: "/pages/weather/weather" }); },
   goToTasks() { wx.navigateTo({ url: "/pages/tasks/tasks" }); },
+  retryWeather() { this.loadWeather().catch(err => console.error(err)); },
+  retryOverview() { this.loadTodayOverview().catch(err => console.error(err)); },
+  retryTodos() { this.loadTodos().catch(err => console.error(err)); },
 
   onOverviewTap(e) {
     const key = e.currentTarget.dataset.key;
@@ -248,12 +261,7 @@ Page({
     try {
       await app.request({ method: "POST", url: "/api/v1/todos?user_id=" + this.data.userId, data: { title: title, source: "manual" } });
       wx.hideLoading(); wx.showToast({ title: "添加成功", icon: "success" });
-      this.loadTodos();
-      const overview = this.data.todayOverview.map(item => {
-        if (item.key === "todos") { const n = item.num + 1; return { ...item, num: n, hasData: true, emptyText: "" }; }
-        return item;
-      });
-      this.setData({ todayOverview: overview, encourageText: this.getEncourageText(overview) });
+      await Promise.allSettled([this.loadTodos(), this.loadTodayOverview()]);
     } catch (err) { wx.hideLoading(); wx.showToast({ title: "添加失败", icon: "error" }); }
   },
 
@@ -271,6 +279,7 @@ Page({
           return item;
         });
         this.setData({ todayOverview: overview, encourageText: this.getEncourageText(overview) });
+        this.loadTodayOverview().catch(err => console.error(err));
       }, 300);
     } catch (err) { wx.showToast({ title: "操作失败", icon: "error" }); this.setData({ todoList: list }); }
   }

@@ -1,168 +1,63 @@
-<!-- 状态栏占位 -->
 <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
 
-<!-- 自定义导航栏 -->
 <view class="custom-nav">
-  <view class="nav-left" bindtap="goBack">
-    <text class="back-icon">‹</text>
-  </view>
+  <view class="nav-left" bindtap="goBack"><text class="back-icon">‹</text></view>
   <view class="nav-title">规划报告</view>
-  <view class="nav-right">
-    <view class="share-btn" bindtap="shareReport">
-      <text class="share-icon">↗</text>
-    </view>
-  </view>
+  <view class="nav-right"><button class="share-btn" open-type="share"><text class="share-icon">↗</text></button></view>
 </view>
 
-<scroll-view class="report-container" scroll-y enhanced show-scrollbar="{{false}}">
-  <!-- 报告头部 -->
+<view class="report-state" wx:if="{{loading}}">
+  <text class="report-state-title">正在加载规划报告...</text>
+</view>
+<view class="report-state" wx:elif="{{error}}">
+  <text class="report-state-title">报告加载失败</text>
+  <text class="report-state-desc">报告可能仍在生成，或当前网络不可用</text>
+  <button class="report-retry-btn" bindtap="loadReport">重新加载</button>
+</view>
+<scroll-view class="report-container" wx:else scroll-y enhanced show-scrollbar="{{false}}">
   <view class="report-header">
     <view class="report-badge">AI 生成</view>
     <text class="report-title">{{reportTitle}}</text>
     <text class="report-date">生成于 {{createTime}}</text>
-    
-    <!-- 下载/分享操作 -->
-    <view class="report-actions">
-      <view class="action-btn" bindtap="downloadPDF">
-        <text class="action-icon">📄</text>
-        <text class="action-label">下载 PDF</text>
-      </view>
-      <view class="action-btn" bindtap="saveToAlbum">
-        <text class="action-icon">🖼</text>
-        <text class="action-label">保存长图</text>
-      </view>
-    </view>
   </view>
 
-  <!-- 执行摘要 -->
   <view class="report-section">
     <view class="section-header">
       <view class="section-line" style="background: {{themeColor}}"></view>
       <text class="section-name">执行摘要</text>
     </view>
-    <view class="summary-box" style="background: {{themeColor}}08">
-      <text class="summary-text">{{summary}}</text>
-    </view>
+    <view class="summary-box" style="background: {{themeColor}}08"><text class="summary-text">{{summary}}</text></view>
   </view>
 
-  <!-- 详细内容：动态区块 -->
-  <view 
-    class="report-section"
-    wx:for="{{sections}}"
-    wx:key="title"
-  >
+  <view class="report-section" wx:for="{{sections}}" wx:key="title">
     <view class="section-header">
       <view class="section-line" style="background: {{themeColor}}"></view>
       <text class="section-name">{{item.title}}</text>
     </view>
-    
-    <!-- 文本内容 -->
-    <block wx:if="{{item.type === 'text'}}">
-      <text class="section-text">{{item.content}}</text>
-    </block>
-    
-    <!-- 列表内容 -->
-    <block wx:if="{{item.type === 'list'}}">
+    <block wx:if="{{item.type === 'text'}}"><text class="section-text">{{item.content}}</text></block>
+    <block wx:elif="{{item.type === 'list'}}">
       <view class="list-item" wx:for="{{item.items}}" wx:for-item="li" wx:key="*this">
-        <view class="list-bullet" style="background: {{themeColor}}"></view>
-        <text class="list-text">{{li}}</text>
+        <view class="list-bullet" style="background: {{themeColor}}"></view><text class="list-text">{{li}}</text>
       </view>
     </block>
-    
-    <!-- 时间线 -->
-    <block wx:if="{{item.type === 'timeline'}}">
+    <block wx:elif="{{item.type === 'timeline'}}">
       <view class="timeline">
-        <view class="timeline-item" wx:for="{{item.events}}" wx:for-item="ev" wx:key="time">
+        <view class="timeline-item" wx:for="{{item.events}}" wx:for-item="event" wx:key="time">
           <view class="timeline-dot" style="border-color: {{themeColor}}"></view>
-          <view class="timeline-content">
-            <text class="timeline-time">{{ev.time}}</text>
-            <text class="timeline-desc">{{ev.description}}</text>
-          </view>
-        </view>
-      </view>
-    </block>
-    
-    <!-- 数据卡片 -->
-    <block wx:if="{{item.type === 'stats'}}">
-      <view class="stats-grid">
-        <view class="stat-card" wx:for="{{item.stats}}" wx:for-item="st" wx:key="label">
-          <text class="stat-value" style="color: {{themeColor}}">{{st.value}}</text>
-          <text class="stat-label">{{st.label}}</text>
+          <view class="timeline-content"><text class="timeline-time">{{event.time}}</text><text class="timeline-desc">{{event.description}}</text></view>
         </view>
       </view>
     </block>
   </view>
 
-  <!-- 底部提示 -->
   <view class="report-footer">
     <image class="footer-logo" src="/images/mascotsmall.png"></image>
     <text class="footer-text">本报告由 iCampus AI 生成，仅供参考</text>
   </view>
-
-  <!-- 安全区域：增加底部空间，避免被按钮遮挡 -->
-  <view style="height: 160rpx;"></view>
+  <view class="report-safe-space"></view>
 </scroll-view>
 
-<!-- ========== 修改：底部固定按钮栏 ========== -->
-<view class="bottom-bar">
-  <view class="btn-secondary" bindtap="viewHistory">
-    <text>历史记录</text>
-  </view>
-  <view class="btn-primary" bindtap="startNewPlan">
-    <text>制定新规划</text>
-  </view>
-  <!-- 新增：同步到今日待办按钮 -->
-  <view class="btn-sync" bindtap="openSyncModal">
-    <text>同步到今日待办</text>
-  </view>
+<view class="bottom-bar" wx:if="{{!loading && !error}}">
+  <view class="btn-secondary" bindtap="viewHistory"><text>历史记录</text></view>
+  <view class="btn-primary" bindtap="startNewPlan"><text>制定新规划</text></view>
 </view>
-<!-- ========== 修改结束 ========== -->
-
-<!-- ========== 新增：同步阶段选择弹窗 ========== -->
-<view wx:if="{{showSyncModal}}" class="sync-modal">
-  <!-- 遮罩 -->
-  <view class="sync-mask" bindtap="closeSyncModal"></view>
-  
-  <!-- 弹窗内容 -->
-  <view class="sync-content">
-    <view class="sync-header">
-      <text class="sync-title">选择同步阶段</text>
-      <text class="sync-close" bindtap="closeSyncModal">✕</text>
-    </view>
-    
-    <view class="sync-body">
-      <text class="sync-desc">将选定阶段的任务同步到今日待办</text>
-      
-      <!-- 阶段列表 -->
-      <view 
-        class="phase-option {{selectedPhase === item.key ? 'selected' : ''}} {{syncedPhases.includes(item.key) ? 'disabled' : ''}}"
-        wx:for="{{phases}}"
-        wx:key="key"
-        data-key="{{item.key}}"
-        bindtap="selectPhase"
-      >
-        <view class="phase-radio">
-          <view wx:if="{{selectedPhase === item.key}}" class="radio-inner"></view>
-        </view>
-        <view class="phase-info">
-          <text class="phase-name">{{item.name}}</text>
-          <text class="phase-count">{{item.taskCount}} 项任务</text>
-        </view>
-        <text wx:if="{{syncedPhases.includes(item.key)}}" class="phase-synced-tag">已同步</text>
-      </view>
-    </view>
-    
-    <!-- 底部按钮 -->
-    <view class="sync-footer">
-      <view class="sync-btn-cancel" bindtap="closeSyncModal">取消</view>
-      <view 
-        class="sync-btn-confirm {{!selectedPhase || syncing ? 'disabled' : ''}}"
-        bindtap="{{!syncing ? 'confirmSync' : ''}}"
-      >
-        <text wx:if="{{!syncing}}">确认同步</text>
-        <text wx:else>同步中...</text>
-      </view>
-    </view>
-  </view>
-</view>
-<!-- ========== 新增结束 ========== -->

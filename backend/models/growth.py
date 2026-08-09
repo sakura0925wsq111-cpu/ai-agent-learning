@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Growth Agent ORM models ? GrowthSession, GrowthConversation, GrowthReport.
+"""Growth Agent ORM models: GrowthSession, GrowthConversation, GrowthReport.
 
 GrowthSession:   Tracks an agent session lifecycle.
 GrowthConversation: Individual messages within a session.

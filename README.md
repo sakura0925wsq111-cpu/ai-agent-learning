@@ -13,7 +13,8 @@ iCampus 是一个面向大学生的 AI 智能助手，基于 **FastAPI + LangGra
 
 | 类别   | 技术                      |
 | ------ | ------------------------- |
-| 框架   | FastAPI + Uvicorn         |
+| 前端   | 微信小程序原生框架        |
+| 后端   | FastAPI + Uvicorn         |
 | AI     | LangGraph + DeepSeek      |
 | 数据库 | SQLite + SQLAlchemy       |
 | 配置   | Pydantic Settings (.env)  |
@@ -70,6 +71,14 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 - API 文档：http://127.0.0.1:8000/docs
 - ReDoc：http://127.0.0.1:8000/redoc
 
+### 6. 启动小程序
+
+1. 打开微信开发者工具，选择“导入项目”。
+2. 项目目录选择仓库根目录 `ai-agent-learning`。
+3. 确保后端已在 `http://127.0.0.1:8000` 启动，然后编译运行。
+
+根目录 `project.config.json` 已将小程序目录指向 `Ver3 - 副本 (5)/`。真机或正式环境部署时，需要把 `app.js` 中的后端地址替换成已配置的 HTTPS 业务域名。
+
 ## API 路由
 
 | 路由               | 说明     |
@@ -101,15 +110,16 @@ ai-agent-learning/
 │   ├── crud/                # 数据库操作
 │   ├── scripts/             # 工具脚本
 │   └── tests/               # 测试
+├── Ver3 - 副本 (5)/         # 微信小程序前端
 ├── docs/                    # 产品文档
 └── requirements.txt         # 全局依赖
 ```
 
 ## 文档
 
-- [产品需求文档 (PRD)](docs/iCampus-PRD-V1.0-%E6%AD%A3%E5%BC%8F%E7%89%88.md)
+- [产品需求文档 (PRD)](docs/iCampus-PRD-v2.md)
 - [前端 API 参考](docs/frontend-api-reference.md)
-- [差距分析](docs/iCampus-%E5%B7%AE%E8%B7%9D%E5%88%86%E6%9E%90.md)
+- [差距分析](docs/CampusPal-%E5%B7%AE%E8%B7%9D%E5%88%86%E6%9E%90.md)
 
 ## GIF 生成工具
 

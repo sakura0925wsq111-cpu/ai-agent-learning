@@ -79,7 +79,8 @@ page {
 
 .summary-stats {
   display: flex;
-  gap: 32rpx;
+  flex-wrap: wrap;
+  gap: 12rpx;
   margin-top: 12rpx;
 }
 

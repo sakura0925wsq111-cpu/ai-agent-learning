@@ -2,12 +2,12 @@
   "pages": [
     "pages/login/login",
     "pages/register/register",
+    "pages/agreement/agreement",
     "pages/index/index",
     "pages/ai/ai",
     "pages/schedule/schedule",
     "pages/weather/weather",
     "pages/growth/growth",
-    "pages/mine/mine",
     "pages/profile/profile",
     "pages/settings/settings",
     "pages/sandbox-result/sandbox-result",

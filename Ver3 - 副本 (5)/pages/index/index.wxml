@@ -1,12 +1,12 @@
 <!-- 固定顶部区域 -->
 <view class="fixed-header">
   <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
-  <view class="brand-bar">
+  <view class="brand-bar" style="padding-right: {{headerRightPadding}}px;">
     <view class="brand-left">
       <text class="app-name">iCampus</text>
       <text class="brand-star">✨</text>
     </view>
-    <view class="brand-right" bindtap="goToAI">
+    <view class="brand-right" bindtap="goToAI" aria-role="button" aria-label="打开助手">
       <text class="chat-icon">💬</text>
     </view>
   </view>
@@ -47,7 +47,7 @@
       <view class="skeleton-title"></view>
       <view class="skeleton-overview-card">
         <view class="skeleton-overview-grid">
-          <view class="skeleton-overview-item" wx:for="{{4}}" wx:key="index">
+          <view class="skeleton-overview-item" wx:for="{{3}}" wx:key="index">
             <view class="skeleton-circle"></view>
             <view class="skeleton-line-num"></view>
             <view class="skeleton-line-label"></view>
@@ -88,16 +88,6 @@
   </scroll-view>
 </view>
 
-<!-- ========== 错误态 ========== -->
-<view class="error-container" wx:elif="{{hasError}}">
-  <view class="error-content">
-    <view class="error-icon">📡</view>
-    <text class="error-title">网络连接失败</text>
-    <text class="error-desc">{{errorMsg}}</text>
-    <button class="retry-btn" bindtap="onRetry">重新加载</button>
-  </view>
-</view>
-
 <!-- ========== 正常内容 ========== -->
 <block wx:else>
   <scroll-view class="scroll-content" scroll-y refresher-enabled="{{true}}" bindrefresherrefresh="onPullDownRefresh">
@@ -105,7 +95,7 @@
     <!-- 欢迎区域 -->
     <view class="welcome-section">
       <view class="welcome-text">
-        <view class="greeting">{{userInfo.greeting}}，{{userInfo.name}}！☀️</view>
+        <view class="greeting">{{userInfo.greeting}}，{{userInfo.name}}！<text wx:if="{{!weatherError}}">{{userInfo.weather.icon}}</text></view>
         <view class="sub-greeting">{{encourageText}}</view>
       </view>
       <image class="mascot" src="/images/mascot.png" mode="aspectFit"></image>
@@ -113,10 +103,17 @@
 
     <!-- 天气卡片 -->
     <view class="weather-card-wrapper">
-      <view class="weather-card" bindtap="goToWeather">
+      <view class="weather-card weather-card-error" wx:if="{{weatherError}}" bindtap="retryWeather" aria-role="button" aria-label="天气加载失败，点击重试">
+        <view class="weather-error-copy">
+          <text class="weather-error-title">{{userInfo.weather.location}}天气暂不可用</text>
+          <text class="weather-error-hint">点击重试</text>
+        </view>
+        <text class="weather-arrow">↻</text>
+      </view>
+      <view class="weather-card" wx:else bindtap="goToWeather" aria-role="button" aria-label="查看天气详情">
         <view class="weather-left">
           <view class="weather-icon-temp">
-            <text class="weather-icon">☀️</text>
+            <text class="weather-icon">{{userInfo.weather.icon}}</text>
             <text class="weather-temp">{{userInfo.weather.temp}}℃</text>
             <text class="weather-condition">{{userInfo.weather.condition}}</text>
           </view>
@@ -132,13 +129,18 @@
     <view class="section">
       <view class="overview-card">
         <view class="section-title">今日概览</view>
-        <view class="overview-grid">
+        <view class="inline-error" wx:if="{{overviewError}}" bindtap="retryOverview">
+          <text>概览加载失败</text><text class="inline-retry">点击重试</text>
+        </view>
+        <view class="overview-grid" wx:else>
           <view 
             class="overview-item {{item.disabled ? 'disabled' : ''}} {{item.hasData ? '' : 'empty'}}" 
             wx:for="{{todayOverview}}" 
             wx:key="key"
             data-key="{{item.key}}"
             bindtap="{{item.disabled ? '' : 'onOverviewTap'}}"
+            aria-role="button"
+            aria-label="{{item.label}}"
           >
             <!-- 有数据状态 -->
             <block wx:if="{{item.hasData}}">
@@ -179,25 +181,6 @@
       </view>
     </view>
 
-    <!-- AI建议 -->
-    <view class="section">
-      <view class="ai-card-wrapper">
-        <view class="section-title">AI建议</view>
-        <view class="ai-content-box" bindtap="goToSchedule">
-          <view class="ai-card">
-            <view class="ai-icon-wrap">
-              <image class="ai-icon-img" src="{{aiSuggestion.icon}}" mode="aspectFit"></image>
-            </view>
-            <view class="ai-info">
-              <view class="ai-title">{{aiSuggestion.title}}</view>
-              <view class="ai-desc">{{aiSuggestion.content}}</view>
-            </view>
-          </view>
-          <view class="ai-action-btn">{{aiSuggestion.action}}</view>
-        </view>
-      </view>
-    </view>
-
     <!-- 待办任务区域 -->
     <view class="section">
       <view class="todo-card">
@@ -217,6 +200,10 @@
             <view class="dot"></view>
           </view>
         </view>
+
+        <view class="inline-error todo-inline-error" wx:elif="{{todosError}}" bindtap="retryTodos">
+          <text>待办加载失败</text><text class="inline-retry">点击重试</text>
+        </view>
         
         <!-- 有数据 -->
         <view class="todo-list" wx:elif="{{todoList.length > 0}}">
@@ -227,14 +214,18 @@
             data-id="{{item.id}}"
             data-index="{{index}}"
           >
-            <view 
-              class="todo-check {{item.done ? 'checked' : ''}}" 
+            <view
+              class="todo-check-hit"
               bindtap="toggleTodo" 
               data-id="{{item.id}}"
               data-index="{{index}}"
+              aria-role="checkbox"
+              aria-label="完成任务：{{item.title}}"
             >
-              <view class="check-inner">
-                <text class="check-mark" wx:if="{{item.done}}">✓</text>
+              <view class="todo-check {{item.done ? 'checked' : ''}}">
+                <view class="check-inner">
+                  <text class="check-mark" wx:if="{{item.done}}">✓</text>
+                </view>
               </view>
             </view>
             <view class="todo-content {{item.done ? 'done' : ''}}">
@@ -263,6 +254,25 @@
         <view class="all-done-state" wx:elif="{{!todosLoading && todoList.length === 0 && todayOverview[1].num > 0}}">
           <text class="all-done-icon">🎉</text>
           <text class="all-done-text">全部搞定！</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- AI建议 -->
+    <view class="section">
+      <view class="ai-card-wrapper">
+        <view class="section-title">AI建议</view>
+        <view class="ai-content-box" bindtap="goToSchedule">
+          <view class="ai-card">
+            <view class="ai-icon-wrap">
+              <image class="ai-icon-img" src="{{aiSuggestion.icon}}" mode="aspectFit"></image>
+            </view>
+            <view class="ai-info">
+              <view class="ai-title">{{aiSuggestion.title}}</view>
+              <view class="ai-desc">{{aiSuggestion.content}}</view>
+            </view>
+          </view>
+          <view class="ai-action-btn">{{aiSuggestion.action}}</view>
         </view>
       </view>
     </view>

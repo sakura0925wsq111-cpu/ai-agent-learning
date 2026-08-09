@@ -2,12 +2,13 @@
 """LangGraph-powered Growth Mode orchestration graph.
 
 Graph topology (FULL):
-    router ──→ ├── planning_follow_up → analyze → [?] → build_report
-                └── sandbox_discovery → sandbox_projection → planning_follow_up
+    router → turn_analysis → [knowledge] → advisory_response → await_trigger
+           → analyze → [confirm] → build_report
+           └→ sandbox_discovery → sandbox_projection → planning_follow_up
 
 Capabilities:
   1. SQLite persistence (AsyncSqliteSaver) — survives server restart
-  2. Auto-complete — analysis flows directly into report generation
+  2. Human confirmation — preliminary analysis stops before report generation
   3. Intelligent routing — ambiguous → sandbox, clear goal → planning
   4. Sandbox integration — discovery → projection → handoff to planning
 """
@@ -20,7 +21,6 @@ from typing import Any, TypedDict
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langgraph.types import Command
 from loguru import logger
 
 class GrowthState(TypedDict, total=False):
@@ -31,6 +31,7 @@ class GrowthState(TypedDict, total=False):
     user_correction: str
     planning_state_json: str
     follow_up_round: int
+    questions_asked: int
     follow_up_complete: bool
     analysis: dict[str, Any]
     identified_problems: list[dict[str, Any]]
@@ -49,6 +50,12 @@ class GrowthState(TypedDict, total=False):
     chosen_path: str
     # Await trigger (between FOLLOW_UP and ANALYZE)
     awaiting_trigger: bool
+    # Explicit confirmation gate between preliminary analysis and final report
+    report_requested: bool
+    # Per-turn advisory routing
+    turn_analysis: dict[str, Any]
+    knowledge_context: str
+    knowledge_evidence: dict[str, Any]
 
 # ── Helpers ────────────────────────────────────────────────────
 
@@ -63,11 +70,15 @@ def _restore_agent_state(agent: Any, state: GrowthState) -> None:
         agent.restore_state(ps)
     else:
         agent.init_state()
+    last_question = state.get("last_question", "") or agent.state.last_asked_question
+    agent._last_asked_question = last_question
+    agent.state.last_asked_question = last_question
 
 def _save_agent_state(agent: Any) -> dict[str, Any]:
     return {
         "planning_state_json": json.dumps(agent.state.to_dict(), ensure_ascii=False),
         "follow_up_round": agent.state.follow_up_round,
+        "questions_asked": agent.state.questions_asked,
         "follow_up_complete": agent.state.follow_up_complete,
         "analysis": agent.state.analysis,
         "identified_problems": agent.state.identified_problems,
@@ -163,8 +174,7 @@ def _format_professional_report(report: dict[str, Any], agent_label: str) -> str
     parts.append("如对以上规划有任何疑问，随时告诉我。")
     return "\n".join(parts)
 
-
-    return "\n".join(parts)# ── Graph builder ──────────────────────────────────────────────
+# ── Graph builder ──────────────────────────────────────────────
 
 async def build_growth_graph(
     llm_service: Any,
@@ -178,9 +188,80 @@ async def build_growth_graph(
         """Pass-through: sandbox and planning have separate entry points."""
         return {"stage": state.get("stage", "questioning")}
 
+    def _is_planning_trigger(message: str) -> bool:
+        trigger_keywords = (
+            "开始规划", "开始分析", "生成报告", "开始吧", "来吧",
+            "继续规划", "下一步", "可以开始了",
+        )
+        return any(keyword in message for keyword in trigger_keywords)
+
     def _route_router(state: GrowthState) -> str:
-        """Always route to planning ? sandbox has its own entry point."""
+        """Route explicit correction/approval requests to their target step."""
+        if state.get("report_requested", False):
+            return "report"
+        if state.get("user_correction", "").strip():
+            return "analyze"
+        if state.get("awaiting_trigger", False):
+            message = state.get("user_message", "").strip()
+            # Questions asked while waiting still deserve a direct answer. Only
+            # an actual workflow trigger should bypass turn analysis.
+            return "await" if not message or _is_planning_trigger(message) else "planning"
         return "planning"
+
+    # ── Node: turn analysis + optional knowledge grounding ─────
+    def _planning_turn_analysis_node(state: GrowthState) -> dict[str, Any]:
+        from planning.conversation import analyze_turn
+        from planning.readiness import evaluate_advice_readiness
+        from planning.state import MAX_FOLLOW_UP_ROUNDS
+
+        agent_type = state.get("agent_type", "career")
+        agent = planning_router.get_agent(agent_type)
+        _restore_agent_state(agent, state)
+        message = state.get("user_message", "").strip()
+        readiness = evaluate_advice_readiness(
+            agent_type,
+            user_profile=agent.state.user_profile,
+            follow_up_history=agent.state.follow_up_history,
+            unavailable_dimensions=agent.state.unavailable_dimensions,
+            questions_asked=agent.state.questions_asked,
+            max_questions=MAX_FOLLOW_UP_ROUNDS,
+            current_question=agent.state.last_asked_question,
+            current_dimension=agent.state.last_asked_dimension,
+            current_answer=message,
+        )
+        analysis = analyze_turn(
+            llm_service,
+            agent_type=agent_type,
+            agent_label=agent.agent_label,
+            message=message,
+            user_context=agent.state.build_context_for_llm(),
+            follow_up_round=agent.state.questions_asked,
+            max_follow_up_rounds=MAX_FOLLOW_UP_ROUNDS,
+            readiness=readiness,
+        )
+        return {
+            "turn_analysis": analysis,
+            "knowledge_context": "",
+            "knowledge_evidence": {},
+            "stage": "questioning",
+        }
+
+    def _route_turn_analysis(state: GrowthState) -> str:
+        analysis = state.get("turn_analysis", {})
+        return "knowledge" if analysis.get("needs_knowledge", False) else "respond"
+
+    def _planning_knowledge_node(state: GrowthState) -> dict[str, Any]:
+        from planning.knowledge import get_knowledge_context
+
+        analysis = state.get("turn_analysis", {})
+        evidence = get_knowledge_context(
+            state.get("agent_type", "career"),
+            analysis.get("knowledge_topics", []),
+        )
+        return {
+            "knowledge_context": evidence.get("text", ""),
+            "knowledge_evidence": evidence,
+        }
 
     # ── Node: planning_follow_up ────────────────────────────────
     def _planning_follow_up_node(state: GrowthState) -> dict[str, Any]:
@@ -189,6 +270,8 @@ async def build_growth_graph(
         correction: str = state.get("user_correction", "").strip()
         last_q: str = state.get("last_question", "")
         chosen: str = state.get("chosen_path", "")
+        turn_analysis = state.get("turn_analysis", {})
+        knowledge_context = state.get("knowledge_context", "")
 
         # If coming from sandbox, use chosen path
         if chosen and not agent_type:
@@ -196,38 +279,107 @@ async def build_growth_graph(
 
         agent = planning_router.get_agent(agent_type)
         _restore_agent_state(agent, state)
+        if turn_analysis.get("readiness"):
+            agent.state.advice_readiness = dict(turn_analysis["readiness"])
 
         if correction:
             agent.state.record_follow_up(last_q or "correction", correction)
             agent.state.ambiguous_count = 0
             question = agent._generate_dynamic_question(is_retry=False, last_answer=correction)
+            agent.state.mark_question_asked(question)
             updates = _save_agent_state(agent)
             updates.update({"agent_message": question, "last_question": question,
                             "stage": "questioning", "user_correction": ""})
             return updates
 
-        if not message and agent.state.follow_up_round == 0:
-            question = agent._generate_dynamic_question(is_retry=False, last_answer="")
+        if not message and not agent.state.follow_up_complete:
+            question = agent._generate_dynamic_question(
+                is_retry=False,
+                last_answer="",
+                turn_analysis=turn_analysis,
+                knowledge_context=knowledge_context,
+            )
+            if (
+                turn_analysis.get("should_ask") is False
+                and turn_analysis.get("ready_for_advice", True)
+            ):
+                agent.state.follow_up_complete = True
+                agent.state.advance_step()
+                agent._last_asked_question = ""
+                agent.state.last_asked_question = ""
+                updates = _save_agent_state(agent)
+                updates.update({
+                    "agent_message": (
+                        f"{question}\n\n已有信息足够形成初步判断。"
+                        "如果你希望生成完整方案，回复“开始规划”即可。"
+                    ),
+                    "last_question": "",
+                    "stage": "awaiting",
+                    "awaiting_trigger": True,
+                    "user_correction": "",
+                    "chosen_path": "",
+                })
+                return updates
+            dimension = turn_analysis.get("readiness", {}).get("next_dimension", "")
+            agent.state.mark_question_asked(question, dimension)
+            agent._last_asked_question = question
             updates = _save_agent_state(agent)
             updates.update({"agent_message": question, "last_question": question,
                             "stage": "questioning", "user_correction": "", "chosen_path": ""})
+            return updates
+
+        if not message and agent.state.follow_up_complete:
+            updates = _save_agent_state(agent)
+            updates.update({
+                "stage": "awaiting",
+                "awaiting_trigger": True,
+                "agent_message": "已带入你在多路径对比中提供的信息。确认无误后，回复“开始规划”即可进入分析。",
+            })
+            return updates
+
+        if message and agent.state.follow_up_complete:
+            response = agent._generate_dynamic_question(
+                is_retry=False,
+                last_answer=message,
+                turn_analysis={**turn_analysis, "should_ask": False},
+                knowledge_context=knowledge_context,
+            )
+            agent.state.follow_up_history.append({"q": "补充咨询", "a": message})
+            updates = _save_agent_state(agent)
+            updates.update({
+                "stage": "awaiting",
+                "awaiting_trigger": True,
+                "agent_message": (
+                    f"{response}\n\n如果你希望生成完整方案，回复“开始规划”即可。"
+                ),
+                "last_question": "",
+            })
             return updates
 
         if message:
             original = agent._continue_workflow
             agent._continue_workflow = _noop_continue
             try:
-                agent._handle_follow_up(message)
+                response = agent._handle_follow_up(
+                    message,
+                    turn_analysis=turn_analysis,
+                    knowledge_context=knowledge_context,
+                )
             finally:
                 agent._continue_workflow = original
             updates = _save_agent_state(agent)
             if agent.state.follow_up_complete:
                 updates.update({"stage": "awaiting", "awaiting_trigger": True,
-                                "agent_message": "信息收集完毕，可以开始规划了。准备好了就说\"开始规划\"吧！"})
+                                "agent_message": response.get("message", ""),
+                                "last_question": ""})
             else:
-                is_retry = agent.state.ambiguous_count > 0 and agent.state.retry_count > 0
-                question = agent._generate_dynamic_question(is_retry=is_retry, last_answer=message)
-                updates.update({"agent_message": question, "last_question": question, "stage": "questioning"})
+                reply = response.get("message", "")
+                has_question = response.get("step") == "follow_up"
+                updates.update({
+                    "agent_message": reply,
+                    "last_question": reply if has_question else "",
+                    "stage": "questioning",
+                })
             return updates
         return {}
 
@@ -246,24 +398,6 @@ async def build_growth_graph(
         _restore_agent_state(agent, state)
         from planning.state import WorkflowStep
 
-        # —— Guard: if analysis already done and user says "继续", skip to build_report ——
-        # Check both LangGraph state and agent state for existing analysis
-        state_analysis = state.get("analysis", {})
-        agent_analysis = agent.state.analysis if hasattr(agent.state, "analysis") else {}
-        existing = state_analysis if state_analysis and state_analysis.get("current_status") else agent_analysis
-        has_analysis = existing and existing.get("current_status")
-        msg = state.get("user_message", "").strip()
-        continue_keywords = ["继续", "生成", "可以", "好的", "行", "ok", "yes", "go", "开始规划", "开始", "继续规划", "下一步"]
-        user_wants_continue = msg and any(kw in msg for kw in continue_keywords)
-        if has_analysis and user_wants_continue and not correction:
-            logger.info("PlanningAgent[{}]: analysis exists, user says continue - skipping to build_report", agent_type)
-            return {
-                "stage": "report",
-                "agent_message": "好的，正在生成完整规划报告...",
-                "analysis": existing,
-                "follow_up_complete": True,
-            }
-
         agent.state.set_step(WorkflowStep.ANALYZE)
         if correction:
             agent.state.user_profile["_correction"] = correction
@@ -277,7 +411,6 @@ async def build_growth_graph(
         analysis = agent.state.analysis
 
         # ── Build natural-language preliminary assessment ─────────────
-        agent_label = agent.agent_label
         st = analysis.get("current_status", "")
         dirs = analysis.get("directions", [])
         advs = analysis.get("advantages", [])
@@ -318,14 +451,14 @@ async def build_growth_graph(
         parts.append('')
         parts.append('以上是我的初步判断。你可以：')
         parts.append('')
-        parts.append('• 回复「继续」让我生成完整的规划报告')
+        parts.append('• 点击「确认并生成报告」生成完整规划')
         parts.append('• 或者告诉我哪里需要调整方向')
         parts.append('')
         parts.append('你觉得这个方向准确吗？')
 
         message = '\n'.join(parts)
         updates.update({"agent_message": message, "stage": "analyzing",
-                        "user_correction": "", "last_question": ""})
+                        "user_correction": "", "last_question": "", "progress": 40.0})
         return updates
     # ── Node: planning_build_report ─────────────────────────────
     def _planning_build_report_node(state: GrowthState) -> dict[str, Any]:
@@ -348,7 +481,7 @@ async def build_growth_graph(
             agent._continue_workflow = original
         updates = _save_agent_state(agent)
         report = agent.state.output
-        message = _format_professional_report(report, agent.agent_label)
+        message = "完整规划报告已生成。你可以查看报告，也可以继续咨询具体细节。"
         updates.update({"agent_message": message,
                         "stage": "report", "finished": True, "report": report, "output": report,
                         "progress": 100.0})
@@ -357,7 +490,7 @@ async def build_growth_graph(
 
     # ── Node: sandbox_discovery ─────────────────────────────────
     def _sandbox_discovery_node(state: GrowthState) -> dict[str, Any]:
-        """Discovery phase: 5-7 rounds of user profiling via sandbox."""
+        """Discovery phase: advice plus up to 3 high-value clarifications."""
         if sandbox_orchestrator is None:
             return {"error_message": "Sandbox not available", "stage": "error"}
 
@@ -424,18 +557,18 @@ async def build_growth_graph(
         projections = proj.get("projections", [])
         summary = proj.get("summary", "")
 
-        parts = ["?? **Path Comparison Results**", ""]
+        parts = ["多路径对比结果", ""]
         for p in projections:
             pt = p.get("path_type", "")
             label = SANDBOX_PATHS.get(pt, pt)
             insight = p.get("core_insight", "")
-            parts.append(f"**{label}:** {insight}")
+            parts.append(f"{label}：{insight}")
             parts.append("")
         if summary:
-            parts.append(f"**Summary:** {summary}")
+            parts.append(f"综合建议：{summary}")
         parts.append("")
         parts.append("---")
-        parts.append("Which path would you like to explore? Reply: career / graduate / civil / major")
+        parts.append("你想继续深入哪个方向？请回复“就业 / 考研 / 考公 / 转专业”。")
 
         # Determine chosen path from user message
         msg = state.get("user_message", "").strip().lower()
@@ -445,7 +578,7 @@ async def build_growth_graph(
                      "major": "major", "转专业": "major", "换专业": "major"}
         chosen = ""
         for kw, pt in path_map.items():
-            if kw in msg or kw in msg:
+            if kw in msg:
                 chosen = pt
                 break
 
@@ -468,13 +601,14 @@ async def build_growth_graph(
         """Wait for user confirmation, with free-form chat in between."""
         message: str = state.get("user_message", "").strip()
 
-        # Tightened trigger keywords to avoid false positives
-        trigger_keywords = [
-            "开始规划", "开始分析", "生成报告",
-            "开始吧", "来吧", "继续规划",
-            "下一步", "可以开始了",
-        ]
-        if any(kw in message for kw in trigger_keywords):
+        if not message:
+            return {
+                "awaiting_trigger": True,
+                "stage": "awaiting",
+                "agent_message": state.get("agent_message", "") or "信息已收集完成，回复“开始规划”进入分析。",
+            }
+
+        if _is_planning_trigger(message):
             return {
                 "awaiting_trigger": False,
                 "stage": "analyzing",
@@ -500,6 +634,8 @@ async def build_growth_graph(
     builder = StateGraph(GrowthState)
 
     builder.add_node("router", _router_node)
+    builder.add_node("planning_turn_analysis", _planning_turn_analysis_node)
+    builder.add_node("planning_knowledge", _planning_knowledge_node)
     builder.add_node("planning_follow_up", _planning_follow_up_node)
     builder.add_node("planning_await_trigger", _planning_await_trigger_node)
     builder.add_node("planning_analyze", _planning_analyze_node)
@@ -513,17 +649,30 @@ async def build_growth_graph(
     builder.set_entry_point("router")
 
     # Router edges
-    route_targets = {"planning": "planning_follow_up"}
+    route_targets = {
+        "planning": "planning_turn_analysis",
+        "await": "planning_await_trigger",
+        "analyze": "planning_analyze",
+        "report": "planning_build_report",
+    }
     if has_sandbox:
         route_targets["sandbox"] = "sandbox_discovery"
     builder.add_conditional_edges("router", _route_router, route_targets)
 
+    builder.add_conditional_edges(
+        "planning_turn_analysis",
+        _route_turn_analysis,
+        {"knowledge": "planning_knowledge", "respond": "planning_follow_up"},
+    )
+    builder.add_edge("planning_knowledge", "planning_follow_up")
+
     # Planning branch
     builder.add_conditional_edges("planning_follow_up", _route_follow_up,
-                                  {"follow_up": END, "await": "planning_await_trigger", "analyze": "planning_analyze"})
+                                  {"follow_up": END, "await": END, "analyze": "planning_analyze"})
     builder.add_conditional_edges("planning_await_trigger", _route_await_trigger,
                                   {"await": END, "analyze": "planning_analyze"})
-    builder.add_edge("planning_analyze", "planning_build_report")
+    # Stop after preliminary analysis; final report requires explicit approval.
+    builder.add_edge("planning_analyze", END)
     builder.add_edge("planning_build_report", END)
 
     # Sandbox branch
@@ -535,7 +684,7 @@ async def build_growth_graph(
 
     # ── SQLite checkpointer ─────────────────────────────────────
     import aiosqlite
-    db_path = os.path.join(
+    db_path = os.getenv("GROWTH_CHECKPOINT_DB") or os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "data", "growth_checkpoints.db"
     )
     os.makedirs(os.path.dirname(db_path), exist_ok=True)

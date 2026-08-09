@@ -103,6 +103,8 @@ def init_db() -> None:
         migrations = {
             "confidence": "ALTER TABLE memories ADD COLUMN confidence FLOAT NOT NULL DEFAULT 1.0",
             "source": "ALTER TABLE memories ADD COLUMN source TEXT NOT NULL DEFAULT ''",
+            "conflict_history": "ALTER TABLE memories ADD COLUMN conflict_history TEXT NOT NULL DEFAULT '[]'",
+            "expires_at": "ALTER TABLE memories ADD COLUMN expires_at DATETIME",
         }
         with engine.connect() as conn:
             for col_name, sql in migrations.items():
@@ -111,3 +113,7 @@ def init_db() -> None:
                     conn.execute(text(sql))
                     conn.commit()
                     logger.info("Migration complete for column: {}", col_name)
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_memories_user_expires ON memories(user_id, expires_at)"
+            ))
+            conn.commit()
