@@ -23,9 +23,11 @@ from services.today import TodayService
 class _CoachLLM:
     def __init__(self) -> None:
         self.system_prompt = ""
+        self.kwargs = {}
 
     def chat(self, *, user_message: str, system_prompt: str = "", **kwargs) -> str:
         self.system_prompt = system_prompt
+        self.kwargs = kwargs
         return "你已经完成一项任务，建议今天只保留下一项重点。"
 
 
@@ -137,6 +139,18 @@ class GrowthTodayLoopTests(unittest.TestCase):
         self.assertEqual(after.page_state, "executing")
         self.assertEqual(after.active_plan["total"], 2)
         self.assertEqual(after.active_plan["title"], "就业指导报告")
+
+    def test_today_suggestion_uses_a_bounded_llm_timeout(self) -> None:
+        llm = _CoachLLM()
+
+        result = TodayService(llm).generate_suggestion(
+            self.db,
+            user_id=self.user.id,
+        )
+
+        self.assertTrue(result["suggestion"])
+        self.assertEqual(llm.kwargs["request_timeout"], 10)
+        self.assertEqual(llm.kwargs["max_retries"], 0)
 
     def test_growth_coach_receives_report_progress_and_memory_context(self) -> None:
         TodayService().sync_growth_plan(

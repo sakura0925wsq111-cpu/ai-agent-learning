@@ -359,6 +359,8 @@ class TodayService:
                     system_prompt=system_prompt,
                     temperature=0.8,
                     max_tokens=300,
+                    request_timeout=10,
+                    max_retries=0,
                 )
             except Exception as exc:
                 logger.warning("Today suggestion LLM call failed: {}", exc)

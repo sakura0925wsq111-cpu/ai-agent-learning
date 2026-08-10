@@ -227,7 +227,7 @@ Page({
     try {
       const res = await app.request({
         method: "POST", url: "/api/v1/today/suggestion",
-        data: { user_id: this.data.userId, city: this.data.userInfo.weather.location || "" }, timeout: 15000
+        data: { user_id: this.data.userId, city: this.data.userInfo.weather.location || "" }, timeout: 20000
       });
       if (res && res.suggestion) {
         const fullText = res.suggestion;
