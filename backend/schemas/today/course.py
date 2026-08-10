@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """Course Pydantic schemas."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -24,6 +24,7 @@ class CourseCreate(BaseModel):
     notes: str | None = None
     color: str = Field(default="#4A90D9")
     source: str = Field(default="manual")
+    semester_start: date | None = None
 
 
 class CourseUpdate(BaseModel):
@@ -34,6 +35,7 @@ class CourseUpdate(BaseModel):
     schedule: list[CourseSchedule] | None = None
     notes: str | None = None
     color: str | None = None
+    semester_start: date | None = None
 
 
 class CourseResponse(BaseModel):
@@ -47,6 +49,7 @@ class CourseResponse(BaseModel):
     notes: str | None
     color: str | None
     source: str
+    semester_start: date | None = None
     created_at: str
     updated_at: str
 

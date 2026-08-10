@@ -1,4 +1,11 @@
 const app = getApp();
+const {
+  formatDateOnly,
+  getAcademicWeek,
+  getPickerBounds,
+  getStoredSemesterStart,
+  saveSemesterStart
+} = require("../../utils/semester.js");
 
 Page({
   data: {
@@ -18,6 +25,11 @@ Page({
       { key: "todos", icon: "/images/icon-task.png", num: 0, unit: "项", label: "待办任务", bgColor: "#FFF3E6", hasData: false, emptyText: "暂无待办" },
       { key: "exam", icon: "/images/icon-book.png", num: null, unit: "天后", suffix: "", label: "最近考试", bgColor: "#E6F9ED", hasData: false, emptyText: "最近没有考试", isExam: true }
     ],
+    semesterStart: "",
+    semesterPickerValue: "",
+    semesterStartMin: "",
+    semesterStartMax: "",
+    semesterOverview: { num: null, unit: "", text: "待设置", label: "当前周次" },
     aiSuggestion: { icon: "/images/icon-ai-bulb.png", title: "", content: "", fullText: "", action: "查看详情", loading: false },
     todoList: [],
     todosLoading: false,
@@ -66,45 +78,73 @@ Page({
 
   async onLoad() {
     const info = wx.getSystemInfoSync();
+    const bounds = getPickerBounds();
     const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
     const menuRect = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;
     const headerRightPadding = menuRect && menuRect.left
       ? Math.max(16, info.windowWidth - menuRect.left + 8)
       : 16;
-    this.setData({ statusBarHeight: info.statusBarHeight, headerRightPadding, userId });
+    this.setData({
+      statusBarHeight: info.statusBarHeight,
+      headerRightPadding,
+      userId,
+      semesterPickerValue: formatDateOnly(new Date()),
+      semesterStartMin: bounds.min,
+      semesterStartMax: bounds.max
+    });
     this.loadUserGreeting();
+    this.refreshSemesterOverview();
     await this.loadAllData();
   },
 
   async onShow() {
     this.loadUserGreeting();
+    this.refreshSemesterOverview();
     if (!this.data.loading) await this.refreshData();
   },
   async onPullDownRefresh() { await this.refreshData(); wx.stopPullDownRefresh(); },
 
   async loadAllData() {
     this.setData({ loading: true });
-    const results = await Promise.allSettled([
-      this.loadWeather(), this.loadTodayOverview(), this.loadTodos(),
-      this.loadAISuggestion(), this.checkActiveSession()
+    const coreResults = await Promise.allSettled([
+      this.loadWeather(), this.loadTodayOverview(), this.loadTodos()
     ]);
-    results.filter(item => item.status === "rejected").forEach(item => console.error(item.reason));
+    this.logRequestFailures("首页核心数据", coreResults);
     this.setData({ loading: false });
+    this.loadSecondaryData();
   },
 
   async refreshData() {
+    const coreResults = await Promise.allSettled([
+      this.loadWeather(), this.loadTodayOverview(), this.loadTodos()
+    ]);
+    this.logRequestFailures("首页刷新", coreResults);
+    this.loadSecondaryData();
+  },
+
+  async loadSecondaryData() {
     const results = await Promise.allSettled([
-      this.loadWeather(), this.loadTodayOverview(), this.loadTodos(),
       this.loadAISuggestion(), this.checkActiveSession()
     ]);
-    results.filter(item => item.status === "rejected").forEach(item => console.error(item.reason));
+    this.logRequestFailures("首页次要数据", results);
+  },
+
+  logRequestFailures(scope, results) {
+    const messages = results
+      .filter((item) => item.status === "rejected")
+      .map((item) => item.reason && item.reason.errMsg || item.reason && item.reason.message || "请求失败");
+    if (messages.length > 0) console.warn(scope + "加载失败:", messages);
   },
 
   async loadWeather() {
     const city = wx.getStorageSync("weatherCity") || "青岛";
     this.setData({ weatherError: false });
     try {
-      const res = await app.request({ url: "/api/v1/weather?city=" + encodeURIComponent(city), authRedirect: false });
+      const res = await app.request({
+        url: "/api/v1/weather?city=" + encodeURIComponent(city),
+        authRedirect: false,
+        timeout: 10000
+      });
       this.setData({
         weatherError: false,
         "userInfo.weather": {
@@ -121,7 +161,10 @@ Page({
   async loadTodayOverview() {
     this.setData({ overviewError: false });
     try {
-      const res = await app.request({ url: "/api/v1/today/overview?user_id=" + this.data.userId });
+      const res = await app.request({
+        url: "/api/v1/today/overview?user_id=" + this.data.userId,
+        timeout: 10000
+      });
       if (res) {
         const overview = this.data.todayOverview.map((item) => {
           if (item.key === "courses") {
@@ -157,7 +200,10 @@ Page({
   async loadTodos() {
     this.setData({ todosLoading: true, todosError: false });
     try {
-      const res = await app.request({ url: "/api/v1/todos?user_id=" + this.data.userId + "&status=pending" });
+      const res = await app.request({
+        url: "/api/v1/todos?user_id=" + this.data.userId + "&status=pending",
+        timeout: 10000
+      });
       const list = (res && res.todos) ? res.todos.slice(0, 5) : [];
       this.setData({
         todoList: list.map(item => ({
@@ -199,7 +245,10 @@ Page({
   async checkActiveSession() {
     if (!this.data.userId) return;
     try {
-      const res = await app.request({ url: "/api/v1/growth/state/" + this.data.userId });
+      const res = await app.request({
+        url: "/api/v1/growth/state/" + this.data.userId,
+        timeout: 10000
+      });
       if (res && res.session_id && !res.finished) { this.setData({ activeSession: res }); }
       else { this.setData({ activeSession: null }); }
     } catch (err) { this.setData({ activeSession: null }); }
@@ -241,6 +290,37 @@ Page({
   retryWeather() { this.loadWeather().catch(err => console.error(err)); },
   retryOverview() { this.loadTodayOverview().catch(err => console.error(err)); },
   retryTodos() { this.loadTodos().catch(err => console.error(err)); },
+
+  refreshSemesterOverview() {
+    const semesterStart = getStoredSemesterStart();
+    const week = getAcademicWeek(semesterStart);
+    let semesterOverview = { num: null, unit: "", text: "待设置", label: "当前周次" };
+    if (week === 0) {
+      semesterOverview = { ...semesterOverview, text: "未开学" };
+    } else if (week !== null) {
+      semesterOverview = { ...semesterOverview, num: week, unit: "周", text: "" };
+    }
+    this.setData({ semesterStart, semesterOverview });
+  },
+
+  async onSemesterDateChange(e) {
+    const semesterStart = e.detail.value;
+    if (!saveSemesterStart(semesterStart)) return;
+    this.refreshSemesterOverview();
+
+    try {
+      await app.request({
+        method: "PUT",
+        url: "/api/v1/today/courses/semester-settings?user_id=" + this.data.userId,
+        data: { semester_start: semesterStart }
+      });
+      wx.showToast({ title: "开学日期已同步", icon: "success" });
+      await this.loadTodayOverview();
+    } catch (err) {
+      console.error("同步开学日期失败:", err);
+      wx.showToast({ title: "已保存，旧课表同步失败", icon: "none" });
+    }
+  },
 
   onOverviewTap(e) {
     const key = e.currentTarget.dataset.key;

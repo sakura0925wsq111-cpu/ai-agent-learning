@@ -117,3 +117,33 @@ def init_db() -> None:
                 "CREATE INDEX IF NOT EXISTS ix_memories_user_expires ON memories(user_id, expires_at)"
             ))
             conn.commit()
+
+    # ── Courses table migrations ──
+    if "courses" in inspector.get_table_names():
+        existing_cols = {c["name"] for c in inspector.get_columns("courses")}
+        if "semester_start" not in existing_cols:
+            sql = "ALTER TABLE courses ADD COLUMN semester_start DATE"
+            with engine.connect() as conn:
+                logger.info("Running migration: {}", sql)
+                conn.execute(text(sql))
+                conn.commit()
+                logger.info("Migration complete for column: semester_start")
+
+    # ── Growth → Today bridge indexes ──
+    # New databases receive this constraint from SQLAlchemy metadata.  Existing
+    # SQLite databases need an explicit index because create_all never mutates
+    # an already-created table.
+    if "plan_tasks" in inspector.get_table_names():
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "uq_plan_tasks_growth_phase_index "
+                    "ON plan_tasks(user_id, growth_session_id, phase_key, plan_task_index)"
+                ))
+                conn.commit()
+            except Exception as exc:
+                # Do not prevent application startup if a legacy database
+                # already contains duplicates. The service remains idempotent
+                # and the conflict is surfaced in logs for manual cleanup.
+                logger.warning("Plan-task unique index migration skipped: {}", exc)

@@ -22,9 +22,13 @@
     <block wx:if="{{calendarCollapsed}}">
       <view class="date-header">
         <view class="date-title">今日日程</view>
-        <view class="date-picker" bindtap="toggleCalendar">
-          <text>{{currentYear}}年{{currentMonth}}月</text>
-          <text class="dropdown">▼</text>
+        <view class="month-nav">
+          <view class="month-nav-btn" bindtap="prevMonth" aria-role="button" aria-label="查看上个月">‹</view>
+          <view class="date-picker" bindtap="toggleCalendar" aria-role="button" aria-label="展开月历">
+            <text>{{currentYear}}年{{currentMonth}}月</text>
+            <text class="dropdown">▼</text>
+          </view>
+          <view class="month-nav-btn" bindtap="nextMonth" aria-role="button" aria-label="查看下个月">›</view>
         </view>
       </view>
       <view class="week-row-header">
@@ -44,7 +48,7 @@
         >
           <text class="day-num">{{item.date}}</text>
           <view class="day-dots" wx:if="{{item.events.length > 0}}">
-            <view class="dot {{event.type === 'exam' ? 'dot-exam' : 'dot-course'}}" wx:for="{{item.events}}" wx:for-item="event" wx:key="index"></view>
+            <view class="dot dot-{{event.type}}" wx:for="{{item.events}}" wx:for-item="event" wx:key="index"></view>
           </view>
         </view>
       </view>
@@ -54,9 +58,13 @@
     <block wx:else>
       <view class="date-header">
         <view class="date-title">今日日程</view>
-        <view class="date-picker" bindtap="toggleCalendar">
-          <text>{{currentYear}}年{{currentMonth}}月</text>
-          <text class="dropdown">▲</text>
+        <view class="month-nav">
+          <view class="month-nav-btn" bindtap="prevMonth" aria-role="button" aria-label="查看上个月">‹</view>
+          <view class="date-picker" bindtap="toggleCalendar" aria-role="button" aria-label="收起月历">
+            <text>{{currentYear}}年{{currentMonth}}月</text>
+            <text class="dropdown">▲</text>
+          </view>
+          <view class="month-nav-btn" bindtap="nextMonth" aria-role="button" aria-label="查看下个月">›</view>
         </view>
       </view>
       <view class="week-row-header">
@@ -75,7 +83,7 @@
         >
           <text class="day-num">{{item.date}}</text>
           <view class="day-dots" wx:if="{{item.events.length > 0}}">
-            <view class="dot {{event.type === 'exam' ? 'dot-exam' : 'dot-course'}}" wx:for="{{item.events}}" wx:for-item="event" wx:key="index"></view>
+            <view class="dot dot-{{event.type}}" wx:for="{{item.events}}" wx:for-item="event" wx:key="index"></view>
           </view>
         </view>
       </view>

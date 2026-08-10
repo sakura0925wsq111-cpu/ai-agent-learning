@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Decision Sandbox - multi-path comparison system for CampusPal.
+"""Decision Sandbox - multi-path comparison system for iCampus.
 
 Orchestrates a 4-phase workflow:
     1. DISCOVERY     - collect universal user profile

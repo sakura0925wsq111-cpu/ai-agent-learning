@@ -10,7 +10,7 @@ from database.base import Base
 
 
 class User(Base):
-    """CampusPal user profile."""
+    """iCampus user profile."""
 
     __tablename__ = "users"
 

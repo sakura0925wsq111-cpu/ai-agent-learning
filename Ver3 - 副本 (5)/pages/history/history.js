@@ -23,6 +23,7 @@ Page({
     currentTab: "plan",
     currentFilter: "全部",
     rawSessions: [],
+    rawReports: [],
     planHistory: [],
     chatHistory: [],
     loading: true,
@@ -43,11 +44,18 @@ Page({
   async loadData() {
     this.setData({ loading: true, error: false });
     try {
-      const res = await app.request({ url: `/api/v1/growth/history/${this.data.userId}` });
-      this.setData({ rawSessions: res.sessions || [], loading: false });
+      const [history, reports] = await Promise.all([
+        app.request({ url: `/api/v1/growth/history/${this.data.userId}` }),
+        app.request({ url: `/api/v1/growth/reports?user_id=${this.data.userId}` })
+      ]);
+      this.setData({
+        rawSessions: history.sessions || [],
+        rawReports: reports.reports || [],
+        loading: false
+      });
       this.applyFilter();
     } catch (err) {
-      this.setData({ rawSessions: [], planHistory: [], chatHistory: [], loading: false, error: true });
+      this.setData({ rawSessions: [], rawReports: [], planHistory: [], chatHistory: [], loading: false, error: true });
     }
   },
 
@@ -56,15 +64,19 @@ Page({
     const sessions = this.data.rawSessions.filter((item) => {
       return filter === "全部" || TYPE_NAMES[item.agent] === filter;
     });
-    const plans = sessions.filter((item) => item.finished && item.has_report).map((item) => ({
+    const reports = this.data.rawReports.filter((item) => {
+      return filter === "全部" || TYPE_NAMES[item.agent] === filter;
+    });
+    const plans = reports.map((item) => ({
       ...item,
       agent_type: item.agent,
       typeName: TYPE_NAMES[item.agent] || "成长规划",
       color: TYPE_COLORS[item.agent] || "#667085",
-      statusText: "已完成",
-      title: TYPE_NAMES[item.agent] || "成长规划",
-      summary: `${item.message_count || 0} 条对话 · 已生成完整报告`,
-      displayTime: this.formatTime(item.updated_at || item.created_at)
+      status: item.is_executing ? "in_progress" : "completed",
+      statusText: item.is_executing ? `执行中 ${Math.round((item.progress || 0) * 100)}%` : "已生成",
+      title: item.title || TYPE_NAMES[item.agent] || "成长规划",
+      summary: item.summary || "已生成完整报告",
+      displayTime: this.formatTime(item.created_at)
     }));
     const chats = sessions.map((item) => ({
       ...item,

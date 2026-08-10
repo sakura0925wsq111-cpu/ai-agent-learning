@@ -47,7 +47,7 @@
       <view class="skeleton-title"></view>
       <view class="skeleton-overview-card">
         <view class="skeleton-overview-grid">
-          <view class="skeleton-overview-item" wx:for="{{3}}" wx:key="index">
+          <view class="skeleton-overview-item" wx:for="{{4}}" wx:key="index">
             <view class="skeleton-circle"></view>
             <view class="skeleton-line-num"></view>
             <view class="skeleton-line-label"></view>
@@ -132,7 +132,7 @@
         <view class="inline-error" wx:if="{{overviewError}}" bindtap="retryOverview">
           <text>概览加载失败</text><text class="inline-retry">点击重试</text>
         </view>
-        <view class="overview-grid" wx:else>
+        <view class="overview-grid {{overviewError ? 'has-inline-error' : ''}}">
           <view 
             class="overview-item {{item.disabled ? 'disabled' : ''}} {{item.hasData ? '' : 'empty'}}" 
             wx:for="{{todayOverview}}" 
@@ -177,6 +177,28 @@
               <view class="overview-label">{{item.label}}</view>
             </block>
           </view>
+          <picker
+            class="semester-overview-picker"
+            mode="date"
+            value="{{semesterStart || semesterPickerValue}}"
+            start="{{semesterStartMin}}"
+            end="{{semesterStartMax}}"
+            bindchange="onSemesterDateChange"
+          >
+            <view class="overview-item semester-overview-item {{semesterStart ? '' : 'empty'}}" aria-role="button" aria-label="设置开学日期">
+              <view class="overview-icon-wrap {{semesterStart ? '' : 'overview-icon-empty'}}" style="background: #F1EAFE;">
+                <image class="overview-icon-img {{semesterStart ? '' : 'overview-img-empty'}}" src="/images/icon-calendar.png" mode="aspectFit"></image>
+              </view>
+              <view class="overview-num-wrap" wx:if="{{semesterOverview.num !== null}}">
+                <text class="overview-num semester-week-num">{{semesterOverview.num}}</text>
+                <text class="overview-unit">{{semesterOverview.unit}}</text>
+              </view>
+              <view class="overview-empty-num" wx:else>
+                <text class="overview-num-empty">{{semesterOverview.text}}</text>
+              </view>
+              <view class="overview-label {{semesterStart ? '' : 'overview-label-empty'}}">{{semesterOverview.label}}</view>
+            </view>
+          </picker>
         </view>
       </view>
     </view>

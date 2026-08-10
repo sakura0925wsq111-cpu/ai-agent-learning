@@ -1,4 +1,10 @@
 const app = getApp();
+const {
+  formatDateOnly,
+  getPickerBounds,
+  getStoredSemesterStart,
+  saveSemesterStart
+} = require("../../utils/semester.js");
 
 Page({
   data: {
@@ -14,7 +20,11 @@ Page({
     errorMsg: "",
     confirmLoading: false,
     showFormatModal: false,
-    mismatchMsg: ""
+    mismatchMsg: "",
+    semesterStart: "",
+    semesterPickerValue: "",
+    semesterStartMin: "",
+    semesterStartMax: ""
   },
 
   getUserId() {
@@ -25,9 +35,14 @@ Page({
     const info = wx.getSystemInfoSync();
     const pixelRatio = 750 / info.screenWidth;
     const navHeight = (info.statusBarHeight + 44 + 36) * pixelRatio;
+    const bounds = getPickerBounds();
     this.setData({
       statusBarHeight: info.statusBarHeight,
-      navHeight: navHeight
+      navHeight: navHeight,
+      semesterStart: getStoredSemesterStart(),
+      semesterPickerValue: formatDateOnly(new Date()),
+      semesterStartMin: bounds.min,
+      semesterStartMax: bounds.max
     });
   },
 
@@ -45,6 +60,10 @@ Page({
 
   chooseFile() {
     const { activeTab } = this.data;
+    if (activeTab === "course" && !this.data.semesterStart) {
+      wx.showToast({ title: "请先设置开学日期", icon: "none" });
+      return;
+    }
     const extension = activeTab === "course" ? ["pdf"] : ["xlsx", "xls"];
     const expectType = activeTab === "course" ? "PDF" : "Excel";
 
@@ -107,8 +126,11 @@ Page({
     const { activeTab } = this.data;
     const userId = this.getUserId();
 
+    const semesterParam = this.data.semesterStart
+      ? "&semester_start=" + encodeURIComponent(this.data.semesterStart)
+      : "";
     const url = activeTab === "course"
-      ? app.globalData.baseUrl + "/api/v1/today/import/pdf?user_id=" + userId + "&import_type=course"
+      ? app.globalData.baseUrl + "/api/v1/today/import?user_id=" + userId + "&import_type=course" + semesterParam
       : app.globalData.baseUrl + "/api/v1/today/import/excel?user_id=" + userId;
 
     const formData = {};
@@ -122,6 +144,9 @@ Page({
       success: (uploadRes) => {
         try {
           const body = JSON.parse(uploadRes.data);
+          if (uploadRes.statusCode < 200 || uploadRes.statusCode >= 300) {
+            throw new Error(body.message || body.detail || "上传失败");
+          }
           const data = body.data || body;
 
           if (data.import_id && data.items && data.items.length > 0) {
@@ -198,6 +223,26 @@ Page({
       fileInfo: { name: "", size: "", path: "" },
       errorMsg: ""
     });
+  },
+
+  async onSemesterDateChange(e) {
+    const semesterStart = e.detail.value;
+    if (!saveSemesterStart(semesterStart)) return;
+    this.setData({ semesterStart });
+
+    const userId = this.getUserId();
+    if (!userId) return;
+    try {
+      await app.request({
+        method: "PUT",
+        url: "/api/v1/today/courses/semester-settings?user_id=" + userId,
+        data: { semester_start: semesterStart }
+      });
+      wx.showToast({ title: "开学日期已同步", icon: "success" });
+    } catch (err) {
+      console.error("同步开学日期失败:", err);
+      wx.showToast({ title: "已保存，旧课表同步失败", icon: "none" });
+    }
   },
 
   showFormatModal() { this.setData({ showFormatModal: true }); },

@@ -116,6 +116,56 @@ page {
   /* padding-top 由 WXML 内联样式动态设置：{{navHeight}}px */
 }
 
+.semester-setting-card {
+  margin: 24rpx 32rpx 0;
+  padding: 24rpx;
+  border-radius: 20rpx;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(35, 82, 124, 0.06);
+}
+
+.semester-setting-card:active {
+  background: #F8FBFE;
+}
+
+.semester-setting-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.semester-setting-title {
+  color: #1A1A1A;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.semester-setting-desc {
+  margin-top: 8rpx;
+  color: #8A8A8A;
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+
+.semester-setting-value {
+  color: #4A90D9;
+  font-size: 26rpx;
+  white-space: nowrap;
+}
+
+.semester-setting-value.unset {
+  color: #E67E22;
+}
+
+.semester-setting-arrow {
+  margin-left: 6rpx;
+  font-size: 32rpx;
+}
+
 /* 删除以下旧代码：
    .nav-wrapper { ... }  -- 未使用的类
    --nav-height 变量      -- 改为 JS 动态计算

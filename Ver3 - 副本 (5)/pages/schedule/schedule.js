@@ -1,5 +1,6 @@
 const app = getApp();
 const { normalizeDateStr } = require("../../utils/date.js");
+const { getStoredSemesterStart } = require("../../utils/semester.js");
 
 Page({
   data: {
@@ -78,15 +79,23 @@ Page({
   },
 
   async loadCalendarEvents(year, month) {
+    const requestKey = year + "-" + month + "-" + Date.now();
+    this._calendarRequestKey = requestKey;
     try {
       const res = await app.request({
         url: "/api/v1/today/calendar",
         data: { user_id: this.getUserId(), year: year, month: month }
       });
+      if (
+        this._calendarRequestKey !== requestKey ||
+        this.data.currentYear !== year ||
+        this.data.currentMonth !== month
+      ) return;
       if (res && res.days) {
         const eventsMap = {};
-        res.days.forEach(day => {
-          const types = [...new Set((day.events || []).map(e => e.event_type))]; eventsMap[day.date] = types.map(t => ({ type: t }));
+        res.days.forEach((day) => {
+          const types = [...new Set((day.events || []).map((event) => event.event_type))];
+          eventsMap[day.date] = types.map((type) => ({ type }));
         });
         this.setData({ calendarEventsMap: eventsMap }, () => { this.generateCalendar(); });
       }
@@ -97,7 +106,12 @@ Page({
     const { date, iscurrentmonth } = e.currentTarget.dataset;
     if (!iscurrentmonth) {
       const d = new Date(date);
-      this.setData({ currentYear: d.getFullYear(), currentMonth: d.getMonth() + 1, selectedDate: date }, () => {
+      this.setData({
+        currentYear: d.getFullYear(),
+        currentMonth: d.getMonth() + 1,
+        selectedDate: date,
+        calendarEventsMap: {}
+      }, () => {
         this.generateCalendar();
         this.loadCalendarEvents(this.data.currentYear, this.data.currentMonth);
         this.loadScheduleForDate(date);
@@ -110,23 +124,36 @@ Page({
     });
   },
 
-  prevMonth() {
-    let { currentYear, currentMonth } = this.data;
-    if (currentMonth === 1) { currentYear--; currentMonth = 12; }
-    else { currentMonth--; }
-    this.setData({ currentYear, currentMonth, calendarView: "month" }, () => {
-      this.generateCalendar();
-      this.loadCalendarEvents(currentYear, currentMonth);
-    });
-  },
+  prevMonth() { this.changeMonth(-1); },
 
-  nextMonth() {
-    let { currentYear, currentMonth } = this.data;
-    if (currentMonth === 12) { currentYear++; currentMonth = 1; }
-    else { currentMonth++; }
-    this.setData({ currentYear, currentMonth, calendarView: "month" }, () => {
+  nextMonth() { this.changeMonth(1); },
+
+  changeMonth(offset) {
+    const { currentYear, currentMonth, selectedDate } = this.data;
+    const targetMonth = new Date(currentYear, currentMonth - 1 + offset, 1);
+    const year = targetMonth.getFullYear();
+    const month = targetMonth.getMonth() + 1;
+    const selectedParts = (selectedDate || "").split("-").map(Number);
+    const preferredDay = selectedParts.length === 3 && selectedParts.every(Number.isFinite)
+      ? selectedParts[2]
+      : 1;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const nextSelectedDate = this.getDateStr(
+      year,
+      month,
+      Math.min(preferredDay, daysInMonth)
+    );
+
+    this.setData({
+      currentYear: year,
+      currentMonth: month,
+      selectedDate: nextSelectedDate,
+      calendarView: "month",
+      calendarEventsMap: {}
+    }, () => {
       this.generateCalendar();
-      this.loadCalendarEvents(currentYear, currentMonth);
+      this.loadCalendarEvents(year, month);
+      this.loadScheduleForDate(nextSelectedDate);
     });
   },
 
@@ -157,8 +184,10 @@ Page({
       selectedDate: ts,
       currentYear: year,
       currentMonth: month,
-      calendarView: "month"
+      calendarView: "month",
+      calendarEventsMap: {}
     }, () => {
+      this.generateCalendar();
       this.loadCalendarEvents(year, month);
       this.loadScheduleForDate(ts);
     });
@@ -305,7 +334,8 @@ Page({
         data: {
           name: name, teacher: "", location: location,
           schedule: [{ weekday: weekday, start: slot.start, end: slot.end, weeks: "1-16" }],
-          notes: "", color: "#4A90D9", source: "manual"
+          notes: "", color: "#4A90D9", source: "manual",
+          semester_start: getStoredSemesterStart() || null
         }
       });
       wx.hideLoading();

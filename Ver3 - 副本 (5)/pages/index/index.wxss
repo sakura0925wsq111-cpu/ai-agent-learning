@@ -94,7 +94,8 @@ page {
 /* ========== Today Overview ========== */
 .overview-card { background: var(--card-bg); border-radius: 24rpx; padding: 24rpx; box-shadow: var(--card-shadow); width: 100%; box-sizing: border-box; }
 .overview-card .section-title { margin-bottom: 24rpx; }
-.overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20rpx; width: 100%; }
+.overview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8rpx; width: 100%; }
+.overview-grid.has-inline-error { margin-top: 20rpx; }
 .overview-item { display: flex; flex-direction: column; align-items: center; min-width: 0; position: relative; padding: 8rpx 0; transition: all 0.2s ease; }
 .overview-item:not(.disabled):active { transform: scale(0.96); opacity: 0.9; }
 .overview-icon-wrap { width: 96rpx; height: 96rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16rpx; transition: all 0.3s ease; }
@@ -116,6 +117,9 @@ page {
 .overview-label-empty { color: #BBBBBB !important; }
 /* 考试红色强调 */
 .exam-num { color: #E74C3C !important; }
+.semester-overview-picker { display: block; min-width: 0; width: 100%; }
+.semester-overview-item { width: 100%; box-sizing: border-box; }
+.semester-week-num { color: #7C5AC7; }
 /* 禁用状态 */
 .overview-item.disabled { opacity: 0.5; pointer-events: none; }
 .overview-item.disabled .overview-num { color: #CCCCCC; }
@@ -211,8 +215,8 @@ page {
 }
 .skeleton-overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16rpx;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8rpx;
 }
 .skeleton-overview-item {
   display: flex;

@@ -63,11 +63,13 @@ def _parse_weeks(weeks_str: str) -> dict[str, Any]:
 def _is_course_active_in_week(weeks_parsed: dict, current_week: int | None) -> bool:
     """Check if a course slot applies to a given academic week.
 
-    If current_week is None or 0 (pre-semester / unknown), skip filtering
-    and show all courses matching the weekday.
+    An unknown week keeps the legacy recurring behavior. Week 0 means the
+    semester has not started yet, so the course must stay hidden.
     """
-    if current_week is None or current_week <= 0:
+    if current_week is None:
         return True
+    if current_week <= 0:
+        return False
     if current_week < weeks_parsed["start"]:
         return False
     if current_week > weeks_parsed["end"]:
@@ -105,6 +107,23 @@ def _get_week_for_date(semester_start: date | None, target: date) -> int | None:
     return delta.days // 7 + 1
 
 
+def _is_course_active_on_date(
+    course: Course,
+    weeks_parsed: dict[str, Any],
+    target: date,
+) -> bool:
+    """Resolve a recurring slot against its semester date.
+
+    Imported timetables without a semester date are intentionally hidden:
+    expanding them forever makes old-term courses appear in every month.
+    Manual recurring courses keep the legacy behavior until a semester is set.
+    """
+    if course.semester_start is None:
+        return course.source != "pdf_import"
+    week_num = _get_week_for_date(course.semester_start, target)
+    return _is_course_active_in_week(weeks_parsed, week_num)
+
+
 # ── Plan sync helper ────────────────────────────────────────────
 
 PHASE_LABELS = {
@@ -113,6 +132,56 @@ PHASE_LABELS = {
     "phase_3": "第5-8周",
     "phase_4": "第9-12周",
 }
+
+
+def _load_action_plan(report: GrowthReport) -> list[dict[str, Any]]:
+    """Return a normalized action-plan list from the persisted report.
+
+    GrowthReport is the immutable source of truth.  Older reports may only
+    contain plan_json, while current reports keep the complete payload in
+    full_report_json.
+    """
+    payload: Any = {}
+    try:
+        payload = json.loads(report.full_report_json or "{}")
+    except (json.JSONDecodeError, TypeError):
+        payload = {}
+
+    plan = payload.get("action_plan", []) if isinstance(payload, dict) else []
+    if not plan:
+        try:
+            plan = json.loads(report.plan_json or "[]")
+        except (json.JSONDecodeError, TypeError):
+            plan = []
+    if isinstance(plan, dict):
+        plan = plan.get("phases", plan.get("action_plan", []))
+    return [item for item in plan if isinstance(item, dict)] if isinstance(plan, list) else []
+
+
+def _get_phase(plan: list[dict[str, Any]], phase_key: str) -> dict[str, Any]:
+    for index, item in enumerate(plan):
+        item_key = item.get("phase_key") or item.get("key") or f"phase_{index + 1}"
+        if item_key == phase_key:
+            return item
+    return {}
+
+
+def _task_fields(task: Any, index: int) -> tuple[str, str | None]:
+    if isinstance(task, str):
+        return task.strip(), None
+    if not isinstance(task, dict):
+        return "", None
+    title = (
+        task.get("title") or task.get("task") or task.get("name")
+        or task.get("description") or ""
+    )
+    if not title:
+        title = next(
+            (value for value in task.values() if isinstance(value, str) and value.strip()),
+            "",
+        )
+    deadline = task.get("deadline") or task.get("due_date") or task.get("date")
+    return str(title).strip(), str(deadline).strip() if deadline else None
 
 
 class TodayService:
@@ -143,8 +212,7 @@ class TodayService:
                 weeks_parsed = slot.get("weeks_parsed")
                 if weeks_parsed is None:
                     weeks_parsed = _parse_weeks(slot.get("weeks", ""))
-                current_week = _get_current_week(c.semester_start)
-                if current_week is not None and not _is_course_active_in_week(weeks_parsed, current_week):
+                if not _is_course_active_on_date(c, weeks_parsed, today):
                     continue
 
                 courses_today.append({
@@ -257,7 +325,7 @@ class TodayService:
         context = "\n".join(context_parts)
 
         system_prompt = (
-            "你是 CampusPal 的 AI 今日助手。"
+            "你是 iCampus 的 AI 今日助手。"
             "请根据用户今天的课程、待办、考试、天气和成长规划进度，"
             "给出具体、可执行且不过度安排的建议。"
             "优先指出最值得完成的一件事，并帮助用户留出休息时间。"
@@ -313,28 +381,34 @@ class TodayService:
         growth_session_id: str,
         phase: str,
     ) -> dict[str, Any]:
-        """Sync a single phase of a Growth plan into daily Todo items.
-
-        Idempotent: skips phases that were already synced.
-        """
-        # Check for existing sync (idempotency)
+        """Sync one report phase into Todo with bidirectional traceability."""
         existing = db.query(PlanTask).filter(
             PlanTask.user_id == user_id,
             PlanTask.growth_session_id == growth_session_id,
             PlanTask.phase_key == phase,
-        ).first()
+        ).order_by(PlanTask.plan_task_index.asc()).all()
 
         if existing:
-            logger.info(
-                "Plan phase already synced: {} / {}",
-                growth_session_id, phase,
-            )
+            existing_todos = db.query(Todo).filter(
+                Todo.user_id == user_id,
+                Todo.id.in_([item.todo_id for item in existing]),
+            ).all()
+            todo_map = {item.id: item for item in existing_todos}
             return {
                 "user_id": user_id,
                 "growth_session_id": growth_session_id,
                 "phase": phase,
                 "synced_count": 0,
-                "todos": [],
+                "already_synced": True,
+                "todos": [
+                    {
+                        "plan_task_id": item.id,
+                        "todo_id": item.todo_id,
+                        "title": todo_map[item.todo_id].title,
+                        "status": todo_map[item.todo_id].status,
+                    }
+                    for item in existing if item.todo_id in todo_map
+                ],
             }
 
         # Load the growth report for this session
@@ -346,54 +420,56 @@ class TodayService:
         if not report:
             raise ValueError(f"Growth report not found: {growth_session_id}")
 
-        try:
-            plan_data = json.loads(report.content_json or "{}")
-        except (json.JSONDecodeError, TypeError):
-            plan_data = {}
-
-        phase_data = plan_data.get("phases", {}).get(phase, {})
+        plan = _load_action_plan(report)
+        phase_data = _get_phase(plan, phase)
         tasks = phase_data.get("tasks", [])
-        if not tasks:
+        if not isinstance(tasks, list) or not tasks:
             logger.warning("No tasks found in phase {}", phase)
             return {
                 "user_id": user_id,
                 "growth_session_id": growth_session_id,
                 "phase": phase,
                 "synced_count": 0,
+                "already_synced": False,
                 "todos": [],
             }
 
-        # Create PlanTask + Todo records
-        synced = []
-        for task in tasks:
-            plan_task = PlanTask(
-                user_id=user_id,
-                growth_session_id=growth_session_id,
-                phase_key=phase,
-                phase_label=PHASE_LABELS.get(phase, phase),
-                description=task.get("title", task.get("description", "")),
-                deadline=task.get("deadline"),
-                status="pending",
-            )
-            db.add(plan_task)
-            db.flush()  # get plan_task.id
-
-            todo = Todo(
-                user_id=user_id,
-                title=task.get("title", task.get("description", "")),
-                source="ai_plan",
-                status="pending",
-                deadline=task.get("deadline"),
-                plan_task_id=plan_task.id,
-            )
-            db.add(todo)
-            synced.append({
-                "plan_task_id": plan_task.id,
-                "todo_id": todo.id,
-                "title": todo.title,
-            })
-
-        db.commit()
+        synced: list[dict[str, Any]] = []
+        try:
+            for index, task in enumerate(tasks):
+                title, deadline = _task_fields(task, index)
+                if not title:
+                    continue
+                todo = Todo(
+                    user_id=user_id,
+                    title=title,
+                    source="ai_plan",
+                    status="pending",
+                    deadline=deadline,
+                )
+                db.add(todo)
+                db.flush()
+                plan_task = PlanTask(
+                    user_id=user_id,
+                    growth_session_id=growth_session_id,
+                    growth_report_id=report.id,
+                    todo_id=todo.id,
+                    phase_key=phase,
+                    plan_task_index=index,
+                )
+                db.add(plan_task)
+                db.flush()
+                synced.append({
+                    "plan_task_id": plan_task.id,
+                    "todo_id": todo.id,
+                    "title": todo.title,
+                    "status": todo.status,
+                    "deadline": todo.deadline,
+                })
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
         logger.info(
             "Synced {} tasks from {} / {}", len(synced), growth_session_id, phase
         )
@@ -403,6 +479,7 @@ class TodayService:
             "growth_session_id": growth_session_id,
             "phase": phase,
             "synced_count": len(synced),
+            "already_synced": False,
             "todos": synced,
         }
 
@@ -416,39 +493,55 @@ class TodayService:
         growth_session_id: str,
     ) -> dict[str, Any]:
         """Query completion progress of a synced growth plan."""
-        plan_tasks = db.query(PlanTask).filter(
+        rows = db.query(PlanTask, Todo).join(
+            Todo, Todo.id == PlanTask.todo_id,
+        ).filter(
             PlanTask.user_id == user_id,
             PlanTask.growth_session_id == growth_session_id,
-        ).all()
+            Todo.user_id == user_id,
+        ).order_by(PlanTask.phase_key.asc(), PlanTask.plan_task_index.asc()).all()
 
         phases: dict[str, dict[str, Any]] = {}
-        for pt in plan_tasks:
+        for pt, todo in rows:
             ph = phases.setdefault(pt.phase_key, {
                 "phase_key": pt.phase_key,
-                "label": pt.phase_label,
+                "label": PHASE_LABELS.get(pt.phase_key, pt.phase_key),
                 "total": 0,
                 "completed": 0,
+                "cancelled": 0,
                 "todos": [],
             })
             ph["total"] += 1
-            if pt.status == "completed":
+            if todo.status in ("done", "archived"):
                 ph["completed"] += 1
+            elif todo.status == "cancelled":
+                ph["cancelled"] += 1
             ph["todos"].append({
-                "id": pt.id,
-                "description": pt.description,
-                "deadline": pt.deadline,
-                "status": pt.status,
+                "id": todo.id,
+                "plan_task_id": pt.id,
+                "description": todo.title,
+                "deadline": todo.deadline,
+                "status": todo.status,
             })
 
-        phases_list = list(phases.values())
+        phases_list = [phases[key] for key in sorted(phases)]
         total_tasks = sum(p["total"] for p in phases_list)
         completed = sum(p["completed"] for p in phases_list)
+        cancelled = sum(p["cancelled"] for p in phases_list)
         overall = completed / total_tasks if total_tasks > 0 else 0.0
+        current = next(
+            (phase for phase in phases_list if phase["completed"] + phase["cancelled"] < phase["total"]),
+            phases_list[-1] if phases_list else None,
+        )
 
         return {
             "user_id": user_id,
             "growth_session_id": growth_session_id,
             "phases": phases_list,
+            "total": total_tasks,
+            "completed": completed,
+            "cancelled": cancelled,
+            "current_phase": current,
             "overall_completion": round(overall, 2),
         }
 
@@ -482,8 +575,7 @@ class TodayService:
                 weeks_parsed = slot.get("weeks_parsed")
                 if weeks_parsed is None:
                     weeks_parsed = _parse_weeks(slot.get("weeks", ""))
-                week_num = _get_week_for_date(c.semester_start, target)
-                if week_num is not None and not _is_course_active_in_week(weeks_parsed, week_num):
+                if not _is_course_active_on_date(c, weeks_parsed, target):
                     continue
 
                 start = slot.get("start", 1)
@@ -612,10 +704,8 @@ class TodayService:
                     if dt.isoweekday() != wd:
                         continue
                     # Week-range filtering
-                    if c.semester_start is not None:
-                        week_num = _get_week_for_date(c.semester_start, dt)
-                        if week_num is not None and not _is_course_active_in_week(weeks_parsed, week_num):
-                            continue
+                    if not _is_course_active_on_date(c, weeks_parsed, dt):
+                        continue
                     h = 8 + (start - 1)
                     start_str = "%02d:00" % h
                     end_str = "%02d:00" % (8 + end)
@@ -653,24 +743,33 @@ class TodayService:
                     "sort_key": sk + 10,
                 })
 
-        # Pending todos → attach to today by default
+        # Pending todos → attach to their deadline date, or today when undated.
         todos = db.query(Todo).filter(
             Todo.user_id == user_id,
             Todo.status == "pending",
         ).order_by(Todo.created_at.desc()).all()
         for t in todos:
             todo_date = today
-            # Try to parse deadline to a date
+            # Try ISO datetime first, then the legacy date-only formats.
             if t.deadline:
+                parsed = None
+                try:
+                    parsed = datetime.fromisoformat(
+                        t.deadline.replace("Z", "+00:00")
+                    ).date()
+                except (TypeError, ValueError):
+                    pass
                 for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%m-%d"]:
+                    if parsed is not None:
+                        break
                     try:
                         from datetime import datetime as dt_cls
                         parsed = dt_cls.strptime(t.deadline, fmt).date()
-                        if parsed and month_start <= parsed <= month_end:
-                            todo_date = parsed
-                            break
-                    except:
+                    except (TypeError, ValueError):
                         continue
+                if parsed is None or not (month_start <= parsed <= month_end):
+                    continue
+                todo_date = parsed
             if todo_date in days_map:
                 days_map[todo_date]["events"].append({
                     "id": t.id,

@@ -1,13 +1,24 @@
-﻿fastapi==0.115.6
+# Web API
+fastapi==0.115.6
 uvicorn[standard]==0.34.0
+python-multipart==0.0.32
+
+# Data, validation, configuration, and logging
 sqlalchemy==2.0.36
 pydantic==2.10.4
 pydantic-settings==2.7.1
-loguru==0.7.3
-openai==1.58.1
 python-dotenv==1.0.1
-httpx==0.28.1
-alembic==1.14.1
+loguru==0.7.3
 
-langgraph>=1.0.0
-langgraph-checkpoint-sqlite>=2.0.0
+# HTTP and LLM
+httpx==0.28.1
+openai==1.58.1
+
+# Agent orchestration and persistence
+langgraph==1.2.9
+langgraph-checkpoint-sqlite==3.1.0
+
+# Course-file import and Chinese text processing
+pdfplumber==0.11.10
+openpyxl==3.1.5
+jieba==0.42.1

@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-"""CampusPal PlanningAgent Framework.
+"""iCampus PlanningAgent Framework.
 
 Extensible multi-agent planning system for Chinese university students.
 

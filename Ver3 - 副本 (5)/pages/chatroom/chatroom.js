@@ -12,6 +12,7 @@ Page({
   data: {
     statusBarHeight: 44,
     mode: "sandbox",
+    coachMode: false,
     agent: "career",
     agentName: "决策教练",
     sessionId: "",
@@ -35,6 +36,8 @@ Page({
     showRetry: false,
     retryKind: "",
     lastFailedMessage: "",
+    pendingPrompt: "",
+    reportNavigating: false,
     quickOptions: [
       "不知道考研还是就业",
       "想转专业但不确定方向",
@@ -50,16 +53,24 @@ Page({
     const sessionId = options.session_id || "";
     const sourceSandboxSessionId = options.sandbox_session_id || "";
     const agent = options.agent || "career";
+    const coachMode = mode === "coach";
+    let pendingPrompt = options.prompt || "";
+    try { pendingPrompt = decodeURIComponent(pendingPrompt); } catch (err) {}
 
     this.setData({
       statusBarHeight: info.statusBarHeight,
       mode,
+      coachMode,
       agent,
-      agentName: mode === "sandbox" ? "决策教练" : (AGENT_NAMES[agent] || "成长规划"),
+      agentName: coachMode ? "成长教练" : (mode === "sandbox" ? "决策教练" : (AGENT_NAMES[agent] || "成长规划")),
       sessionId,
       sourceSandboxSessionId,
       userId,
-      showQuickActions: mode === "sandbox"
+      pendingPrompt,
+      showQuickActions: mode === "sandbox" || coachMode,
+      quickOptions: coachMode
+        ? ["汇报最近进展", "复盘本周执行", "计划有点太满", "我想调整当前安排"]
+        : this.data.quickOptions
     });
 
     if (sessionId && mode !== "sandbox") {
@@ -121,16 +132,18 @@ Page({
       const finished = Boolean(state.finished || state.has_report);
       const stage = state.stage || "questioning";
       const agent = state.agent || this.data.agent;
+      const coachMode = this.data.coachMode && finished;
       this.setData({
         messages,
-        mode: finished ? "qa" : "agent",
+        mode: coachMode ? "coach" : (finished ? "qa" : "agent"),
         agent,
-        agentName: AGENT_NAMES[agent] || "成长规划",
+        agentName: coachMode ? "成长教练" : (AGENT_NAMES[agent] || "成长规划"),
         sessionStage: stage,
         reportReady: finished,
         showAnalysisCard: stage === "analyzing" && !finished,
-        inputPlaceholder: finished ? "继续追问报告内容" : "输入你的回答",
-        showQuickActions: false,
+        inputPlaceholder: coachMode ? "说说最近的进展或困难" : (finished ? "继续追问报告内容" : "输入你的回答"),
+        showQuickActions: coachMode,
+        inputValue: coachMode ? this.data.pendingPrompt : "",
         isLoading: false,
         progress: finished ? 100 : (stage === "analyzing" ? 40 : 0),
         scrollToView: messages.length ? "msg-" + messages[messages.length - 1].id : ""
@@ -182,10 +195,12 @@ Page({
       showRetry: false,
       retryKind: "send",
       lastFailedMessage: content,
-      loadingText: this.data.mode === "sandbox" ? "正在生成路径分析，请稍候..." : "正在整理你的信息..."
+      loadingText: this.data.mode === "sandbox"
+        ? "正在生成路径分析，请稍候..."
+        : (this.data.mode === "coach" ? "正在结合计划和进度复盘..." : "正在整理你的信息...")
     });
 
-    if (this.data.mode === "qa") {
+    if (this.data.mode === "qa" || this.data.mode === "coach") {
       this.sendQa(content);
     } else if (this.data.mode === "sandbox") {
       this.sendSandbox(content);
@@ -289,6 +304,16 @@ Page({
         isLoading: false,
         progress: 100
       });
+      if (!this.data.reportNavigating) {
+        this.setData({ reportNavigating: true });
+        wx.showToast({ title: "规划报告已生成", icon: "success", duration: 900 });
+        setTimeout(() => {
+          wx.navigateTo({
+            url: `/pages/report/report?session_id=${this.data.sessionId}&agent_type=${this.data.agent}`,
+            complete: () => this.setData({ reportNavigating: false })
+          });
+        }, 300);
+      }
       return;
     }
     this.addMessage("assistant", res.message || "请继续补充你的情况。" );
@@ -364,7 +389,7 @@ Page({
     const message = this.data.lastFailedMessage;
     if (message) {
       this.setData({ isLoading: true, showAnalysisCard: false });
-      if (this.data.mode === "qa") this.sendQa(message);
+      if (this.data.mode === "qa" || this.data.mode === "coach") this.sendQa(message);
       else if (this.data.mode === "sandbox") this.sendSandbox(message);
       else this.sendAgent(message);
     }
@@ -409,7 +434,7 @@ Page({
   },
 
   goHistory() {
-    wx.navigateTo({ url: "/pages/history/history?type=chat" });
+    wx.navigateTo({ url: this.data.coachMode ? "/pages/history/history?type=plan" : "/pages/history/history?type=chat" });
   },
 
   goBack() {

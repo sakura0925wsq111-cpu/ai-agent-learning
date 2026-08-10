@@ -53,6 +53,7 @@ class SyncPlanResponse(BaseModel):
     growth_session_id: str
     phase: str
     synced_count: int
+    already_synced: bool = False
     todos: list[dict[str, Any]] = Field(default_factory=list)
 
 
@@ -64,6 +65,7 @@ class PhaseProgress(BaseModel):
     label: str
     total: int
     completed: int
+    cancelled: int = 0
     todos: list[dict[str, Any]] = Field(default_factory=list)
 
 

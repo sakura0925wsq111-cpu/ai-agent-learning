@@ -26,7 +26,7 @@ class TodoCreate(BaseModel):
 
 class TodoUpdate(BaseModel):
     title: str | None = None
-    status: str | None = Field(default=None, pattern=r"^(pending|done|archived)$")
+    status: str | None = Field(default=None, pattern=r"^(pending|done|archived|cancelled)$")
     deadline: str | None = None
 
 
@@ -87,11 +87,38 @@ def list_todos(
     query = query.order_by(Todo.created_at.desc())
     todos = query.all()
 
-    items = [{
-        "id": t.id, "title": t.title, "status": t.status,
-        "deadline": t.deadline, "source": t.source,
-        "created_at": t.created_at.isoformat() if t.created_at else None,
-    } for t in todos]
+    from models.today import PlanTask
+    from models.growth import GrowthReport
+    links = db.query(PlanTask).filter(
+        PlanTask.user_id == user_id,
+        PlanTask.todo_id.in_([item.id for item in todos]),
+    ).all() if todos else []
+    link_map = {item.todo_id: item for item in links}
+    report_ids = [item.growth_report_id for item in links if item.growth_report_id]
+    reports = db.query(GrowthReport).filter(
+        GrowthReport.user_id == user_id,
+        GrowthReport.id.in_(report_ids),
+    ).all() if report_ids else []
+    report_map = {item.id: item for item in reports}
+    agent_labels = {
+        "graduate": "考研", "career": "就业", "employment": "就业",
+        "civil": "考公", "major": "转专业",
+    }
+    items = []
+    for todo in todos:
+        link = link_map.get(todo.id)
+        report = report_map.get(link.growth_report_id) if link else None
+        items.append({
+            "id": todo.id, "title": todo.title, "status": todo.status,
+            "deadline": todo.deadline, "source": todo.source,
+            "source_label": (
+                f"成长计划·{agent_labels.get(report.agent_type, '规划')}"
+                if report else None
+            ),
+            "growth_session_id": link.growth_session_id if link else None,
+            "growth_agent": report.agent_type if report else None,
+            "created_at": todo.created_at.isoformat() if todo.created_at else None,
+        })
 
     return APIResponse.ok(data={"user_id": user_id, "total": len(items), "todos": items})
 
@@ -134,6 +161,19 @@ def delete_todo(
     obj = db.query(Todo).filter(Todo.id == todo_id, Todo.user_id == user_id).first()
     if obj is None:
         raise NotFoundException(f"Todo {todo_id} not found")
+    # Growth-plan tasks are execution evidence.  Keep the bridge intact and
+    # treat removal as an explicit "no longer executing" decision instead of
+    # erasing it from progress history.
+    from models.today import PlanTask
+    linked_plan_task = db.query(PlanTask).filter(
+        PlanTask.user_id == user_id,
+        PlanTask.todo_id == todo_id,
+    ).first()
+    if linked_plan_task is not None:
+        obj.status = "cancelled"
+        db.commit()
+        return APIResponse.ok(data={"cancelled": todo_id, "source": "ai_plan"})
+
     db.delete(obj)
     db.commit()
     return APIResponse.ok(data={"deleted": todo_id})

@@ -1,119 +1,196 @@
-const api = require('../../utils/api.js');
+const api = require("../../utils/api.js");
 const app = getApp();
+
+const AGENT_META = {
+  graduate: { name: "考研规划", short: "研", icon: "/images/icon-postgrad.png", className: "agent-blue", desc: "院校选择与备考路径" },
+  career: { name: "就业指导", short: "职", icon: "/images/icon-job.png", className: "agent-green", desc: "职业定位与求职准备" },
+  employment: { name: "就业指导", short: "职", icon: "/images/icon-job.png", className: "agent-green", desc: "职业定位与求职准备" },
+  civil: { name: "考公评估", short: "公", icon: "/images/icon-civil.png", className: "agent-orange", desc: "岗位匹配与备考评估" },
+  major: { name: "转专业分析", short: "转", icon: "/images/icon-transfer.png", className: "agent-purple", desc: "条件差异与风险分析" }
+};
+
+const COACH_PROMPTS = {
+  check_in: "我想汇报一下最近的执行进展",
+  blocked: "我最近执行计划时遇到了一些困难",
+  weekly_review: "请结合我的实际任务完成情况，帮我复盘本周"
+};
 
 Page({
   data: {
     statusBarHeight: 44,
+    userId: "",
+    pageState: "new",
+    dashboardLoading: true,
     activeSession: null,
-    agents: [
-      { type: "graduate", name: "考研规划", icon: "/images/icon-postgrad.png", color: "#4A90D9", bgColor: "#E6F2FF" },
-      { type: "career", name: "就业指导", icon: "/images/icon-job.png", color: "#52C41A", bgColor: "#E6F9ED" },
-      { type: "civil", name: "考公评估", icon: "/images/icon-civil.png", color: "#FA8C16", bgColor: "#FFF3E6" },
-      { type: "major", name: "转专业分析", icon: "/images/icon-transfer.png", color: "#722ED1", bgColor: "#F0E6FF" }
-    ]
+    activePlan: null,
+    latestReport: null,
+    reportCount: 0,
+    coachSummary: "",
+    agents: Object.keys(AGENT_META)
+      .filter((key) => key !== "employment")
+      .map((key) => ({ type: key, ...AGENT_META[key] }))
   },
-  
+
   onLoad() {
     const info = wx.getSystemInfoSync();
-    this.setData({ statusBarHeight: info.statusBarHeight });
+    const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
+    this.setData({ statusBarHeight: info.statusBarHeight, userId });
     this.loadAgents();
   },
 
   onShow() {
-    this.loadGrowthState();
+    this.loadDashboard();
   },
 
-  async loadGrowthState() {
-    const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
-    if (!userId) return;
+  async loadDashboard() {
+    const userId = this.data.userId || wx.getStorageSync("userId") || app.globalData.userId || "";
+    if (!userId) {
+      this.setData({ dashboardLoading: false, pageState: "new" });
+      return;
+    }
+    this.setData({ dashboardLoading: true });
     try {
-      const state = await app.request({ url: `/api/v1/growth/state/${userId}` });
-      if (!state || !state.session_id) {
-        this.setData({ activeSession: null });
-        return;
-      }
-      const names = {
-        graduate: "考研规划",
-        career: "就业指导",
-        employment: "就业指导",
-        civil: "考公评估",
-        major: "转专业分析"
-      };
-      const stageTexts = {
-        questioning: "信息收集中",
-        awaiting: "等待开始分析",
-        analyzing: "待确认分析",
-        report: "报告已生成"
-      };
+      const data = await app.request({ url: `/api/v1/growth/dashboard/${userId}` });
+      const activeSession = data.active_session ? this.formatActiveSession(data.active_session) : null;
+      const activePlan = data.active_plan ? {
+        ...data.active_plan,
+        percent: Math.max(0, Math.min(100, Math.round((data.active_plan.progress || 0) * 100)))
+      } : null;
+      const latestReport = data.latest_report ? {
+        ...data.latest_report,
+        displayTime: this.formatDate(data.latest_report.created_at)
+      } : null;
       this.setData({
-        activeSession: {
-          ...state,
-          name: names[state.agent] || "成长规划",
-          stageText: state.finished || state.has_report ? "报告已生成" : (stageTexts[state.stage] || "进行中"),
-          stepText: state.finished || state.has_report ? "可查看完整报告" : `已完成 ${state.current_step || 0}/${state.total_steps || 5} 轮信息采集`
-        }
+        pageState: data.page_state || "new",
+        activeSession,
+        activePlan,
+        latestReport,
+        reportCount: data.report_count || 0,
+        coachSummary: (data.coach && data.coach.last_summary) || "",
+        dashboardLoading: false
       });
     } catch (err) {
-      console.error("加载成长状态失败:", err);
+      console.error("加载成长首页失败:", err);
+      await this.loadLegacyState();
     }
   },
-  
-  async loadAgents() {
+
+  async loadLegacyState() {
     try {
-      const res = await api.getAgents();
-      if (res.agents && res.agents.length) {
-        const icons = {
-          graduate: "/images/icon-postgrad.png",
-          career: "/images/icon-job.png",
-          civil: "/images/icon-civil.png",
-          major: "/images/icon-transfer.png"
-        };
-        const colors = {
-          graduate: "#4A90D9",
-          career: "#52C41A",
-          civil: "#FA8C16",
-          major: "#722ED1"
-        };
-        const bgs = {
-          graduate: "#E6F2FF",
-          career: "#E6F9ED",
-          civil: "#FFF3E6",
-          major: "#F0E6FF"
-        };
+      const state = await app.request({ url: `/api/v1/growth/state/${this.data.userId}` });
+      if (!state || !state.session_id) {
+        this.setData({ pageState: "new", activeSession: null, dashboardLoading: false });
+        return;
+      }
+      if (state.finished || state.has_report) {
+        const meta = AGENT_META[state.agent] || AGENT_META.career;
         this.setData({
-          agents: res.agents.map(a => ({
-            type: a.type,
-            name: a.name || a.label,
-            icon: icons[a.type] || "/images/icon-postgrad.png",
-            color: colors[a.type] || "#4A90D9",
-            bgColor: bgs[a.type] || "#E6F2FF"
-          }))
+          pageState: "report_ready",
+          activeSession: null,
+          latestReport: {
+            session_id: state.session_id,
+            agent: state.agent,
+            title: `${meta.name}报告`,
+            summary: "完整规划报告已生成",
+            displayTime: this.formatDate(state.updated_at || state.created_at)
+          },
+          reportCount: 1,
+          dashboardLoading: false
+        });
+      } else {
+        this.setData({
+          pageState: "planning",
+          activeSession: this.formatActiveSession(state),
+          dashboardLoading: false
         });
       }
     } catch (err) {
-      console.error('加载 agents 失败:', err);
-      // 使用默认数据
+      this.setData({ dashboardLoading: false, pageState: "new" });
+      wx.showToast({ title: "成长状态加载失败", icon: "none" });
     }
   },
-  
+
+  formatActiveSession(state) {
+    const meta = AGENT_META[state.agent] || AGENT_META.career;
+    const stageTexts = {
+      questioning: "信息收集中",
+      awaiting: "等待开始分析",
+      analyzing: "待确认分析",
+      report: "报告生成中"
+    };
+    return {
+      ...state,
+      name: meta.name,
+      stageText: stageTexts[state.stage] || "规划进行中",
+      stepText: `已完成 ${state.current_step || 0}/${state.total_steps || 5} 轮信息采集`
+    };
+  },
+
+  async loadAgents() {
+    try {
+      const res = await api.getAgents();
+      if (!res.agents || !res.agents.length) return;
+      const agents = res.agents
+        .filter((item) => item.type !== "employment")
+        .map((item) => ({
+          type: item.type,
+          ...(AGENT_META[item.type] || AGENT_META.career),
+          name: item.name || item.label || (AGENT_META[item.type] || AGENT_META.career).name
+        }));
+      this.setData({ agents });
+    } catch (err) {
+      console.error("加载专项能力失败:", err);
+    }
+  },
+
+  formatDate(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  },
+
   goBack() { wx.switchTab({ url: "/pages/index/index" }); },
 
-  goHistory() { wx.navigateTo({ url: "/pages/history/history?type=plan" }); },
+  goReportCenter() { wx.navigateTo({ url: "/pages/history/history?type=plan" }); },
 
   continueSession() {
     const session = this.data.activeSession;
     if (!session) return;
-    if (session.finished || session.has_report) {
-      wx.navigateTo({
-        url: `/pages/report/report?session_id=${session.session_id}&agent_type=${session.agent}`
-      });
-      return;
-    }
     wx.navigateTo({
       url: `/pages/chatroom/chatroom?mode=resume&session_id=${session.session_id}&agent=${session.agent}`
     });
   },
-  
+
+  viewLatestReport() {
+    const report = this.data.latestReport;
+    if (!report) return;
+    wx.navigateTo({
+      url: `/pages/report/report?session_id=${report.session_id}&agent_type=${report.agent}`
+    });
+  },
+
+  startExecution() {
+    const report = this.data.latestReport;
+    if (!report) return;
+    wx.navigateTo({
+      url: `/pages/report/report?session_id=${report.session_id}&agent_type=${report.agent}&action=sync`
+    });
+  },
+
+  goCoach(e) {
+    const report = this.data.latestReport;
+    if (!report) {
+      this.goChat();
+      return;
+    }
+    const intent = e && e.currentTarget ? e.currentTarget.dataset.intent : "";
+    const prompt = COACH_PROMPTS[intent] || "我想继续聊聊目前的成长计划";
+    wx.navigateTo({
+      url: `/pages/chatroom/chatroom?mode=coach&session_id=${report.session_id}&agent=${report.agent}&prompt=${encodeURIComponent(prompt)}`
+    });
+  },
+
   goDetail(e) {
     wx.navigateTo({
       url: `/pages/chatroom/chatroom?mode=agent&agent=${e.currentTarget.dataset.type}`
@@ -121,10 +198,10 @@ Page({
   },
 
   async goChat() {
-    wx.showLoading({ title: "启动中..." });
+    if (this.data.dashboardLoading) return;
+    wx.showLoading({ title: "启动中...", mask: true });
     try {
-      const userId = wx.getStorageSync("userId") || app.globalData.userId || "";
-      const res = await api.startSandbox(userId);
+      const res = await api.startSandbox(this.data.userId);
       wx.hideLoading();
       wx.navigateTo({
         url: `/pages/chatroom/chatroom?mode=sandbox&session_id=${res.session_id || ""}`

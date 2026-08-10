@@ -88,6 +88,29 @@ page {
   align-items: center;
 }
 
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.month-nav-btn {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4A90D9;
+  background: #F2F7FC;
+  font-size: 36rpx;
+  line-height: 1;
+}
+
+.month-nav-btn:active {
+  background: #E2EEF9;
+}
+
 .dropdown {
   margin-left: 8rpx;
   font-size: 24rpx;
@@ -128,7 +151,8 @@ page {
   align-items: center;
   justify-content: center;
   height: 100rpx;
-  width: 100rpx;
+  width: 100%;
+  max-width: 100rpx;
   margin: 0 auto;
   border-radius: 16rpx;
   position: relative;
@@ -197,6 +221,14 @@ page {
 
 .dot-exam {
   background: #E74C3C;
+}
+
+.dot-todo {
+  background: #8E8E93;
+}
+
+.dot-ai_plan {
+  background: #F39C12;
 }
 
 /* 操作栏 */

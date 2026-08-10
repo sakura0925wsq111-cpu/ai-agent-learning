@@ -9,7 +9,7 @@ a PlanTask record (for bidirectional traceability).
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, DateTime, ForeignKey, Integer, Index
+from sqlalchemy import String, DateTime, ForeignKey, Integer, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database.base import Base
@@ -60,4 +60,8 @@ class PlanTask(Base):
     __table_args__ = (
         Index("ix_plan_tasks_todo", "todo_id"),
         Index("ix_plan_tasks_session_phase", "growth_session_id", "phase_key"),
+        UniqueConstraint(
+            "user_id", "growth_session_id", "phase_key", "plan_task_index",
+            name="uq_plan_tasks_growth_phase_index",
+        ),
     )

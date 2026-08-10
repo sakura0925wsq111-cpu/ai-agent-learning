@@ -580,4 +580,5 @@ def _store_preview(
         "import_id": import_id, "import_type": import_type,
         "total": len(items),
         "items": items,
+        "semester_start": semester_start.isoformat() if semester_start else None,
     })

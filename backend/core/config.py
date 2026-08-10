@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     )
 
     # ── App ──
-    app_name: str = "CampusPal"
+    app_name: str = "iCampus"
     app_version: str = "0.1.0"
     debug: bool = False
 

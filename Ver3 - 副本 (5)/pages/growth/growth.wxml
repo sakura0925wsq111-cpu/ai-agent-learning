@@ -1,133 +1,128 @@
-<!-- 固定顶部区域 -->
 <view class="fixed-header">
-  <!-- 状态栏占位 -->
   <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
-  
-  <!-- 自定义导航栏 -->
   <view class="custom-nav">
-    <view class="nav-left" bindtap="goBack">
-      <text class="back-icon">‹</text>
-    </view>
+    <view class="nav-left" bindtap="goBack"><text class="back-icon">‹</text></view>
     <view class="nav-title">成长模式</view>
-    <view class="nav-right nav-history" bindtap="goHistory">历史</view>
+    <view class="nav-right nav-reports" bindtap="goReportCenter">
+      <text>全部报告</text><text wx:if="{{reportCount}}"> {{reportCount}}</text>
+    </view>
   </view>
 </view>
 
-<!-- 可滚动内容区 -->
-<scroll-view class="scroll-content" scroll-y>
-
-  <!-- 标题区 -->
-  <view class="growth-header">
-    <view class="growth-title">探索你的未来方向</view>
-    <view class="growth-subtitle">选择一个方向，AI将为你提供个性化建议</view>
+<scroll-view class="scroll-content" scroll-y enhanced show-scrollbar="{{false}}">
+  <view class="dashboard-loading" wx:if="{{dashboardLoading}}">
+    <view class="loading-block loading-hero"></view>
+    <view class="loading-block loading-row"></view>
+    <view class="loading-block loading-grid"></view>
   </view>
 
-  <view wx:if="{{activeSession}}" class="active-plan-card" bindtap="continueSession">
-    <view class="active-plan-main">
-      <view class="active-plan-label">最近规划</view>
-      <view class="active-plan-title">{{activeSession.name}}</view>
-      <view class="active-plan-desc">{{activeSession.stepText}}</view>
-    </view>
-    <view class="active-plan-action">
-      <text class="active-plan-stage">{{activeSession.stageText}}</text>
-      <text class="active-plan-arrow">→</text>
-    </view>
-  </view>
+  <block wx:else>
+    <!-- 初次使用：把沙盘放在首屏，先解决方向问题。 -->
+    <block wx:if="{{pageState === 'new'}}">
+      <view class="intro-section">
+        <text class="intro-eyebrow">你的成长，从选择方向开始</text>
+        <text class="intro-title">先找到值得投入的方向</text>
+        <text class="intro-desc">还不确定考研、就业、考公还是转专业？先放进沙盘里比较。</text>
+      </view>
 
-  <!-- 功能网格 -->
-  <view class="feature-grid">
-    
-    <!-- 考研规划 -->
-    <view 
-      class="feature-card card-blue" 
-      bindtap="goDetail" 
-      data-type="graduate"
-    >
-      <view class="card-icon-wrap">
-        <image class="card-icon-img" src="/images/icon-postgrad.png" mode="aspectFit"></image>
+      <view class="sandbox-primary" bindtap="goChat">
+        <view class="sandbox-tags">
+          <text>考研</text><text>就业</text><text>考公</text><text>转专业</text>
+        </view>
+        <text class="sandbox-primary-title">多路径沙盘</text>
+        <text class="sandbox-primary-desc">同时比较匹配度、风险与时间成本，一次梳理多条选择。</text>
+        <view class="sandbox-primary-btn"><text>开始多路径对比</text><text>→</text></view>
       </view>
-      <view class="card-name">考研规划</view>
-      <view class="card-desc">院校选择、备考规划</view>
-      <view class="card-desc">复试模拟、资料推荐</view>
-      <view class="card-bottom-arrow">
-        <text class="arrow-icon">→</text>
+
+      <view class="section-heading">
+        <view><text class="section-title">已经有明确方向</text><text class="section-subtitle">直接进入专项规划</text></view>
+      </view>
+      <view class="agent-grid compact-grid">
+        <view class="agent-card {{item.className}}" wx:for="{{agents}}" wx:key="type" data-type="{{item.type}}" bindtap="goDetail">
+          <image class="agent-icon" src="{{item.icon}}" mode="aspectFit"></image>
+          <view class="agent-copy"><text class="agent-name">{{item.name}}</text><text class="agent-desc">{{item.desc}}</text></view>
+          <text class="agent-arrow">›</text>
+        </view>
+      </view>
+
+      <view class="coach-secondary" bindtap="goCoach">
+        <view class="coach-small-icon">成</view>
+        <view class="secondary-copy"><text class="secondary-title">暂时不想做规划？</text><text class="secondary-desc">先和成长教练聊聊现状</text></view>
+        <text class="secondary-arrow">→</text>
+      </view>
+    </block>
+
+    <!-- 有进行中的专项规划：优先恢复，不让用户重复开始。 -->
+    <block wx:elif="{{pageState === 'planning'}}">
+      <view class="intro-section compact-intro">
+        <text class="intro-eyebrow">规划正在继续</text>
+        <text class="intro-title">接着上次的思路往下走</text>
+        <text class="intro-desc">已有信息会自动保留，不需要重新回答。</text>
+      </view>
+      <view class="planning-card" bindtap="continueSession">
+        <view class="planning-top"><text class="planning-label">{{activeSession.stageText}}</text><text class="planning-step">{{activeSession.current_step || 0}}/{{activeSession.total_steps || 5}}</text></view>
+        <text class="planning-title">继续{{activeSession.name}}</text>
+        <text class="planning-desc">{{activeSession.stepText}}</text>
+        <view class="planning-action">继续规划 <text>→</text></view>
+      </view>
+    </block>
+
+    <!-- 已有报告或执行计划：成长教练成为主入口。 -->
+    <block wx:else>
+      <view class="coach-hero" bindtap="goCoach">
+        <view class="coach-header">
+          <view class="coach-avatar">成</view>
+          <view class="coach-title-wrap">
+            <text class="coach-title">成长教练</text>
+            <text class="coach-desc">{{activePlan ? '继续跟进你的' + activePlan.title : '围绕最新报告持续复盘和调整'}}</text>
+          </view>
+        </view>
+        <block wx:if="{{activePlan}}">
+          <view class="coach-progress-copy"><text>{{activePlan.phase_label}}{{activePlan.phase_range ? ' · ' + activePlan.phase_range : ''}}</text><text>已完成 {{activePlan.completed}}/{{activePlan.total}}</text></view>
+          <view class="coach-progress"><view style="width: {{activePlan.percent}}%;"></view></view>
+        </block>
+        <view class="coach-main-btn">继续聊聊 <text>→</text></view>
+      </view>
+
+      <view class="coach-quick-row">
+        <view class="coach-quick" data-intent="check_in" bindtap="goCoach"><text class="quick-icon">↗</text><text>汇报进展</text></view>
+        <view class="coach-quick" data-intent="blocked" bindtap="goCoach"><text class="quick-icon">?</text><text>遇到困难</text></view>
+        <view class="coach-quick" data-intent="weekly_review" bindtap="goCoach"><text class="quick-icon">✓</text><text>复盘本周</text></view>
+      </view>
+    </block>
+
+    <!-- 所有非新用户都保留稳定报告入口。 -->
+    <view class="report-card" wx:if="{{pageState !== 'new' && latestReport}}">
+      <view class="report-main" bindtap="viewLatestReport">
+        <text class="report-label">{{activePlan ? '当前执行计划' : '最新规划报告'}}</text>
+        <text class="report-title">{{latestReport.title}}</text>
+        <text class="report-meta">{{latestReport.displayTime}}{{activePlan ? ' · ' + activePlan.total + '项任务' : ' · 报告已生成'}}</text>
+      </view>
+      <view class="report-actions">
+        <view class="report-link" bindtap="viewLatestReport">查看报告</view>
+        <view class="report-start" wx:if="{{!activePlan}}" bindtap="startExecution">开始执行</view>
       </view>
     </view>
 
-    <!-- 就业指导 -->
-    <view 
-      class="feature-card card-green" 
-      bindtap="goDetail" 
-      data-type="career"
-    >
-      <view class="card-icon-wrap">
-        <image class="card-icon-img" src="/images/icon-job.png" mode="aspectFit"></image>
+    <block wx:if="{{pageState !== 'new'}}">
+      <view class="section-heading tools-heading">
+        <view><text class="section-title">专项能力</text><text class="section-subtitle">需要深度分析时使用</text></view>
       </view>
-      <view class="card-name">就业指导</view>
-      <view class="card-desc">职业测评、简历优化</view>
-      <view class="card-desc">面试模拟、岗位推荐</view>
-      <view class="card-bottom-arrow">
-        <text class="arrow-icon">→</text>
+      <view class="agent-grid compact-grid">
+        <view class="agent-card {{item.className}}" wx:for="{{agents}}" wx:key="type" data-type="{{item.type}}" bindtap="goDetail">
+          <image class="agent-icon" src="{{item.icon}}" mode="aspectFit"></image>
+          <view class="agent-copy"><text class="agent-name">{{item.name}}</text><text class="agent-desc">{{item.desc}}</text></view>
+          <text class="agent-arrow">›</text>
+        </view>
       </view>
-    </view>
 
-    <!-- 考公评估 -->
-    <view 
-      class="feature-card card-orange" 
-      bindtap="goDetail" 
-      data-type="civil"
-    >
-      <view class="card-icon-wrap">
-        <image class="card-icon-img" src="/images/icon-civil.png" mode="aspectFit"></image>
+      <view class="sandbox-secondary" bindtap="goChat">
+        <view class="sandbox-secondary-icon">◇</view>
+        <view class="secondary-copy"><text class="secondary-title">想重新比较方向？</text><text class="secondary-desc">进入多路径沙盘重新探索</text></view>
+        <text class="secondary-arrow">→</text>
       </view>
-      <view class="card-name">考公评估</view>
-      <view class="card-desc">岗位匹配、备考规划</view>
-      <view class="card-desc">真题练习、上岸路径</view>
-      <view class="card-bottom-arrow">
-        <text class="arrow-icon">→</text>
-      </view>
-    </view>
+    </block>
+  </block>
 
-    <!-- 转专业分析 -->
-    <view 
-      class="feature-card card-purple" 
-      bindtap="goDetail" 
-      data-type="major"
-    >
-      <view class="card-icon-wrap">
-        <image class="card-icon-img" src="/images/icon-transfer.png" mode="aspectFit"></image>
-      </view>
-      <view class="card-name">转专业分析</view>
-      <view class="card-desc">转专业条件、成功率</view>
-      <view class="card-desc">课程差异、风险评估</view>
-      <view class="card-bottom-arrow">
-        <text class="arrow-icon">→</text>
-      </view>
-    </view>
-
-  </view>
-
-  <!-- 沙盒多路径对比入口 -->
-  <view class="sandbox-entry-card" bindtap="goChat">
-    <view class="sandbox-entry-header">
-      <view class="sandbox-badge">NEW</view>
-      <view class="sandbox-entry-title">多路径对比</view>
-    </view>
-    <view class="sandbox-entry-body">
-      <view class="sandbox-path-tags">
-        <text class="path-tag tag-blue">考研</text>
-        <text class="path-tag tag-green">就业</text>
-        <text class="path-tag tag-orange">考公</text>
-        <text class="path-tag tag-purple">转专业</text>
-      </view>
-      <view class="sandbox-entry-desc">AI 同时分析四条路径，帮你找到最适合的方向</view>
-    </view>
-    <view class="sandbox-entry-footer">
-      <text class="sandbox-entry-cta">开始对比</text>
-      <text class="sandbox-entry-arrow">→</text>
-    </view>
-  </view>
-  <!-- 底部留白 -->
-  <view style="height: 40rpx;"></view>
-
+  <view class="safe-space"></view>
 </scroll-view>

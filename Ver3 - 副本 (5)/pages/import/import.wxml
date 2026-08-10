@@ -39,6 +39,24 @@
     show-scrollbar="{{false}}"
     style="padding-top: {{navHeight}}px;"
   >
+    <picker
+      wx:if="{{activeTab === 'course'}}"
+      mode="date"
+      value="{{semesterStart || semesterPickerValue}}"
+      start="{{semesterStartMin}}"
+      end="{{semesterStartMax}}"
+      bindchange="onSemesterDateChange"
+    >
+      <view class="semester-setting-card" aria-role="button" aria-label="设置开学日期">
+        <view class="semester-setting-main">
+          <text class="semester-setting-title">开学日期</text>
+          <text class="semester-setting-desc">用于计算周次，并把课程准确同步到月历</text>
+        </view>
+        <view class="semester-setting-value {{semesterStart ? '' : 'unset'}}">
+          {{semesterStart || '请设置'}} <text class="semester-setting-arrow">›</text>
+        </view>
+      </view>
+    </picker>
     
     <!-- 初始状态：上传区域 -->
     <view class="upload-section" wx:if="{{status === 'idle'}}">

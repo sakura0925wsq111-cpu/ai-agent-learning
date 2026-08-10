@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-"""CampusPal - AI Decision Coach for university students.
+"""iCampus - AI campus growth assistant for university students.
 
 FastAPI application entry point.
 Creates the app, registers lifespan events, exception handlers, and routers.

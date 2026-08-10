@@ -67,7 +67,10 @@
             </view>
           </view>
 
-          <view class="task-tag {{item.tagClass}}">
+          <view class="task-tag {{item.tagClass}}" wx:if="{{item.source === 'ai_plan'}}" catchtap="viewSourceReport" data-index="{{index}}">
+            <text>{{item.tagText}}</text>
+          </view>
+          <view class="task-tag {{item.tagClass}}" wx:else>
             <text>{{item.tagText}}</text>
           </view>
 
@@ -146,12 +149,12 @@
 <view class="delete-modal" wx:if="{{showDeleteModal}}">
   <view class="delete-content">
     <view class="delete-icon">🗑️</view>
-    <text class="delete-title">确认删除</text>
-    <text class="delete-desc">删除后无法恢复，是否确认删除该任务？</text>
+    <text class="delete-title">{{deleteIsPlan ? '放弃这项计划任务？' : '确认删除'}}</text>
+    <text class="delete-desc">{{deleteIsPlan ? '任务会从待办中移除，但仍保留在成长复盘记录里。' : '删除后无法恢复，是否确认删除该任务？'}}</text>
   </view>
   <view class="delete-actions">
     <view class="delete-btn cancel" bindtap="cancelDelete">取消</view>
-    <view class="delete-btn confirm" bindtap="confirmDelete">删除</view>
+    <view class="delete-btn confirm" bindtap="confirmDelete">{{deleteIsPlan ? '确认放弃' : '删除'}}</view>
   </view>
 </view>
 

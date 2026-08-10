@@ -22,6 +22,7 @@ from schemas.growth import (
     AgentTypeEnum, GrowthChatRequest, GrowthStartRequest,
     GrowthChatResponse, GrowthStateResponse, GrowthHistoryResponse,
     GrowthSessionSummary, GrowthReportResponse, QuestionCard,
+    GrowthDashboardResponse, GrowthReportListResponse, GrowthReportSummary,
 )
 from crud.base import CRUDBase
 from crud.user import user as user_crud
@@ -429,17 +430,138 @@ class GrowthService:
             ) for s in sessions
         ])
 
-    def get_report(self, db: Session, *, session_id: str) -> GrowthReportResponse:
+    def get_reports(
+        self, db: Session, *, user_id: str, limit: int = 50,
+    ) -> GrowthReportListResponse:
+        """List persisted reports directly instead of inferring from sessions."""
+        from services.today import TodayService
+
+        reports = db.query(GrowthReport).filter(
+            GrowthReport.user_id == user_id,
+        ).order_by(GrowthReport.created_at.desc()).limit(limit).all()
+        items: list[GrowthReportSummary] = []
+        today_service = TodayService()
+        for report in reports:
+            payload = _report_payload(report)
+            try:
+                progress = today_service.get_plan_progress(
+                    db, user_id=user_id, growth_session_id=report.session_id,
+                )
+            except Exception as exc:
+                logger.warning("Growth reports: progress lookup failed: {}", exc)
+                progress = {"total": 0, "overall_completion": 0.0}
+            items.append(GrowthReportSummary(
+                report_id=report.id,
+                session_id=report.session_id,
+                agent=report.agent_type,
+                title=_agent_report_title(report.agent_type),
+                summary=str(
+                    payload.get("summary") or payload.get("goal")
+                    or payload.get("current_status") or "完整规划报告已生成"
+                )[:160],
+                created_at=report.created_at,
+                is_executing=bool(progress.get("total", 0)),
+                progress=float(progress.get("overall_completion", 0.0)),
+            ))
+        return GrowthReportListResponse(
+            user_id=user_id, total=len(items), reports=items,
+        )
+
+    def get_dashboard(self, db: Session, *, user_id: str) -> GrowthDashboardResponse:
+        """Build the single state snapshot used by the Growth home page."""
+        from models.today import PlanTask
+        from services.today import TodayService
+
+        sessions = session_crud.get_multi(db, user_id=user_id)
+        sessions = sorted(
+            sessions, key=lambda item: item.updated_at or item.created_at,
+            reverse=True,
+        )
+        active = next((item for item in sessions if not item.finished), None)
+        reports_response = self.get_reports(db, user_id=user_id, limit=50)
+        latest_report = reports_response.reports[0] if reports_response.reports else None
+
+        active_plan: dict[str, Any] | None = None
+        latest_link = db.query(PlanTask).filter(
+            PlanTask.user_id == user_id,
+        ).order_by(PlanTask.synced_at.desc()).first()
+        if latest_link is not None and latest_link.growth_session_id:
+            progress = TodayService().get_plan_progress(
+                db,
+                user_id=user_id,
+                growth_session_id=latest_link.growth_session_id,
+            )
+            source_report = db.query(GrowthReport).filter(
+                GrowthReport.user_id == user_id,
+                GrowthReport.session_id == latest_link.growth_session_id,
+            ).first()
+            current = progress.get("current_phase") or {}
+            phase_key = current.get("phase_key") or latest_link.phase_key
+            phase_number = _phase_number(phase_key)
+            active_plan = {
+                "session_id": latest_link.growth_session_id,
+                "report_id": source_report.id if source_report else None,
+                "agent": source_report.agent_type if source_report else "career",
+                "title": _agent_report_title(source_report.agent_type if source_report else "career"),
+                "phase_key": phase_key,
+                "phase_label": f"第{phase_number}阶段",
+                "phase_range": current.get("label", ""),
+                "completed": int(progress.get("completed", 0)),
+                "total": int(progress.get("total", 0)),
+                "cancelled": int(progress.get("cancelled", 0)),
+                "progress": float(progress.get("overall_completion", 0.0)),
+            }
+
+        if active is not None:
+            page_state = "planning"
+        elif active_plan is not None:
+            page_state = "executing"
+        elif latest_report is not None:
+            page_state = "report_ready"
+        else:
+            page_state = "new"
+
+        recent_coach = db.query(GrowthConversation).filter(
+            GrowthConversation.user_id == user_id,
+            GrowthConversation.role == "assistant",
+            GrowthConversation.stage == "qa",
+        ).order_by(GrowthConversation.created_at.desc()).first()
+        return GrowthDashboardResponse(
+            user_id=user_id,
+            page_state=page_state,
+            report_count=reports_response.total,
+            active_session=(
+                {
+                    "session_id": active.id,
+                    "agent": active.agent_type,
+                    "stage": active.stage,
+                    "current_step": active.current_step,
+                    "total_steps": active.total_steps or MAX_FOLLOW_UP,
+                    "updated_at": active.updated_at,
+                }
+                if active is not None else None
+            ),
+            latest_report=latest_report.model_dump() if latest_report else None,
+            active_plan=active_plan,
+            coach={
+                "available": latest_report is not None,
+                "session_id": latest_report.session_id if latest_report else None,
+                "agent": latest_report.agent if latest_report else None,
+                "last_summary": recent_coach.content[:120] if recent_coach else "",
+                "quick_actions": ["汇报进展", "遇到困难", "复盘本周"],
+            },
+        )
+
+    def get_report(
+        self, db: Session, *, session_id: str, user_id: str | None = None,
+    ) -> GrowthReportResponse:
         reports = report_crud.get_multi(db, session_id=session_id, limit=1)
         if not reports:
             raise NotFoundException(f"Report for session {session_id} not found")
         r = reports[0]
-        data: dict[str, Any] = {}
-        if r.full_report_json:
-            try:
-                data = json.loads(r.full_report_json)
-            except json.JSONDecodeError:
-                pass
+        if user_id is not None and r.user_id != user_id:
+            raise NotFoundException(f"Report for session {session_id} not found")
+        data = _report_payload(r)
         return GrowthReportResponse(
             session_id=session_id, agent=r.agent_type,
             report=data, created_at=r.created_at,
@@ -448,8 +570,39 @@ class GrowthService:
     # ── Memory integration ────────────────────────────────────
 
 
+    def _coach_context(
+        self, db: Session, *, user_id: str, session_id: str, agent_type: str,
+    ) -> tuple[str, str]:
+        """Load real execution progress and stable memory for coach turns."""
+        execution_context = "尚未把规划同步到今日任务。"
+        memory_context = "暂无额外长期记忆。"
+        try:
+            from services.today import TodayService
+            progress = TodayService().get_plan_progress(
+                db, user_id=user_id, growth_session_id=session_id,
+            )
+            if progress.get("total", 0):
+                execution_context = json.dumps(progress, ensure_ascii=False)[:2500]
+        except Exception as exc:
+            logger.warning("Growth coach: progress context unavailable: {}", exc)
+        try:
+            from services.memory_service import memory_service
+            memory = memory_service.load_growth_context(
+                db, user_id=user_id, agent_type=agent_type,
+            )
+            compact = {
+                "profile": memory.get("profile", {}),
+                "goal": memory.get("goal", ""),
+                "action_plan": memory.get("action_plan", ""),
+                "analysis": memory.get("analysis", ""),
+            }
+            memory_context = json.dumps(compact, ensure_ascii=False)[:2500]
+        except Exception as exc:
+            logger.warning("Growth coach: memory context unavailable: {}", exc)
+        return execution_context, memory_context
+
     def free_qa(self, db: Session, *, request: GrowthChatRequest) -> dict[str, Any]:
-        """Free-form Q&A after report is complete. Uses LLM directly, not LangGraph."""
+        """Ongoing Growth Coach conversation after the first report exists."""
         if not request.session_id:
             raise ValidationException("缺少规划会话，无法继续咨询。")
         db_sess = _get_owned_sess(db, request.session_id, request.user_id)
@@ -474,13 +627,26 @@ class GrowthService:
         except Exception:
             pass
 
+        execution_context, memory_context = self._coach_context(
+            db,
+            user_id=request.user_id,
+            session_id=request.session_id,
+            agent_type=agent_type,
+        )
+
         system_prompt = (
-            f"你是一个{agent_type}规划顾问。以下是你为该用户生成的规划报告摘要：\n"
+            f"你是用户长期使用的成长教练，当前主要跟进{agent_type}方向。"
+            "你负责日常沟通、执行复盘和规划调整建议，而不是重新跑一套固定问卷。\n\n"
+            f"用户已经确认的规划报告：\n"
             f"{report_text[:2000]}\n\n"
-            f"以下是你们的对话历史：\n{qa_history[:2000]}\n\n"
-            f"现在用户想继续咨询，请基于以上信息直接回答问题。"
-            f"不要再追问基本信息，不要再启动规划流程，直接回答用户的问题。"
-            f"保持友好、专业、有帮助的语气。"
+            f"今日任务与真实执行进度：\n{execution_context}\n\n"
+            f"相关长期记忆：\n{memory_context}\n\n"
+            f"最近对话：\n{qa_history[:2000]}\n\n"
+            "请先回应用户当前感受或问题，再结合真实进度给出一个最值得执行的下一步。"
+            "如果用户想调整规划，请清楚列出建议保留、延期、删除或新增的内容，"
+            "并明确说明这只是调整建议、需要用户确认；不要声称已经修改任务。"
+            "不要重复收集已知基础资料。信息确实不足时最多追问一个关键问题。"
+            "语气自然、克制，像持续了解用户的教练，不使用Markdown标题。"
         )
 
         msg = request.message.strip()
@@ -543,12 +709,23 @@ class GrowthService:
         except Exception:
             pass
 
+        execution_context, memory_context = self._coach_context(
+            db,
+            user_id=request.user_id,
+            session_id=request.session_id,
+            agent_type=agent_type,
+        )
+
         system_prompt = (
-            f"你是专业的{agent_type}规划顾问。以下是用户已经确认的规划报告：\n"
+            f"你是用户长期使用的成长教练，当前主要跟进{agent_type}方向。\n"
+            f"用户已经确认的规划报告：\n"
             f"{report_text[:2000]}\n\n"
+            f"今日任务与真实执行进度：\n{execution_context}\n\n"
+            f"相关长期记忆：\n{memory_context}\n\n"
             f"以下是最近的对话历史：\n{qa_history[:2000]}\n\n"
-            "请基于报告和对话直接回答用户的新问题。不要重复收集基础资料，"
-            "不要重新启动规划流程；信息不足时明确说明，不要编造。"
+            "请基于报告、执行进度和记忆直接回答。先回应当前问题，再给一个具体下一步。"
+            "涉及调整时列出变更建议并等待用户确认，不要声称已经修改任务。"
+            "不要重复收集基础资料；信息不足时最多追问一个关键问题，不要编造。"
         )
 
         msg = request.message.strip()
@@ -679,6 +856,31 @@ class GrowthService:
 
 def _norm(a: Any) -> str:
     return a.value if isinstance(a, AgentTypeEnum) else str(a)
+
+
+def _agent_report_title(agent_type: str) -> str:
+    return {
+        "graduate": "考研规划报告",
+        "career": "就业指导报告",
+        "employment": "就业指导报告",
+        "civil": "考公评估报告",
+        "major": "转专业分析报告",
+    }.get(agent_type, "个人发展规划报告")
+
+
+def _report_payload(report: GrowthReport) -> dict[str, Any]:
+    try:
+        payload = json.loads(report.full_report_json or "{}")
+        return payload if isinstance(payload, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _phase_number(phase_key: str) -> int:
+    try:
+        return max(1, int(str(phase_key).rsplit("_", 1)[-1]))
+    except (TypeError, ValueError):
+        return 1
 
 
 def _get_sess(db: Session, sid: str) -> GrowthSession:

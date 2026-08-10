@@ -11,7 +11,7 @@ from database.base import Base
 
 
 class Todo(Base):
-    """A user todo item with three-state lifecycle: pending → done → archived."""
+    """A user todo item with a recoverable execution lifecycle."""
 
     __tablename__ = "todos"
 
@@ -25,7 +25,7 @@ class Todo(Base):
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending",
-        comment="pending / done / archived"
+        comment="pending / done / archived / cancelled"
     )
     deadline: Mapped[str | None] = mapped_column(String(50), nullable=True)
     source: Mapped[str | None] = mapped_column(

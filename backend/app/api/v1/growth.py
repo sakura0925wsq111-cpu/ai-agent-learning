@@ -31,11 +31,14 @@ from schemas.growth import (
     GrowthStateResponse,
     GrowthHistoryResponse,
     GrowthReportResponse,
+    GrowthDashboardResponse,
+    GrowthReportListResponse,
     AgentListResponse,
 )
 from services.growth_service import get_growth_service
 from services.llm_service import get_llm_service
 from planning.router import PlanningRouter
+from utils.auth import get_current_user_id, require_user_access
 
 router = APIRouter(prefix="/growth", tags=["growth"])
 
@@ -112,15 +115,45 @@ async def growth_history(
     return APIResponse.ok(data=result).model_dump()
 
 
+@router.get("/dashboard/{user_id}", response_model=APIResponse[GrowthDashboardResponse])
+async def growth_dashboard(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    """Return the state-aware Growth home snapshot in one request."""
+    require_user_access(user_id, current_user_id)
+    service = get_growth_service(get_llm_service())
+    result = service.get_dashboard(db, user_id=user_id)
+    return APIResponse.ok(data=result).model_dump()
+
+
+@router.get("/reports", response_model=APIResponse[GrowthReportListResponse])
+async def growth_reports(
+    user_id: str = Query(..., description="User ID"),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    """List real GrowthReport rows for the report center."""
+    require_user_access(user_id, current_user_id)
+    service = get_growth_service(get_llm_service())
+    result = service.get_reports(db, user_id=user_id, limit=limit)
+    return APIResponse.ok(data=result).model_dump()
+
+
 @router.get("/report/{session_id}", response_model=APIResponse[GrowthReportResponse])
 async def growth_report(
     session_id: str,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ) -> dict[str, Any]:
     """Get the final growth report for a completed session."""
     llm = get_llm_service()
     service = get_growth_service(llm)
-    result = service.get_report(db, session_id=session_id)
+    result = service.get_report(
+        db, session_id=session_id, user_id=current_user_id,
+    )
     return APIResponse.ok(data=result).model_dump()
 
 

@@ -1,4 +1,4 @@
-﻿# CampusPal 前端 API 对接文档
+# iCampus 前端 API 对接文档
 
 ## 鉴权约定
 

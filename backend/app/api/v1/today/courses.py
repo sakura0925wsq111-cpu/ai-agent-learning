@@ -2,6 +2,7 @@
 """Courses CRUD API — manual creation + batch import target."""
 
 import json
+from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -31,6 +32,7 @@ def _course_to_dict(c: Course) -> dict:
         "teacher": c.teacher, "location": c.location,
         "schedule": schedule, "notes": c.notes, "color": c.color,
         "source": c.source,
+        "semester_start": c.semester_start.isoformat() if c.semester_start else None,
         "created_at": c.created_at.isoformat() if c.created_at else "",
         "updated_at": c.updated_at.isoformat() if c.updated_at else "",
     }
@@ -59,6 +61,7 @@ def create_course(
         "notes": payload.notes,
         "color": payload.color,
         "source": payload.source,
+        "semester_start": payload.semester_start,
     })
     logger.info("Course created: {} (user={})", obj.id, user_id)
     return APIResponse.ok(data=_course_to_dict(obj))
@@ -92,6 +95,33 @@ def list_courses(
     items = [_course_to_dict(c) for c in courses]
     return APIResponse.ok(data={
         "user_id": user_id, "total": len(items), "courses": items,
+    })
+
+
+class SemesterSettingsUpdate(BaseModel):
+    semester_start: date
+
+
+@router.put("/semester-settings", response_model=APIResponse[dict])
+def update_semester_settings(
+    payload: SemesterSettingsUpdate,
+    user_id: str = Query(..., description="User ID"),
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    """Apply one semester start date to all of the user's existing courses."""
+    require_user_access(user_id, current_user_id)
+    if user_crud.get(db, id=user_id) is None:
+        raise NotFoundException(f"User {user_id} not found")
+
+    courses = db.query(Course).filter(Course.user_id == user_id).all()
+    for course in courses:
+        course.semester_start = payload.semester_start
+    db.commit()
+    return APIResponse.ok(data={
+        "user_id": user_id,
+        "semester_start": payload.semester_start.isoformat(),
+        "updated_count": len(courses),
     })
 
 
@@ -171,6 +201,7 @@ class CourseBatchItem(BaseModel):
     notes: str | None = None
     color: str = Field(default="#4A90D9")
     source: str = Field(default="manual")
+    semester_start: date | None = None
 
 
 class CourseBatchRequest(BaseModel):
@@ -202,6 +233,7 @@ def batch_create_courses(
             "notes": item.notes,
             "color": item.color,
             "source": item.source,
+            "semester_start": item.semester_start,
         })
         created.append({"id": obj.id, "name": obj.name})
 

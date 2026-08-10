@@ -131,6 +131,35 @@ class GrowthReportResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GrowthReportSummary(BaseModel):
+    """Stable, discoverable summary shown in the Growth report center."""
+    report_id: str
+    session_id: str
+    agent: str
+    title: str
+    summary: str = ""
+    created_at: datetime | None = None
+    is_executing: bool = False
+    progress: float = 0.0
+
+
+class GrowthReportListResponse(BaseModel):
+    user_id: str
+    total: int = 0
+    reports: list[GrowthReportSummary] = Field(default_factory=list)
+
+
+class GrowthDashboardResponse(BaseModel):
+    """One-call snapshot used to render the state-aware Growth home page."""
+    user_id: str
+    page_state: str = "new"
+    report_count: int = 0
+    active_session: dict[str, Any] | None = None
+    latest_report: dict[str, Any] | None = None
+    active_plan: dict[str, Any] | None = None
+    coach: dict[str, Any] = Field(default_factory=dict)
+
+
 class AgentListResponse(BaseModel):
     """Response listing all available agents."""
     agents: list[dict[str, str]]

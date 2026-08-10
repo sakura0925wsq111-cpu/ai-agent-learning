@@ -58,6 +58,7 @@
 </scroll-view>
 
 <view class="bottom-bar" wx:if="{{!loading && !error}}">
-  <view class="btn-secondary" bindtap="viewHistory"><text>历史记录</text></view>
-  <view class="btn-primary" bindtap="startNewPlan"><text>制定新规划</text></view>
+  <view class="btn-secondary" bindtap="continueCoach"><text>继续跟进</text></view>
+  <view class="btn-primary" wx:if="{{planStarted}}" bindtap="viewTasks"><text>查看执行进度</text></view>
+  <view class="btn-primary" wx:else bindtap="startExecution"><text>{{syncing ? '正在加入...' : '开始执行'}}</text></view>
 </view>

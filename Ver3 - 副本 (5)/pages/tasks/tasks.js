@@ -21,6 +21,7 @@ Page({
     formTitle: "", formDate: "", formTime: "12:00",
     today: "",
     showDeleteModal: false, deleteId: null, deleteIndex: null,
+    deleteIsPlan: false,
     showLongPressHint: false
   },
 
@@ -85,7 +86,9 @@ Page({
       done: item.status === "done" || item.status === "archived",
       archived: item.status === "archived",
       source: item.source || "manual",
-      tagText: tagConfig.text, tagClass: tagConfig.class,
+      tagText: item.source_label || tagConfig.text, tagClass: tagConfig.class,
+      growthSessionId: item.growth_session_id || "",
+      growthAgent: item.growth_agent || "career",
       status: item.status
     };
   },
@@ -167,11 +170,17 @@ Page({
   // ========== 左滑删除 ==========
   onDeleteTap(e) {
     const { id, index } = e.currentTarget.dataset;
-    this.setData({ showDeleteModal: true, deleteId: id, deleteIndex: index });
+    const item = this.data.taskList[index];
+    this.setData({
+      showDeleteModal: true,
+      deleteId: id,
+      deleteIndex: index,
+      deleteIsPlan: Boolean(item && item.source === "ai_plan")
+    });
   },
 
   cancelDelete() {
-    this.setData({ showDeleteModal: false, deleteId: null, deleteIndex: null });
+    this.setData({ showDeleteModal: false, deleteId: null, deleteIndex: null, deleteIsPlan: false });
   },
 
   async confirmDelete() {
@@ -183,12 +192,12 @@ Page({
         method: "DELETE",
         url: "/api/v1/todos/" + deleteId + "?user_id=" + this.data.userId
       });
-      wx.showToast({ title: "已删除", icon: "success" });
+      wx.showToast({ title: this.data.deleteIsPlan ? "已放弃执行" : "已删除", icon: "success" });
       this.loadTasks();
     } catch (err) {
       wx.showToast({ title: "删除失败", icon: "error" });
     }
-    this.setData({ deleteId: null, deleteIndex: null });
+    this.setData({ deleteId: null, deleteIndex: null, deleteIsPlan: false });
   },
 
   // ========== 点击编辑 ==========
@@ -207,6 +216,15 @@ Page({
       formTime = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
     }
     this.setData({ showModal: true, isEdit: true, editId: id, formTitle: item.title, formDate: formDate, formTime: formTime });
+  },
+
+  viewSourceReport(e) {
+    const { index } = e.currentTarget.dataset;
+    const item = this.data.taskList[index];
+    if (!item || !item.growthSessionId) return;
+    wx.navigateTo({
+      url: `/pages/report/report?session_id=${item.growthSessionId}&agent_type=${item.growthAgent || "career"}`
+    });
   },
 
   // ========== FAB 新建 ==========
