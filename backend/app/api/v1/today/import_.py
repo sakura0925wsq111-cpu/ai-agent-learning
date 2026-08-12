@@ -7,8 +7,8 @@ Excel exam schedule: flexible column-mapped extraction, zero LLM.
 
 from __future__ import annotations
 
-import io, json, re, uuid
-from datetime import date as dt_date, datetime
+import io, json, re
+from datetime import date as dt_date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
@@ -18,7 +18,8 @@ from loguru import logger
 from database.session import get_db
 from schemas.response import APIResponse
 from schemas.today import ImportConfirmRequest
-from models.today import Course, Exam
+from core.config import settings
+from models.today import Course, Exam, ImportPreview
 from services.llm_service import get_llm_service
 from utils.auth import get_current_user_id, require_user_access
 
@@ -27,20 +28,52 @@ router = APIRouter()
 @router.get("/import/preview", response_model=APIResponse[dict])
 def get_import_preview(
     import_id: str = Query(..., description="Import preview ID"),
+    db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
 ):
     """Get import preview data by import_id."""
-    preview = _preview_store.get(import_id)
+    preview = db.get(ImportPreview, import_id)
     if preview is None:
-        return APIResponse.error(code=404, message="Preview not found or expired")
-    require_user_access(preview["user_id"], current_user_id)
+        return APIResponse.error(code=404, message="导入预览不存在或已过期")
+    require_user_access(preview.user_id, current_user_id)
+    if _is_preview_expired(preview):
+        return APIResponse.error(code=410, message="导入预览已过期，请重新上传")
+    items = json.loads(preview.items_json)
     return APIResponse.ok(data={
         "import_id": import_id,
-        "import_type": preview["import_type"],
-        "total": len(preview["items"]),
-        "items": preview["items"],
+        "import_type": preview.import_type,
+        "status": preview.status,
+        "total": len(items),
+        "items": items,
     })
-_preview_store: dict[str, dict[str, Any]] = {}
+
+
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+
+def _is_preview_expired(preview: ImportPreview) -> bool:
+    return _as_utc(preview.expires_at) <= datetime.now(timezone.utc)
+
+
+async def _read_upload(
+    file: UploadFile,
+    *,
+    suffixes: tuple[str, ...],
+    label: str,
+    magic: tuple[bytes, ...],
+) -> bytes:
+    filename = (file.filename or "").lower()
+    if not filename.endswith(suffixes):
+        raise ValueError(f"仅支持 {label} 文件")
+    content = await file.read(settings.upload_max_bytes + 1)
+    if not content:
+        raise ValueError("上传文件为空")
+    if len(content) > settings.upload_max_bytes:
+        raise ValueError(f"文件不能超过 {settings.upload_max_bytes // (1024 * 1024)} MB")
+    if magic and not any(content.startswith(signature) for signature in magic):
+        raise ValueError(f"文件内容不是有效的 {label} 格式")
+    return content
 
 WEEKDAY_KW = ["星期一","星期二","星期三","星期四","星期五","星期六","星期日"]
 _EXAM_DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})\((\d{2}:\d{2})-(\d{2}:\d{2})\)")
@@ -346,7 +379,7 @@ def _extract_exams_from_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
                 break
 
         if not matched:
-            logger.warning("Could not parse date from: '{}'", date_raw[:80])
+            logger.warning("Could not parse an exam date value")
 
     wb.close()
     return exams
@@ -418,13 +451,12 @@ async def import_pdf(
     current_user_id: str = Depends(get_current_user_id),
 ):
     require_user_access(user_id, current_user_id)
-    if file.content_type and "pdf" not in file.content_type:
-        return APIResponse.error(
-            code=400,
-            message="Only PDF files supported. Use /import/excel for Excel."
+    try:
+        file_bytes = await _read_upload(
+            file, suffixes=(".pdf",), label="PDF", magic=(b"%PDF-",)
         )
-
-    file_bytes = await file.read()
+    except ValueError as exc:
+        return APIResponse.error(code=400, message=str(exc))
     resolved_semester: dt_date | None = None
 
     if import_type == "course":
@@ -453,7 +485,7 @@ async def import_pdf(
     if not items:
         return APIResponse.error(code=422, message="No items found in PDF")
 
-    return _store_preview(user_id, import_type, items, resolved_semester)
+    return _store_preview(db, user_id, import_type, items, resolved_semester)
 
 
 @router.post("/import/excel", response_model=APIResponse[dict])
@@ -464,10 +496,12 @@ async def import_excel(
     current_user_id: str = Depends(get_current_user_id),
 ):
     require_user_access(user_id, current_user_id)
-    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
-        return APIResponse.error(code=400, message="Only .xlsx / .xls files supported")
-
-    file_bytes = await file.read()
+    try:
+        file_bytes = await _read_upload(
+            file, suffixes=(".xlsx",), label=".xlsx", magic=(b"PK\x03\x04",)
+        )
+    except ValueError as exc:
+        return APIResponse.error(code=400, message=str(exc))
 
     try:
         items = _extract_exams_from_xlsx(file_bytes)
@@ -478,7 +512,7 @@ async def import_excel(
     if not items:
         return APIResponse.error(code=422, message="No exam records found in Excel file")
 
-    return _store_preview(user_id, "exam", items)
+    return _store_preview(db, user_id, "exam", items)
 
 
 @router.post("/import/confirm", response_model=APIResponse[dict])
@@ -487,24 +521,55 @@ def confirm_import(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
 ):
-    preview = _preview_store.get(payload.import_id)
+    preview = db.get(ImportPreview, payload.import_id)
     if preview is None:
-        return APIResponse.error(code=404, message="Preview not found or already confirmed")
-    require_user_access(preview["user_id"], current_user_id)
-    _preview_store.pop(payload.import_id, None)
+        return APIResponse.error(code=404, message="导入预览不存在")
+    require_user_access(preview.user_id, current_user_id)
+    if preview.status == "confirmed" and preview.result_json:
+        return APIResponse.ok(data=json.loads(preview.result_json), message="该导入已确认")
+    if preview.status != "pending":
+        return APIResponse.error(code=409, message="导入正在处理，请勿重复提交")
+    if _is_preview_expired(preview):
+        preview.status = "expired"
+        db.commit()
+        return APIResponse.error(code=410, message="导入预览已过期，请重新上传")
 
-    user_id, itype, items = preview["user_id"], preview["import_type"], preview["items"]
+    claimed = db.query(ImportPreview).filter(
+        ImportPreview.id == payload.import_id,
+        ImportPreview.status == "pending",
+    ).update({ImportPreview.status: "processing"}, synchronize_session=False)
+    db.commit()
+    if claimed != 1:
+        latest = db.get(ImportPreview, payload.import_id)
+        if latest and latest.status == "confirmed" and latest.result_json:
+            return APIResponse.ok(data=json.loads(latest.result_json), message="该导入已确认")
+        return APIResponse.error(code=409, message="导入正在处理，请勿重复提交")
+    db.refresh(preview)
+    user_id, itype, items = preview.user_id, preview.import_type, json.loads(preview.items_json)
+    if payload.selected_indexes is not None:
+        selected = sorted(set(payload.selected_indexes))
+        if any(index < 0 or index >= len(items) for index in selected):
+            preview.status = "pending"
+            db.commit()
+            return APIResponse.error(code=400, message="预览选择项无效，请刷新后重试")
+        items = [items[index] for index in selected]
+    if not items:
+        preview.status = "pending"
+        db.commit()
+        return APIResponse.error(code=400, message="请至少选择一项导入")
     saved = 0
-
-    if itype == "course":
-        # Delete existing pdf_import courses for this user (overwrite)
-        db.query(Course).filter(
-            Course.user_id == user_id,
-            Course.source == "pdf_import"
-        ).delete()
-        semester_start_val = preview.get("semester_start")
-        for item in items:
-            try:
+    try:
+        if itype == "course":
+            # An import replaces only rows created by prior imports for this user.
+            db.query(Course).filter(
+                Course.user_id == user_id,
+                Course.source == "pdf_import",
+            ).delete()
+            semester_start_val = (
+                dt_date.fromisoformat(preview.semester_start)
+                if preview.semester_start else None
+            )
+            for item in items:
                 db.add(
                     Course(
                         user_id=user_id,
@@ -519,16 +584,12 @@ def confirm_import(
                     )
                 )
                 saved += 1
-            except Exception as exc:
-                logger.warning("Course save fail: {}", exc)
-    else:
-        # Delete existing excel_import exams for this user (overwrite)
-        db.query(Exam).filter(
-            Exam.user_id == user_id,
-            Exam.source == "excel_import"
-        ).delete()
-        for item in items:
-            try:
+        else:
+            db.query(Exam).filter(
+                Exam.user_id == user_id,
+                Exam.source == "excel_import",
+            ).delete()
+            for item in items:
                 exam_date = item.get("exam_date")
                 if isinstance(exam_date, str):
                     try:
@@ -547,34 +608,45 @@ def confirm_import(
                     )
                 )
                 saved += 1
-            except Exception as exc:
-                logger.warning("Exam save fail: {}", exc)
 
-    db.commit()
+        result: dict[str, Any] = {"import_id": payload.import_id, "saved_count": saved}
+        if preview.semester_start:
+            result["semester_start"] = preview.semester_start
+        preview.status = "confirmed"
+        preview.confirmed_at = datetime.now(timezone.utc)
+        preview.result_json = json.dumps(result, ensure_ascii=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+        stored = db.get(ImportPreview, payload.import_id)
+        if stored and stored.status == "processing":
+            stored.status = "pending"
+            db.commit()
+        logger.exception("Import confirmation failed: id={}", payload.import_id)
+        return APIResponse.error(code=500, message="导入保存失败，请稍后重试")
     logger.info("Import confirmed: {} {}/{}", itype, saved, len(items))
-
-    result: dict[str, Any] = {"import_id": payload.import_id, "saved_count": saved}
-    if preview.get("semester_start"):
-        ss = preview["semester_start"]
-        result["semester_start"] = ss.isoformat() if hasattr(ss, "isoformat") else str(ss)
     return APIResponse.ok(data=result)
 
 
 def _store_preview(
+    db: Session,
     user_id: str,
     import_type: str,
     items: list[dict[str, Any]],
     semester_start: dt_date | None = None,
 ) -> dict[str, Any]:
-    import_id = str(uuid.uuid4())
-    entry: dict[str, Any] = {
-        "user_id": user_id,
-        "import_type": import_type,
-        "items": items,
-    }
-    if semester_start:
-        entry["semester_start"] = semester_start
-    _preview_store[import_id] = entry
+    preview = ImportPreview(
+        user_id=user_id,
+        import_type=import_type,
+        items_json=json.dumps(items, ensure_ascii=False, default=str),
+        semester_start=semester_start.isoformat() if semester_start else None,
+        status="pending",
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=settings.import_preview_ttl_seconds),
+    )
+    db.add(preview)
+    db.commit()
+    db.refresh(preview)
+    import_id = preview.id
     logger.info("Import preview: {} {} items (id={})", import_type, len(items), import_id)
     return APIResponse.ok(data={
         "import_id": import_id, "import_type": import_type,

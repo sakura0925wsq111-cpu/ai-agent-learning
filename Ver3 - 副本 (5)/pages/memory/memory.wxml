@@ -56,12 +56,6 @@
     </view>
   </view>
 
-  <!-- 添加记忆 -->
-  <view class="add-memory-btn" bindtap="addMemory">
-    <text class="add-icon">+</text>
-    <text>添加新记忆</text>
-  </view>
-
   <!-- 底部留白 -->
   <view style="height: 48rpx;"></view>
 </scroll-view>

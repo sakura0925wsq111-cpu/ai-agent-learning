@@ -22,6 +22,7 @@ macOS / Linux 使用 `source venv/bin/activate` 和 `cp backend/.env.example bac
 - Swagger：<http://127.0.0.1:8000/docs>
 - ReDoc：<http://127.0.0.1:8000/redoc>
 - 健康检查：<http://127.0.0.1:8000/health>
+- 就绪检查：<http://127.0.0.1:8000/ready>
 
 ## 配置
 
@@ -29,20 +30,24 @@ macOS / Linux 使用 `source venv/bin/activate` 和 `cp backend/.env.example bac
 
 ```env
 APP_NAME=iCampus
+APP_ENV=dev
 DATABASE_URL=sqlite:///./data/campuspal.db
 JWT_SECRET_KEY=replace-with-a-long-random-secret
-LLM_API_KEY=your-api-key-here
+DEEPSEEK_API_KEY=your-api-key-here
 LLM_BASE_URL=https://api.deepseek.com
-LLM_MODEL=your-model-name
+LLM_MODEL=deepseek-chat
+CORS_ORIGINS=http://localhost:3000
 ```
 
-`LLM_API_KEY` 为空时，非 AI 接口仍可使用。生产环境不得使用默认 JWT 密钥。
+`DEEPSEEK_API_KEY` 为空时，dev 环境的非 AI 接口仍可使用。生产环境会校验密钥、
+CORS 白名单、调试开关和演示账号设置，配置不安全时启动失败。完整说明见
+[`docs/deployment-week1.md`](../docs/deployment-week1.md)。
 
 ## 代码结构
 
 ```text
 backend/
-├── app/          # FastAPI 入口和 API 路由
+├── app/          # FastAPI 入口；API 路由位于 app/api
 ├── core/         # 配置、日志、异常
 ├── database/     # SQLAlchemy 引擎、会话和初始化
 ├── models/       # ORM 模型
@@ -56,6 +61,8 @@ backend/
 ├── scripts/      # 辅助脚本
 └── tests/        # 自动化测试
 ```
+
+当前生效的路由入口是 `backend/app/api`，不要再新建或引用旧式 `backend/api` 目录。
 
 ## API 分组
 

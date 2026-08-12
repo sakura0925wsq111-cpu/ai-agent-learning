@@ -12,6 +12,7 @@ from schemas.today import TodaySuggestionRequest
 from services.today import TodayService
 from services.llm_service import get_llm_service
 from utils.auth import get_current_user_id, require_user_access
+from core.rate_limit import enforce_ai_daily_limit
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ router = APIRouter()
 async def get_suggestion(
     payload: TodaySuggestionRequest,
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Generate an AI-powered daily suggestion with weather + growth context."""
     require_user_access(payload.user_id, current_user_id)

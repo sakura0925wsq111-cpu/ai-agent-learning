@@ -90,6 +90,10 @@ class ImportPreviewResponse(BaseModel):
 class ImportConfirmRequest(BaseModel):
     """POST /today/import/confirm — confirm and save parsed items."""
     import_id: str
+    selected_indexes: list[int] | None = Field(
+        default=None,
+        description="Zero-based preview item indexes; omit to import all items",
+    )
 
 
 class ImportConfirmResponse(BaseModel):

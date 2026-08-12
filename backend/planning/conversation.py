@@ -126,13 +126,22 @@ def analyze_turn(
 请判断本轮应该先回答什么，以及是否真的需要再问一个问题。"""
 
     try:
-        raw = llm.chat(
-            user_message=user_prompt,
-            system_prompt=system_prompt,
-            temperature=0.1,
-            max_tokens=700,
-        )
-        parsed = safe_json_parse(raw)
+        if callable(getattr(type(llm), "chat_json", None)):
+            parsed = llm.chat_json(
+                user_message=user_prompt,
+                system_prompt=system_prompt,
+                temperature=0.1,
+                max_tokens=700,
+                validator=lambda value: isinstance(value.get("should_ask"), bool),
+            )
+        else:
+            raw = llm.chat(
+                user_message=user_prompt,
+                system_prompt=system_prompt,
+                temperature=0.1,
+                max_tokens=700,
+            )
+            parsed = safe_json_parse(raw)
         if not isinstance(parsed, dict):
             raise ValueError("turn analysis is not a JSON object")
     except Exception as exc:

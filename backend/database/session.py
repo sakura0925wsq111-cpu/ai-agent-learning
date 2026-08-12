@@ -28,7 +28,8 @@ def _create_engine() -> Engine:
 
     return create_engine(
         database_url,
-        echo=settings.debug,
+        # SQL parameter echo can expose password hashes and private user data.
+        echo=False,
         connect_args=connect_args,
         pool_pre_ping=True,
     )
@@ -147,3 +148,27 @@ def init_db() -> None:
                 # already contains duplicates. The service remains idempotent
                 # and the conflict is surfaced in logs for manual cleanup.
                 logger.warning("Plan-task unique index migration skipped: {}", exc)
+
+    # Seed only after legacy user columns have been migrated.
+    if settings.demo_account_enabled and settings.app_env in {"dev", "test"}:
+        from models.user import User
+        from utils.auth import hash_password
+
+        with SessionLocal() as db:
+            existing_demo = db.query(User).filter(
+                User.student_id == settings.demo_student_id
+            ).first()
+            if existing_demo is None:
+                db.add(User(
+                    student_id=settings.demo_student_id,
+                    name="演示同学",
+                    nickname="演示同学",
+                    password_hash=hash_password(settings.demo_password),
+                    school="青岛理工大学",
+                    college="信息与控制工程学院",
+                    major="计算机科学与技术",
+                    enroll_year="2023",
+                    grade="大三",
+                ))
+                db.commit()
+                logger.info("Demo account initialized: {}", settings.demo_student_id)

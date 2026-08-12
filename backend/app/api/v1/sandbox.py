@@ -30,6 +30,8 @@ from sandbox.schemas import (
 )
 from database.session import get_db
 from sqlalchemy.orm import Session
+from core.rate_limit import enforce_ai_daily_limit
+from utils.auth import get_current_user_id, require_user_access
 
 
 
@@ -121,7 +123,10 @@ def _build_projection(raw: dict[str, Any] | None) -> ProjectionResult | None:
 # ── Endpoints ──────────────────────────────────────────────────
 
 @router.get("/paths", response_model=SandboxPathListResponse)
-async def list_paths(sandbox: DecisionSandbox = Depends(get_sandbox)):
+async def list_paths(
+    sandbox: DecisionSandbox = Depends(get_sandbox),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """List all available paths for comparison."""
     paths = sandbox.list_available_paths()
     return SandboxPathListResponse(
@@ -134,12 +139,14 @@ async def start_session(
     request: SandboxStartRequest,
     sandbox: DecisionSandbox = Depends(get_sandbox),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Start a new sandbox session.
 
     Creates a fresh session, loads user memories, and starts the discovery phase.
     If paths are pre-selected, they're set in the session.
     """
+    require_user_access(request.user_id, current_user_id)
     # Start session with memory loading
     session = sandbox.start_session(
         user_id=request.user_id,
@@ -180,12 +187,14 @@ async def chat(
     request: SandboxChatRequest,
     sandbox: DecisionSandbox = Depends(get_sandbox),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Send a message during a sandbox session.
 
     The message is processed through the current phase of the workflow.
     """
-    session = _load_session(sandbox, request.session_id, request.user_id, db)
+    require_user_access(request.user_id, current_user_id)
+    session = _load_session(sandbox, request.session_id, current_user_id, db)
 
     if session.finished:
         # Session already complete — return cached result
@@ -246,6 +255,7 @@ async def resume_session(
     request: SandboxResumeRequest,
     sandbox: DecisionSandbox = Depends(get_sandbox),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Resume a sandbox session with previously saved state.
 
@@ -254,6 +264,7 @@ async def resume_session(
     # Restore from the provided state
     from sandbox.state import SandboxSession
     session = SandboxSession.from_dict(request.state)
+    require_user_access(session.user_id, current_user_id)
     sandbox._sessions[session.session_id] = session
 
     if session.finished:
@@ -314,9 +325,11 @@ async def sandbox_chat_stream(
     request: SandboxChatRequest,
     sandbox: DecisionSandbox = Depends(get_sandbox),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Stream sandbox chat response via SSE."""
-    session = _load_session(sandbox, request.session_id, request.user_id, db)
+    require_user_access(request.user_id, current_user_id)
+    session = _load_session(sandbox, request.session_id, current_user_id, db)
 
     async def event_stream():
         async for event, data in sandbox.chat_stream(session, request.message, db_session=db):
@@ -340,6 +353,7 @@ async def handoff_to_agent(
     user_id: str = __import__("fastapi").Query("", description="Session owner for persisted-context restore"),
     sandbox: DecisionSandbox = Depends(get_sandbox),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Hand off sandbox context to a planning agent.
 
@@ -355,6 +369,7 @@ async def handoff_to_agent(
         - handoff_context: all discovery data for the frontend to pass to growth/start
         - agent_state: initial PlanningState for growth/chat
     """
+    require_user_access(user_id, current_user_id)
     try:
         if sandbox.get_session(session_id) is None and user_id:
             _load_session(sandbox, session_id, user_id, db)
@@ -367,7 +382,7 @@ async def handoff_to_agent(
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
         logger.exception("Sandbox handoff failed: {}", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="路径衔接失败，请稍后重试")
 
 @router.get("/result/{session_id}")
 async def get_result(
@@ -375,9 +390,11 @@ async def get_result(
     user_id: str = __import__("fastapi").Query("", description="Session owner for persisted-context restore"),
     sandbox: DecisionSandbox = Depends(get_sandbox),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Get the final projection result for a completed session."""
-    session = _load_session(sandbox, session_id, user_id, db)
+    require_user_access(user_id, current_user_id)
+    session = _load_session(sandbox, session_id, current_user_id, db)
 
     # Extract match scores from projection_result
     matches = []

@@ -129,19 +129,14 @@ SQLite 数据库和日志会分别生成在 `backend/data/` 与 `backend/logs/`�
 2. 选择仓库根目录；`project.config.json` 已配置小程序目录为 `Ver3 - 副本 (5)/`。
 3. 确认后端已启动，然后编译运行。
 
-前端本地 API 地址位于 `Ver3 - 副本 (5)/app.js`：
-
-```js
-baseUrl: "http://127.0.0.1:8000"
-```
-
-真机调试或正式发布时，请改为已备案并加入微信业务域名的 HTTPS 地址。
+前端 API 地址集中在 `Ver3 - 副本 (5)/config/env.js`。开发版、体验版和正式版
+分别选择 develop、trial、release 地址；真机测试前请把示例域名替换为已加入微信业务域名的 HTTPS 地址。
 
 ## API 概览
 
 | 路径前缀 | 功能 |
 | --- | --- |
-| `/health`、`/version` | 服务状态与版本 |
+| `/health`、`/ready`、`/version` | 存活、就绪与版本 |
 | `/api/v1/users` | 注册、登录、用户资料 |
 | `/api/v1/memory` | 长期记忆与记忆面板 |
 | `/api/v1/growth` | 成长对话、报告、历史和行动计划 |
@@ -199,6 +194,8 @@ Get-ChildItem 'Ver3 - 副本 (5)' -Recurse -Filter *.js | ForEach-Object { node 
 
 ## 文档
 
+- [第一周部署与演示说明](docs/deployment-week1.md)
+- [隐私说明（测试版）](docs/privacy.md)
 - [产品需求文档](docs/iCampus-PRD-v2.md)
 - [前端设计规范](docs/frontend-design-spec.md)
 - [前端 API 对接文档](docs/frontend-api-reference.md)
@@ -209,7 +206,7 @@ Get-ChildItem 'Ver3 - 副本 (5)' -Recurse -Filter *.js | ForEach-Object { node 
 
 - 不要提交 `backend/.env`、数据库、日志或真实 API Key。
 - 生产环境必须设置高强度 `JWT_SECRET_KEY`。
-- 当前 CORS 配置适合本地开发；公开部署前应限制允许的来源。
+- CORS 来源由 `CORS_ORIGINS` 白名单控制，生产环境禁止使用通配符。
 - AI 生成的成长建议仅供参考，不替代学校政策、职业或心理专业意见。
 
 ## License

@@ -1,15 +1,20 @@
+const { getApiBaseUrl, getRuntimeEnv } = require("./config/env.js");
+
 App({
   globalData: {
     userInfo: null,
     token: "",
     userId: "",
-    baseUrl: "http://127.0.0.1:8000",
+    baseUrl: "",
+    runtimeEnv: "develop",
     mockMode: false,
     aiSuggestionFull: null,
     suggestionCache: null
   },
 
   onLaunch() {
+    this.globalData.runtimeEnv = getRuntimeEnv();
+    this.globalData.baseUrl = getApiBaseUrl();
     var token = wx.getStorageSync("token");
     var userId = wx.getStorageSync("userId");
     var userInfo = wx.getStorageSync("userInfo");

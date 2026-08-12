@@ -39,8 +39,17 @@ from services.growth_service import get_growth_service
 from services.llm_service import get_llm_service
 from planning.router import PlanningRouter
 from utils.auth import get_current_user_id, require_user_access
+from core.rate_limit import enforce_ai_daily_limit
+from models.growth import GrowthSession
 
 router = APIRouter(prefix="/growth", tags=["growth"])
+
+
+def _require_session_owner(db: Session, session_id: str, current_user_id: str) -> None:
+    owner = db.query(GrowthSession.user_id).filter(GrowthSession.id == session_id).scalar()
+    if owner is None:
+        raise HTTPException(status_code=404, detail="成长会话不存在")
+    require_user_access(owner, current_user_id)
 
 
 # ── Existing endpoints (backward-compatible) ──────────────────
@@ -49,12 +58,14 @@ router = APIRouter(prefix="/growth", tags=["growth"])
 async def growth_chat(
     request: GrowthChatRequest,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ) -> dict[str, Any]:
     """Send a message to a growth agent.
 
     If session_id is provided, continues an existing session.
     If session_id is None, auto-creates a new session.
     """
+    require_user_access(request.user_id, current_user_id)
     logger.info("POST /growth/chat user={}, agent={}", request.user_id, request.agent)
     llm = get_llm_service()
     service = get_growth_service(llm)
@@ -66,11 +77,13 @@ async def growth_chat(
 async def growth_start(
     request: GrowthStartRequest,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ) -> dict[str, Any]:
     """Start a new growth session.
 
     Returns the first dynamic follow-up question.
     """
+    require_user_access(request.user_id, current_user_id)
     logger.info("POST /growth/start user={}, agent={}", request.user_id, request.agent)
     llm = get_llm_service()
     service = get_growth_service(llm)
@@ -82,8 +95,10 @@ async def growth_start(
 async def growth_state(
     user_id: str,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ) -> dict[str, Any]:
     """Get the current growth session state for a user."""
+    require_user_access(user_id, current_user_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
     result = service.get_state(db, user_id=user_id)
@@ -94,8 +109,10 @@ async def growth_state(
 async def growth_session_state(
     session_id: str,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ) -> dict[str, Any]:
     """Get the resumable state of one growth session."""
+    _require_session_owner(db, session_id, current_user_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
     result = service.get_session_state(db, session_id=session_id)
@@ -107,8 +124,10 @@ async def growth_history(
     user_id: str,
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ) -> dict[str, Any]:
     """Get growth session history for a user."""
+    require_user_access(user_id, current_user_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
     result = service.get_history(db, user_id=user_id, limit=limit)
@@ -162,8 +181,10 @@ async def growth_report(
 async def growth_conversation(
     session_id: str,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ) -> dict[str, Any]:
     """Get all messages for a growth session."""
+    _require_session_owner(db, session_id, current_user_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
     result = service.get_conversation(db, session_id=session_id)
@@ -185,6 +206,7 @@ async def growth_stream(
     message: str = Query("", description="User message (empty = continue)"),
     agent: str = Query("career", description="Agent type"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Stream graph execution as SSE events.
 
@@ -195,7 +217,9 @@ async def growth_stream(
         const es = new EventSource("/growth/stream/sess_123?user_id=u1");
         es.onmessage = (e) => { const {step, status, data} = JSON.parse(e.data); ... };
     """
-    logger.info("SSE /growth/stream session={}, user={}, msg={}", session_id, user_id, message[:50])
+    require_user_access(user_id, current_user_id)
+    _require_session_owner(db, session_id, current_user_id)
+    logger.info("SSE /growth/stream session={}, user={}", session_id, user_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
 
@@ -239,13 +263,16 @@ class ApprovalRequest(BaseModel):
 async def growth_correct(
     request: CorrectionRequest,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ) -> dict[str, Any]:
     """Re-run analysis with a user correction.
 
     Called when the user disagrees with the AI''s analysis direction.
     The graph will go back to the analyze node with the correction text.
     """
-    logger.info("POST /growth/correct session={}, correction={}", request.session_id, request.correction[:50])
+    require_user_access(request.user_id, current_user_id)
+    _require_session_owner(db, request.session_id, current_user_id)
+    logger.info("POST /growth/correct session={}", request.session_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
     result = await service.correct_analysis(
@@ -259,12 +286,15 @@ async def growth_correct(
 async def growth_approve(
     request: ApprovalRequest,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ) -> dict[str, Any]:
     """Approve the analysis and proceed to generate the full report.
 
     Called when the user clicks 'continue' after reviewing the analysis.
     Resumes the graph past the interrupt_before barrier.
     """
+    require_user_access(request.user_id, current_user_id)
+    _require_session_owner(db, request.session_id, current_user_id)
     logger.info("POST /growth/approve session={}", request.session_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
@@ -280,11 +310,15 @@ async def growth_approve(
 async def growth_chat_stream(
     request: GrowthChatRequest,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Stream growth chat response via SSE with token-level streaming."""
     import asyncio, json as _json
     from fastapi.responses import StreamingResponse
 
+    require_user_access(request.user_id, current_user_id)
+    if request.session_id:
+        _require_session_owner(db, request.session_id, current_user_id)
     logger.info("SSE /growth/chat/stream session={}, user={}", request.session_id, request.user_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
@@ -336,8 +370,12 @@ async def growth_chat_stream(
 async def growth_qa(
     request: GrowthChatRequest,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ) -> dict[str, Any]:
     """Free-form Q&A based on completed report and chat history."""
+    require_user_access(request.user_id, current_user_id)
+    if request.session_id:
+        _require_session_owner(db, request.session_id, current_user_id)
     logger.info("POST /growth/qa session={}, user={}", request.session_id, request.user_id)
     llm = get_llm_service()
     service = get_growth_service(llm)
@@ -349,11 +387,15 @@ async def growth_qa(
 async def growth_qa_stream(
     request: GrowthChatRequest,
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
     """Stream free-form Q&A response token by token via real LLM streaming."""
     import json as _json
     from fastapi.responses import StreamingResponse
 
+    require_user_access(request.user_id, current_user_id)
+    if request.session_id:
+        _require_session_owner(db, request.session_id, current_user_id)
     logger.info("SSE /growth/qa/stream session={}", request.session_id)
     llm = get_llm_service()
     service = get_growth_service(llm)

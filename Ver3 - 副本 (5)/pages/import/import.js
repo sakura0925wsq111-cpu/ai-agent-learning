@@ -64,7 +64,7 @@ Page({
       wx.showToast({ title: "请先设置开学日期", icon: "none" });
       return;
     }
-    const extension = activeTab === "course" ? ["pdf"] : ["xlsx", "xls"];
+    const extension = activeTab === "course" ? ["pdf"] : ["xlsx"];
     const expectType = activeTab === "course" ? "PDF" : "Excel";
 
     wx.chooseMessageFile({
@@ -74,7 +74,7 @@ Page({
         const fileName = file.name.toLowerCase();
         const isValidType = activeTab === "course"
           ? fileName.endsWith(".pdf")
-          : (fileName.endsWith(".xlsx") || fileName.endsWith(".xls"));
+          : fileName.endsWith(".xlsx");
 
         this.setData({
           fileInfo: { name: file.name, size: this.formatFileSize(file.size), path: file.path }
@@ -205,7 +205,12 @@ Page({
       const res = await app.request({
         method: "POST",
         url: "/api/v1/today/import/confirm",
-        data: { import_id: importId }
+        data: {
+          import_id: importId,
+          selected_indexes: this.data.previewList
+            .map((item, index) => item.selected ? index : -1)
+            .filter(index => index >= 0)
+        }
       });
       wx.showToast({ title: "已导入 " + (res.saved_count || selectedCount) + " 项", icon: "success", duration: 2000 });
       setTimeout(() => { wx.switchTab({ url: "/pages/schedule/schedule" }); }, 2000);

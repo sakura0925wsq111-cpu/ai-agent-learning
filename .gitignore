@@ -37,6 +37,8 @@ test_*.py
 !backend/tests/test_growth_conversation.py
 !backend/tests/test_non_ai_auth.py
 !backend/tests/test_growth_today_loop.py
+!backend/tests/test_week1_foundation.py
+!backend/tests/test_career_data.py
 temp_*.txt
 test_*.xlsx
 test_*.pdf

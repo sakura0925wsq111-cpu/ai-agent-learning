@@ -5,10 +5,10 @@ from models.user import User
 from models.memory import Memory
 from models.growth import GrowthSession, GrowthConversation, GrowthReport
 from models.todo import Todo
-from models.today import Course, Exam, PlanTask
+from models.today import Course, Exam, PlanTask, ImportPreview
 
 __all__ = [
     "User", "Memory",
     "GrowthSession", "GrowthConversation", "GrowthReport",
-    "Todo", "Course", "Exam", "PlanTask",
+    "Todo", "Course", "Exam", "PlanTask", "ImportPreview",
 ]

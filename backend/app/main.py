@@ -7,7 +7,7 @@ Creates the app, registers lifespan events, exception handlers, and routers.
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -39,8 +39,7 @@ async def lifespan(app: FastAPI):
     from loguru import logger
 
     logger.info("{} v{} starting...".format(settings.app_name, settings.app_version))
-    env_label = "debug" if settings.debug else "production"
-    logger.info("Environment: {}".format(env_label))
+    logger.info("Environment: {}".format(settings.app_env))
 
     # Import all models so Base.metadata knows about them, then create tables
     import models  # noqa: F401
@@ -65,11 +64,29 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
+
+@app.middleware("http")
+async def add_llm_observability_context(request: Request, call_next):
+    """Attach authenticated user and feature labels to downstream LLM logs."""
+    from services.llm_service import reset_llm_context, set_llm_context
+    from utils.auth import verify_token
+
+    user_id = "anonymous"
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        user_id = verify_token(authorization[7:].strip()) or "anonymous"
+    feature = request.url.path.removeprefix("/api/v1/").replace("/", ".") or "root"
+    token = set_llm_context(user_id=user_id, feature=feature)
+    try:
+        return await call_next(request)
+    finally:
+        reset_llm_context(token)
 
 # Exception handlers
 app.add_exception_handler(RequestValidationError, validation_exception_handler)

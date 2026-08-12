@@ -165,7 +165,7 @@ class ProjectionAgent:
             result = safe_json_parse(raw_response)
             if result is None:
                 logger.warning("ProjectionAgent: failed to parse LLM output, using fallback")
-                logger.debug("Raw response (first 500 chars): {}", raw_response[:500])
+                logger.debug("Projection output was not valid JSON (length={})", len(raw_response))
                 return _build_fallback_result(path_reports)
 
             # Validate and normalize the result

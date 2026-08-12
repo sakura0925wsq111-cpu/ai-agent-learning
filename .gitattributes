@@ -1,0 +1,2 @@
+# Preserve byte-for-byte official source snapshots used by career-data ingestion.
+backend/data/career_data/raw/** -whitespace

@@ -1,6 +1,6 @@
 """User REST API — CRUD endpoints for /api/v1/users."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -12,7 +12,7 @@ from schemas.user import (
 )
 from crud.user import user as user_crud
 from core.exceptions import NotFoundException
-from core.config import settings
+from core.rate_limit import enforce_login_rate_limit
 from utils.auth import (
     create_token,
     get_current_user_id,
@@ -63,8 +63,9 @@ def _sync_user_to_memory(
 
 
 @router.post("/login", response_model=APIResponse[LoginResponse])
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     """Login with student_id and password."""
+    enforce_login_rate_limit(request, payload.student_id)
     user_obj = user_crud.get_by_student_id(db, student_id=payload.student_id)
     if user_obj is None:
         raise HTTPException(status_code=401, detail="学号或密码错误")
@@ -87,7 +88,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         "grade": user_obj.grade,
     })
 
-    logger.info(f"User login: {user_obj.student_id}")
+    logger.info("User login succeeded: user_id={}", user_obj.id)
     return APIResponse.ok(data=LoginResponse(token=token, user_id=user_obj.id, user=user_resp))
 
 
@@ -125,7 +126,7 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
         "grade": obj.grade,
     }, source="user_registration", confidence=1.0)
 
-    logger.info(f"User registered: {obj.student_id}")
+    logger.info("User registered: user_id={}", obj.id)
     return APIResponse.ok(data=LoginResponse(token=token, user_id=obj.id, user=user_resp))
 
 

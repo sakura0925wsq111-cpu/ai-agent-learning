@@ -16,7 +16,11 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from crud.memory import memory as memory_crud
-from services.llm_service import get_llm_service
+from services.llm_service import (
+    get_llm_service,
+    reset_llm_context,
+    set_llm_context,
+)
 
 # ── Constants ──────────────────────────────────────────────────────
 
@@ -124,7 +128,13 @@ def consolidate_memories(
         )
 
         try:
-            consolidated = _llm_consolidate_group(llm, group_prefix, group_memories)
+            context_token = set_llm_context(
+                user_id=user_id, feature="memory.consolidation"
+            )
+            try:
+                consolidated = _llm_consolidate_group(llm, group_prefix, group_memories)
+            finally:
+                reset_llm_context(context_token)
             if consolidated is None:
                 continue
 
@@ -204,7 +214,7 @@ def _llm_consolidate_group(
     try:
         data = _json.loads(json_str)
     except _json.JSONDecodeError as exc:
-        logger.warning("Failed to parse consolidation JSON: {} - raw: {}", exc, raw[:200])
+        logger.warning("Failed to parse consolidation JSON: {} (length={})", exc, len(raw))
         return {
             "key": f"{group_key}概览",
             "value": "；".join([f"{m['key']}: {m['value']}" for m in memories]),

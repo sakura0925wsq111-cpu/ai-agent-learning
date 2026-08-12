@@ -130,11 +130,11 @@ def _parse_extraction_result(raw: str) -> list[dict[str, Any]]:
     try:
         data = _json.loads(json_str)
     except _json.JSONDecodeError as exc:
-        logger.warning("Failed to parse extraction JSON: {} - raw: {}", exc, raw[:300])
+        logger.warning("Failed to parse extraction JSON: {} (length={})", exc, len(raw))
         return []
 
     if not isinstance(data, dict) or "memories" not in data:
-        logger.warning("Extraction result missing 'memories' key: {}", data)
+        logger.warning("Extraction result missing required 'memories' list")
         return []
 
     memories = data["memories"]

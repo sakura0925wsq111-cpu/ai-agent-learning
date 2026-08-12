@@ -433,7 +433,9 @@ class MemoryService:
     ) -> list[MemoryResponse]:
         """Extract and save with the caller-owned session."""
         from memory.async_extractor import extract_profile_from_history
+        from services.llm_service import reset_llm_context, set_llm_context
 
+        context_token = set_llm_context(user_id=user_id, feature="memory.extraction")
         try:
             memories = extract_profile_from_history(messages, max_retries=1)
         except Exception as exc:
@@ -442,6 +444,8 @@ class MemoryService:
                 user_id, exc,
             )
             return []
+        finally:
+            reset_llm_context(context_token)
 
         if not memories:
             logger.debug("extract_and_save: no memories extracted for user={}", user_id)

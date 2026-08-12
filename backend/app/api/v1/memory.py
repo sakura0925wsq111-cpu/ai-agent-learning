@@ -19,13 +19,19 @@ from schemas.memory import (
 from services.memory_service import memory_service
 from crud.user import user as user_crud
 from core.exceptions import NotFoundException
+from utils.auth import get_current_user_id, require_user_access
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
 
 @router.post("", response_model=APIResponse[MemoryResponse], status_code=201)
-def create_or_update_memory(payload: MemoryCreate, db: Session = Depends(get_db)):
+def create_or_update_memory(
+    payload: MemoryCreate,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Save or update a memory entry for a user (upsert)."""
+    require_user_access(payload.user_id, current_user_id)
     if user_crud.get(db, id=payload.user_id) is None:
         raise NotFoundException(f"User {payload.user_id} not found")
     result = memory_service.save_memory(db, data=payload)
@@ -33,8 +39,13 @@ def create_or_update_memory(payload: MemoryCreate, db: Session = Depends(get_db)
 
 
 @router.post("/batch", response_model=APIResponse[list[MemoryResponse]], status_code=201)
-def batch_upsert_memory(payload: MemoryBatchUpsert, db: Session = Depends(get_db)):
+def batch_upsert_memory(
+    payload: MemoryBatchUpsert,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Batch upsert multiple memory entries for a user."""
+    require_user_access(payload.user_id, current_user_id)
     if user_crud.get(db, id=payload.user_id) is None:
         raise NotFoundException(f"User {payload.user_id} not found")
     items = [item.model_dump() for item in payload.items]
@@ -48,8 +59,10 @@ def get_user_memories(
     as_dict: bool = Query(default=False, description="Return as {key: value} dict"),
     memory_type: str = Query(default="all", pattern=r"^(all|profile|goal|action|fact|context)$", description="Filter by type: all/profile/goal/action/fact/context"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Get all memory entries for a user, optionally filtered by type."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
     if as_dict:
@@ -67,8 +80,10 @@ def get_memory_panel(
     user_id: str,
     memory_type: str = Query(default="all", pattern=r"^(all|profile|goal|action|fact|context)$", description="Filter by type"),
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Get the user-visible memory panel, grouped by type."""
+    require_user_access(user_id, current_user_id)
     if user_crud.get(db, id=user_id) is None:
         raise NotFoundException(f"User {user_id} not found")
 
@@ -109,14 +124,26 @@ def get_memory_panel(
 
 
 @router.delete("/panel/{user_id}/{key:path}", response_model=APIResponse[dict])
-def delete_memory_panel_item(user_id: str, key: str, db: Session = Depends(get_db)):
+def delete_memory_panel_item(
+    user_id: str,
+    key: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Delete a single memory entry from the panel by key."""
+    require_user_access(user_id, current_user_id)
     memory_service.delete_memory(db, user_id=user_id, key=key)
     return APIResponse.ok(data={"deleted": {"user_id": user_id, "key": key}})
 
 @router.get("/{user_id}/{key}", response_model=APIResponse[MemoryResponse])
-def get_user_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
+def get_user_memory_by_key(
+    user_id: str,
+    key: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Get a specific memory entry by key."""
+    require_user_access(user_id, current_user_id)
     result = memory_service.get_memory(db, user_id=user_id, key=key)
     if result is None:
         raise NotFoundException(f"Memory key '{key}' not found for user {user_id}")
@@ -134,16 +161,27 @@ class MemoryPanelUpdate(BaseModel):
 
 @router.put("/{user_id}/{key}", response_model=APIResponse[MemoryResponse])
 def update_memory_by_key(
-    user_id: str, key: str, payload: MemoryUpdate, db: Session = Depends(get_db),
+    user_id: str,
+    key: str,
+    payload: MemoryUpdate,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Update a specific memory entry by key."""
+    require_user_access(user_id, current_user_id)
     result = memory_service.update_memory(db, user_id=user_id, key=key, data=payload)
     return APIResponse.ok(data=result)
 
 
 @router.delete("/{user_id}/{key}", response_model=APIResponse[dict])
-def delete_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
+def delete_memory_by_key(
+    user_id: str,
+    key: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
     """Delete a specific memory entry by key."""
+    require_user_access(user_id, current_user_id)
     memory_service.delete_memory(db, user_id=user_id, key=key)
     return APIResponse.ok(data={"deleted": {"user_id": user_id, "key": key}})
 
@@ -151,9 +189,14 @@ def delete_memory_by_key(user_id: str, key: str, db: Session = Depends(get_db)):
 
 @router.patch("/panel/{user_id}/{key:path}", response_model=APIResponse[MemoryResponse])
 def update_memory_panel_item(
-    user_id: str, key: str, payload: MemoryPanelUpdate, db: Session = Depends(get_db),
+    user_id: str,
+    key: str,
+    payload: MemoryPanelUpdate,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Update a single memory entry's value and/or type from the panel."""
+    require_user_access(user_id, current_user_id)
     update_data = MemoryUpdate(value=payload.value, memory_type=payload.memory_type)
     result = memory_service.update_memory(db, user_id=user_id, key=key, data=update_data)
     return APIResponse.ok(data=result)

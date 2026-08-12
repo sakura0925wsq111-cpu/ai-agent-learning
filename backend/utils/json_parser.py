@@ -52,5 +52,6 @@ def safe_json_parse(text: str) -> Optional[dict[str, Any]]:
                 except json.JSONDecodeError:
                     start = -1
 
-    logger.debug(f"Could not parse JSON from: {text[:200]}")
+    # Do not log model output: it may contain private user context.
+    logger.debug("Could not parse structured AI output (length={})", len(text))
     return None
