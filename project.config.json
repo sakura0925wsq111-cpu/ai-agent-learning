@@ -1,6 +1,6 @@
 {
   "compileType": "miniprogram",
-  "miniprogramRoot": "Ver3 - 副本 (5)/",
+  "miniprogramRoot": "miniprogram/",
   "appid": "wx90364c8375614a54",
   "setting": {
     "es6": true,

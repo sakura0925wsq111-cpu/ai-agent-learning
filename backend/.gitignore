@@ -1,10 +1,22 @@
-﻿.env
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Python environments, caches, and coverage
+.venv/
 venv/
 __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Runtime state. Keep only the reviewed source snapshots below.
 data/*
 !data/career_data/
 data/career_data/*
@@ -22,4 +34,11 @@ data/career_data/raw/qut-transfer/*
 data/career_data/raw/civil-service/*
 !data/career_data/raw/civil-service/2670bae1df1dd07a3a3c79b9db46a11e3bb15a6c9c249e6af98bfd0b61ce3aaf.xls
 !data/career_data/raw/civil-service/中央机关及其直属机构2026年度考试录用公务员招考简章.zip
+
 logs/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log

@@ -1,6 +1,6 @@
 # iCampus 后端
 
-iCampus 后端基于 FastAPI、SQLAlchemy、LangGraph 和 OpenAI 兼容 SDK，提供账号、今日模式、成长规划、长期记忆与决策沙盘 API。项目完整说明见 [根目录 README](../README.md)。
+iCampus 后端基于 FastAPI、SQLAlchemy、Pydantic 和 OpenAI 兼容 SDK，提供账号、今日模式、成长规划、长期记忆与决策沙盘 API。完整项目结构和小程序说明见[根目录 README](../README.md)。
 
 ## 本地运行
 
@@ -8,47 +8,56 @@ iCampus 后端基于 FastAPI、SQLAlchemy、LangGraph 和 OpenAI 兼容 SDK，�
 
 ```powershell
 python -m venv venv
-./venv/Scripts/Activate.ps1
+.\venv\Scripts\Activate.ps1
 python -m pip install -r backend/requirements.txt
 Copy-Item backend/.env.example backend/.env
-cd backend
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+$env:PYTHONPATH = (Resolve-Path backend).Path
+.\venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
 ```
 
-macOS / Linux 使用 `source venv/bin/activate` 和 `cp backend/.env.example backend/.env`。
+macOS / Linux 使用 `source venv/bin/activate`、`cp backend/.env.example backend/.env`，并将虚拟环境解释器路径改为 `./venv/bin/python`。
 
 服务地址：
 
 - Swagger：<http://127.0.0.1:8000/docs>
 - ReDoc：<http://127.0.0.1:8000/redoc>
-- 健康检查：<http://127.0.0.1:8000/health>
+- 存活检查：<http://127.0.0.1:8000/health>
 - 就绪检查：<http://127.0.0.1:8000/ready>
 
 ## 配置
 
-后端从 `backend/.env` 读取配置。复制 `.env.example` 后，重点设置：
+后端从进程环境变量和 `backend/.env` 读取配置。复制模板后重点检查：
 
 ```env
 APP_NAME=iCampus
 APP_ENV=dev
 DATABASE_URL=sqlite:///./data/campuspal.db
-JWT_SECRET_KEY=replace-with-a-long-random-secret
-DEEPSEEK_API_KEY=your-api-key-here
+JWT_SECRET_KEY=replace-with-at-least-32-random-characters
+DEEPSEEK_API_KEY=
 LLM_BASE_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-chat
-CORS_ORIGINS=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-`DEEPSEEK_API_KEY` 为空时，dev 环境的非 AI 接口仍可使用。生产环境会校验密钥、
-CORS 白名单、调试开关和演示账号设置，配置不安全时启动失败。完整说明见
-[`docs/deployment-week1.md`](../docs/deployment-week1.md)。
+`DEEPSEEK_API_KEY` 为空时，dev 环境的非 AI 接口仍可使用。生产环境会校验模型密钥、JWT 密钥、CORS 白名单、调试开关和演示账号设置；配置不安全时启动失败。详见[部署说明](../docs/deployment-week1.md)。
+
+## Docker
+
+从仓库根目录执行：
+
+```powershell
+docker compose up --build -d
+Invoke-RestMethod http://127.0.0.1:8000/ready
+```
+
+镜像使用 Python 3.11 轻量基础镜像和非 root 用户。SQLite 与日志分别写入 `/app/data`、`/app/logs`，由 Compose 的 `icampus-data`、`icampus-logs` 卷持久化。默认不需要模型密钥即可启动非 AI 接口。
 
 ## 代码结构
 
 ```text
 backend/
 ├── app/          # FastAPI 入口；API 路由位于 app/api
-├── core/         # 配置、日志、异常
+├── core/         # 配置、日志、异常与限流
 ├── database/     # SQLAlchemy 引擎、会话和初始化
 ├── models/       # ORM 模型
 ├── schemas/      # Pydantic 模型
@@ -57,26 +66,11 @@ backend/
 ├── memory/       # 长期记忆
 ├── planning/     # 成长规划 Agent 与 LangGraph
 ├── sandbox/      # 决策沙盘
-├── evals/        # 对话评估数据
-├── scripts/      # 辅助脚本
+├── career_data/  # 职业数据适配、标准化与审计
 └── tests/        # 自动化测试
 ```
 
 当前生效的路由入口是 `backend/app/api`，不要再新建或引用旧式 `backend/api` 目录。
-
-## API 分组
-
-| 路径前缀 | 功能 |
-| --- | --- |
-| `/api/v1/users` | 注册、登录和用户资料 |
-| `/api/v1/memory` | 长期记忆 |
-| `/api/v1/growth` | 成长规划、报告和历史 |
-| `/api/v1/today` | 课程、考试、日历、导入和计划同步 |
-| `/api/v1/todos` | 待办管理 |
-| `/api/v1/weather` | 天气查询 |
-| `/api/v1/sandbox` | 决策沙盘 |
-
-具体参数和模型以 Swagger 为准。受保护接口使用 `Authorization: Bearer <token>`。
 
 ## 测试
 
@@ -84,19 +78,16 @@ backend/
 
 ```powershell
 $env:PYTHONPATH = (Resolve-Path backend).Path
-python -m pytest backend/tests -q
-```
-
-只做语法检查：
-
-```powershell
-python -m compileall -q backend
+.\venv\Scripts\python.exe -m pytest backend/tests -q
+.\venv\Scripts\python.exe -m compileall -q backend
 ```
 
 ## 数据与日志
 
-- SQLite 数据库：`backend/data/`
-- 运行日志：`backend/logs/`
-- 环境变量：`backend/.env`
+- 本地 SQLite：`backend/data/`
+- 本地日志：`backend/logs/`
+- 容器数据：`/app/data`
+- 容器日志：`/app/logs`
+- 本地环境变量：`backend/.env`
 
-这些运行时文件均不应提交到 Git。
+运行时文件均被 Git 和 Docker 构建上下文忽略；经审核保留的官方职业数据快照除外。

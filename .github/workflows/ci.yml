@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Backend tests and miniprogram syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: backend
+      APP_ENV: test
+      DEBUG: "false"
+      DATABASE_URL: sqlite:////tmp/icampus-ci.db
+      JWT_SECRET_KEY: ci-only-secret-with-at-least-32-characters
+      DEEPSEEK_API_KEY: ci-placeholder-no-external-calls
+      LLM_BASE_URL: http://127.0.0.1:9
+      DEMO_ACCOUNT_ENABLED: "false"
+      LOG_DIR: /tmp/icampus-logs
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            backend/requirements.txt
+
+      - name: Install backend and test dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Check Python syntax
+        run: python -m compileall -q backend
+
+      - name: Run backend tests
+        run: python -m pytest backend/tests -q
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check miniprogram JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find miniprogram -type f -name '*.js' -print0 \
+            | xargs -0 -r -n 1 node --check
