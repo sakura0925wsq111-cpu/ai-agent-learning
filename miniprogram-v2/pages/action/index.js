@@ -9,13 +9,62 @@ const { todo } = require("../../normalizers/today");
 const { selectTab, setTabBarHidden, showError, requireSession, getHeroTop } = require("../../utils/page");
 const { formatTime } = require("../../utils/date");
 
+function mergePhaseTasks(phase, livePhase) {
+  const reportTasks = phase.tasks || [];
+  const liveTasks = livePhase && livePhase.tasks ? livePhase.tasks : [];
+  const byIndex = {};
+  liveTasks.forEach((item) => {
+    if (item.planTaskIndex >= 0) byIndex[item.planTaskIndex] = item;
+  });
+  return reportTasks.map((task, index) => {
+    const live = byIndex[index] || liveTasks.find((item) => item.title === task.title);
+    const key = live && (live.id || live.key) || task.key || `${phase.key}-${index}`;
+    if (!live) return Object.assign({}, task, { key, id: task.id || key, source: "ai_plan", sourceLabel: "成长计划", done: false, cancelled: false });
+    return Object.assign({}, task, {
+      key,
+      id: live.id || key,
+      planTaskId: live.planTaskId,
+      planTaskIndex: live.planTaskIndex,
+      source: live.source || "ai_plan",
+      sourceLabel: live.sourceLabel || "成长计划",
+      status: live.status,
+      done: live.done,
+      cancelled: live.cancelled,
+      deadline: live.deadline || task.deadline,
+      deadlineLabel: live.deadline ? live.deadlineLabel : task.deadlineLabel
+    });
+  });
+}
+
+function buildPhases(report, progress) {
+  const progressMap = {};
+  (progress.phases || []).forEach((phase) => { progressMap[phase.key] = phase; });
+  return (report.phases || []).map((phase) => {
+    const live = progressMap[phase.key];
+    const synced = Boolean(live);
+    const tasks = mergePhaseTasks(phase, live);
+    const total = synced ? live.total : tasks.length;
+    const completed = synced ? live.completed : 0;
+    const cancelled = synced ? live.cancelled : 0;
+    const status = !synced ? "unsynced" : (completed + cancelled >= total && total > 0 ? "completed" : "in_progress");
+    return Object.assign({}, phase, {
+      synced,
+      status,
+      total,
+      completed,
+      cancelled,
+      tasks
+    });
+  });
+}
+
 Page({
-  data: { loading: true, error: "", dashboard: null, progress: null, report: null, currentPhase: null, weekCount: 0, weekBars: [], selectedPhase: null, syncedKeys: [], nextTask: null, confirmTask: null, submitting: false, heroTop: 86, refreshedLabel: "" },
+  data: { loading: true, error: "", dashboard: null, progress: null, report: null, currentPhase: null, weekCount: 0, weekBars: [], selectedPhase: null, syncedKeys: [], nextTask: null, confirmTask: null, syncVisible: false, syncing: false, submitting: false, heroTop: 86, refreshedLabel: "" },
   onLoad() { this.setData({ heroTop: getHeroTop(12) }); },
   onShow() { selectTab(this, 2); if (requireSession()) this.load(); },
   onHide() { setTabBarHidden(this, false); },
-  onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()); },
-  async load() {
+  onPullDownRefresh() { this.load(this.data.selectedPhase && this.data.selectedPhase.key).finally(() => wx.stopPullDownRefresh()); },
+  async load(preferredPhaseKey) {
     this.setData({ loading: !this.data.dashboard, error: "" });
     try {
       const dashboard = normalizeDashboard(await growthService.dashboard(sessionStore.state.userId));
@@ -25,16 +74,14 @@ Page({
       const pair = await Promise.all([todayService.progress(sessionStore.state.userId, sessionId), growthService.report(sessionId)]);
       const progress = normalizeProgress(pair[0]);
       const report = normalizeReport(pair[1]);
-      const progressMap = {};
-      progress.phases.forEach((phase) => { progressMap[phase.key] = phase; });
-      const phases = report.phases.map((phase) => Object.assign({}, phase, progressMap[phase.key] || {}));
+      const phases = buildPhases(report, progress);
       report.phases = phases;
-      let currentPhase = phases.find((phase) => phase.key === progress.currentKey) || phases[0] || null;
-      if (currentPhase && progressMap[currentPhase.key]) currentPhase.tasks = progressMap[currentPhase.key].tasks;
+      const currentPhase = phases.find((phase) => phase.key === progress.currentKey) || phases.find((phase) => phase.synced) || phases[0] || null;
+      const selectedPhase = phases.find((phase) => phase.key === preferredPhaseKey) || currentPhase;
       const weekCount = this.countWeek(progress.phases);
       const weekBars = this.makeWeekBars(progress.phases);
-      const nextTask = progress.phases.reduce((all, phase) => all.concat(phase.tasks || []), []).find((task) => !task.done && !task.cancelled) || null;
-      this.setData({ loading: false, dashboard, progress, report, currentPhase, selectedPhase: currentPhase, syncedKeys: progress.phases.map((phase) => phase.key), weekCount, weekBars, nextTask, refreshedLabel: formatTime(new Date()) });
+      const nextTask = (selectedPhase && selectedPhase.tasks || []).find((task) => !task.done && !task.cancelled) || null;
+      this.setData({ loading: false, dashboard, progress, report, currentPhase, selectedPhase, syncedKeys: progress.phases.map((phase) => phase.key), weekCount, weekBars, nextTask, refreshedLabel: formatTime(new Date()) });
       growthStore.set("progress", progress); growthStore.set("report", report);
     } catch (error) { this.setData({ loading: false, error: error.message || "执行状态加载失败" }); }
   },
@@ -55,21 +102,51 @@ Page({
     return rows.map((item) => Object.assign({}, item, { totalHeight: item.total ? Math.max(16, Math.round(item.total / max * 100)) : 5, doneHeight: item.total ? Math.round(item.completed / item.total * 100) : 0 }));
   },
   selectPhase(event) {
-    const chosen = event.detail; const fromProgress = this.data.progress.phases.find((phase) => phase.key === chosen.key);
-    this.setData({ selectedPhase: Object.assign({}, chosen, fromProgress || {}, { tasks: fromProgress ? fromProgress.tasks : chosen.tasks }) });
+    const chosen = event.detail || {};
+    const selectedPhase = (this.data.report.phases || []).find((phase) => phase.key === chosen.key) || chosen;
+    const nextTask = (selectedPhase.tasks || []).find((task) => !task.done && !task.cancelled) || null;
+    this.setData({ selectedPhase, nextTask });
+  },
+  openSync() {
+    if (this.data.selectedPhase && !this.data.selectedPhase.synced) this.setData({ syncVisible: true });
+  },
+  closeSync() {
+    this.setData({ syncVisible: false });
+  },
+  async sync(event) {
+    const phaseKey = event.detail && event.detail.phase;
+    if (!phaseKey || !this.data.selectedPhase) return;
+    this.setData({ syncing: true });
+    try {
+      const result = await todayService.syncPlan({
+        user_id: sessionStore.state.userId,
+        growth_session_id: this.data.dashboard.activePlan.session_id,
+        phase: phaseKey,
+        start_date: event.detail.start_date
+      });
+      this.setData({ syncVisible: false });
+      wx.showToast({ title: result.already_synced ? "该阶段已加入" : `已加入 ${result.synced_count} 项`, icon: "success" });
+      await this.load(phaseKey);
+    } catch (error) {
+      showError(error, "加入行动失败");
+    } finally {
+      this.setData({ syncing: false });
+    }
   },
   async toggleTask(event) {
-    const task = event.detail; const progress = JSON.parse(JSON.stringify(this.data.progress));
+    const task = event.detail;
+    if (!this.data.selectedPhase || !this.data.selectedPhase.synced) return;
+    const progress = JSON.parse(JSON.stringify(this.data.progress));
     const optimistic = JSON.parse(JSON.stringify(progress));
     optimistic.phases.forEach((phase) => { phase.tasks = phase.tasks.map((item) => item.id === task.id ? Object.assign({}, item, { done: !item.done, status: item.done ? "pending" : "done" }) : item); });
     const selected = optimistic.phases.find((phase) => phase.key === this.data.selectedPhase.key);
     this.setData({ progress: optimistic, selectedPhase: Object.assign({}, this.data.selectedPhase, { tasks: selected.tasks }) });
-    try { await todoService.toggle(sessionStore.state.userId, task.id); await this.load(); }
+    try { await todoService.toggle(sessionStore.state.userId, task.id); await this.load(this.data.selectedPhase.key); }
     catch (error) { const previous = progress.phases.find((phase) => phase.key === this.data.selectedPhase.key); this.setData({ progress, selectedPhase: Object.assign({}, this.data.selectedPhase, { tasks: previous.tasks }) }); showError(error, "任务状态更新失败，已恢复"); }
   },
-  askRemove(event) { this.setData({ confirmTask: event.detail }, () => setTabBarHidden(this, true)); },
+  askRemove(event) { if (this.data.selectedPhase && this.data.selectedPhase.synced) this.setData({ confirmTask: event.detail }, () => setTabBarHidden(this, true)); },
   closeConfirm() { this.setData({ confirmTask: null }, () => setTabBarHidden(this, false)); },
-  async confirmRemove() { const task = this.data.confirmTask; if (!task) return; this.setData({ submitting: true }); try { await todoService.remove(sessionStore.state.userId, task.id); this.closeConfirm(); await this.load(); } catch (error) { showError(error, "取消执行失败"); } finally { this.setData({ submitting: false }); } },
+  async confirmRemove() { const task = this.data.confirmTask; if (!task) return; const phaseKey = this.data.selectedPhase && this.data.selectedPhase.key; this.setData({ submitting: true }); try { await todoService.remove(sessionStore.state.userId, task.id); this.closeConfirm(); await this.load(phaseKey); } catch (error) { showError(error, "取消执行失败"); } finally { this.setData({ submitting: false }); } },
   explore() { wx.switchTab({ url: "/pages/explore/index" }); },
   report() { if (this.data.dashboard.activePlan) wx.navigateTo({ url: `/pkg-growth/report/index?sessionId=${this.data.dashboard.activePlan.session_id}` }); },
   coach() { const coach = this.data.dashboard.coach || {}; if (coach.session_id) wx.navigateTo({ url: `/pkg-growth/coach/index?sessionId=${coach.session_id}&agent=${coach.agent}` }); },

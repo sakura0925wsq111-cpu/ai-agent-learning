@@ -107,6 +107,10 @@ function run() {
   assert.doesNotMatch(frontendFile("components/growth/progress-arc/index.js"), /createCanvasContext/);
   assert.match(frontendFile("pages/today/index.wxml"), /weekBars/);
   assert.match(frontendFile("pages/action/index.wxml"), /phase-roadmap/);
+  assert.match(frontendFile("pages/action/index.wxml"), /editable="{{selectedPhase.synced}}"/);
+  assert.match(frontendFile("pages/action/index.wxml"), /sync-plan-sheet/);
+  assert.match(frontendFile("pages/action/index.js"), /buildPhases/);
+  assert.match(frontendFile("pages/action/index.js"), /load\(phaseKey\)/);
   assert.match(frontendFile("pkg-growth/sandbox-result/index.wxml"), /comparisonRows/);
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /sandboxService\.resume/);
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /selectedLabels/);

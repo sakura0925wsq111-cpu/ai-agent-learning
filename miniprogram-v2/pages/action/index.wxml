@@ -15,23 +15,24 @@
   <state-view wx:elif="{{error}}" state="error" title="执行状态暂不可用" message="{{error}}" bind:action="retry"/>
   <state-view wx:elif="{{!dashboard || !dashboard.activePlan}}" state="empty" title="还没有执行中的计划" message="完成一次路径探索与专项规划，再把阶段任务加入行动。" action-label="去探索方向" bind:action="explore"/>
   <block wx:else>
-    <view class="roadmap-panel surface"><phase-roadmap phases="{{report.phases}}" current-key="{{progress.currentKey}}" synced-keys="{{syncedKeys}}" bind:select="selectPhase"/></view>
+    <view class="roadmap-panel surface"><phase-roadmap phases="{{report.phases}}" current-key="{{selectedPhase.key}}" synced-keys="{{syncedKeys}}" bind:select="selectPhase"/></view>
 
     <view class="action-bento">
       <view class="phase-card">
-        <text class="phase-card__badge">当前阶段</text>
+        <text class="phase-card__badge">{{selectedPhase.synced ? (selectedPhase.status === 'completed' ? '已完成阶段' : '当前阶段') : '阶段预览'}}</text>
         <text class="phase-card__period">{{selectedPhase.label}}</text>
         <text class="phase-card__title">{{selectedPhase.title || dashboard.activePlan.phase_label}}</text>
-        <text class="phase-card__sync">✓ 已同步</text>
+        <text class="phase-card__sync {{selectedPhase.synced ? 'phase-card__sync--done' : 'phase-card__sync--pending'}}">{{selectedPhase.synced ? '✓ 已同步' : '○ 未同步'}}</text>
         <view class="target-art">◎</view>
       </view>
-      <view class="next-action surface"><text class="next-action__badge">下一步行动</text><text class="next-action__title">{{nextTask ? nextTask.title : '本阶段任务已完成'}}</text><text class="next-action__date">{{nextTask ? (nextTask.deadlineLabel || '待安排日期') : '继续复盘与调整'}}</text><view class="next-action__calendar">□</view></view>
+      <view class="next-action surface"><text class="next-action__badge">{{selectedPhase.synced ? '下一步行动' : '任务预览'}}</text><text class="next-action__title">{{nextTask ? nextTask.title : (selectedPhase.synced ? '本阶段任务已完成' : '本阶段暂无任务')}}</text><text class="next-action__date">{{selectedPhase.synced ? (nextTask ? (nextTask.deadlineLabel || '待安排日期') : '继续复盘与调整') : '加入行动后安排日期'}}</text><view class="next-action__calendar">□</view></view>
     </view>
 
     <view class="task-card surface">
-      <view class="task-card__head"><text>任务清单 <text class="muted">（已同步）</text></text><text>{{selectedPhase.completed || 0}}/{{selectedPhase.total || selectedPhase.tasks.length}} 已完成</text></view>
-      <task-row wx:for="{{selectedPhase.tasks}}" wx:key="id" task="{{item}}" bind:toggle="toggleTask" bind:remove="askRemove"/>
-      <view wx:if="{{!selectedPhase.tasks.length}}" class="empty-copy">这个阶段尚未同步任务，可以从路线报告加入。</view>
+      <view class="task-card__head"><text>阶段{{selectedPhase.index}}任务 <text class="muted">{{selectedPhase.synced ? '（已同步）' : '（未同步预览）'}}</text></text><text>{{selectedPhase.completed || 0}}/{{selectedPhase.total || selectedPhase.tasks.length}} {{selectedPhase.synced ? '已完成' : '项任务'}}</text></view>
+      <task-row wx:for="{{selectedPhase.tasks}}" wx:key="key" task="{{item}}" editable="{{selectedPhase.synced}}" bind:toggle="toggleTask" bind:remove="askRemove"/>
+      <view wx:if="{{!selectedPhase.tasks.length}}" class="empty-copy">这个阶段暂无任务。</view>
+      <button wx:if="{{!selectedPhase.synced}}" class="sync-phase-button" bindtap="openSync">将阶段{{selectedPhase.index}}加入行动</button>
     </view>
 
     <view class="deadline-card surface">
@@ -43,4 +44,5 @@
     <view class="data-source">来源：成长报告、已同步待办 · 更新于 {{refreshedLabel || '刚刚'}}</view>
   </block>
 </view>
+<sync-plan-sheet visible="{{syncVisible}}" phase="{{selectedPhase}}" submitting="{{syncing}}" bind:close="closeSync" bind:submit="sync"/>
 <confirm-sheet visible="{{confirmTask !== null}}" title="取消执行这项计划任务？" message="任务会保留在执行证据中，并标记为已取消，不会永久删除。" confirm-label="确认取消执行" destructive submitting="{{submitting}}" bind:close="closeConfirm" bind:confirm="confirmRemove"/>
