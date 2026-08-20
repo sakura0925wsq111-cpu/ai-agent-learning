@@ -148,6 +148,10 @@ class GrowthService:
                     sandbox_question_count = len(sb_sess.discovery_history) + sum(
                         len(history) for history in sb_sess.path_probe_history.values()
                     )
+                    sandbox_question_count = max(
+                        sandbox_question_count,
+                        int(getattr(sb_sess, "questions_asked", 0) or 0),
+                    )
                     logger.info("Growth: loaded sandbox context for user {}, {} profile fields, {} history items",
                                 request.user_id, len(profile), len(sandbox_history))
             except Exception as exc:

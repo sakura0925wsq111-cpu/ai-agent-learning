@@ -910,6 +910,24 @@ class PlanningAgent(ABC):
             return "现有信息我已经记下了。"
         availability = classify_answer_availability(answer)
         if availability == "unknown":
+            # "还没想好冲985还是求稳" contains uncertainty *and* a useful
+            # decision signal.  Preserve that signal in the acknowledgement
+            # instead of collapsing every unknown-like phrase to a generic
+            # sentence.
+            residual = answer
+            for marker in (
+                "我还没想好", "还没想好", "我不知道", "不知道",
+                "我不清楚", "不清楚", "我不确定", "不确定",
+                "暂时没有想法", "还没考虑", "说不准", "看情况",
+                "都行", "都可以", "无所谓", "随便", "再说吧",
+            ):
+                residual = residual.replace(marker, "")
+            residual = residual.strip("，。！？?!、 ")
+            if len(residual) >= 3:
+                snippet = self._trim_advisory_part(
+                    residual.removeprefix("该"), 16,
+                ).rstrip("。！？?!…")
+                return f"你对“{snippet}”还拿不准，没关系。"
             return "这项暂时不确定也没关系。"
         if availability == "declined":
             return "这项可以先跳过。"

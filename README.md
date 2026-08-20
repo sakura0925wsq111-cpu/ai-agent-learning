@@ -32,13 +32,7 @@ iCampus 是一款面向大学生的微信小程序，由微信原生小程序前
 
 ```text
 ai-agent-learning/
-├── miniprogram/                 # 微信原生小程序
-│   ├── pages/                   # 页面及交互逻辑
-│   ├── config/env.js            # 各微信发布环境的 API 地址
-│   ├── utils/                   # API、日期、学期等公共工具
-│   ├── app.js                   # 全局状态、请求与鉴权
-│   └── app.json                 # 页面和 TabBar 配置
-├── backend/
+├── backend/                     # master：FastAPI 后端与后端测试
 │   ├── app/                     # FastAPI 入口与 API 路由
 │   ├── core/                    # 配置、日志、异常与限流
 │   ├── database/                # 数据库引擎、会话与初始化
@@ -56,8 +50,12 @@ ai-agent-learning/
 ├── .github/workflows/ci.yml     # push / pull_request 持续集成
 ├── Dockerfile                   # 后端生产式镜像入口
 ├── docker-compose.yml           # 本地容器运行配置
-├── project.config.json          # 微信开发者工具根项目配置
 └── requirements.txt             # 后端、测试及仓库工具依赖
+
+前端独立维护在两个分支：
+
+- `frontend-v1`：旧版微信小程序，目录为 `miniprogram/`。
+- `frontend-v2`：新版微信小程序，目录为 `miniprogram-v2/`。
 ```
 
 ## 本地开发
@@ -77,6 +75,7 @@ Windows PowerShell：
 ```powershell
 git clone https://github.com/sakura0925wsq111-cpu/ai-agent-learning.git
 Set-Location ai-agent-learning
+git switch master                 # 后端主分支（默认）
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -89,6 +88,7 @@ macOS / Linux：
 ```bash
 git clone https://github.com/sakura0925wsq111-cpu/ai-agent-learning.git
 cd ai-agent-learning
+git switch master                 # 后端主分支（默认）
 python3.11 -m venv venv
 source venv/bin/activate
 python -m pip install --upgrade pip
@@ -143,11 +143,16 @@ PYTHONPATH=backend ./venv/bin/python -m uvicorn app.main:app --app-dir backend -
 
 本地 SQLite 数据库和日志默认写入 `backend/data/`、`backend/logs/`，两者均被 Git 忽略。
 
-### 导入微信小程序
+### 使用前端分支
 
-1. 打开微信开发者工具，选择“导入项目”。
-2. 选择仓库根目录；根目录 `project.config.json` 已将 `miniprogramRoot` 指向 `miniprogram/`。
-3. 启动本地后端后编译运行小程序。
+后端主分支不包含前端目录。需要运行微信小程序时，切换到对应分支后再用微信开发者工具导入仓库根目录：
+
+```powershell
+git switch frontend-v1       # 旧版，使用 project.config.json
+git switch frontend-v2       # 新版，使用 project.v2.config.json
+```
+
+启动本地后端后，在微信开发者工具中编译运行小程序。两个前端的 API 地址分别集中在 `miniprogram/config/env.js` 和 `miniprogram-v2/config/env.js`。
 
 API 地址集中在 `miniprogram/config/env.js`。开发版、体验版和正式版分别使用 develop、trial、release 地址；真机或发布前必须替换示例域名，并在微信公众平台配置 HTTPS 业务域名。
 
@@ -214,7 +219,7 @@ GitHub Actions 会在每次 push 和 pull request 上使用 Python 3.11 与 Node
 1. pip 缓存与依赖安装。
 2. `python -m compileall -q backend`。
 3. `PYTHONPATH=backend python -m pytest backend/tests -q`。
-4. `miniprogram` 下全部 `.js` 文件的 `node --check`。
+4. 当前分支存在的前端目录下全部 `.js` 文件的 `node --check`。
 
 CI 使用占位密钥和仅指向本机的模型地址，不读取真实 `.env`，测试不应访问真实大模型或外部数据源。
 

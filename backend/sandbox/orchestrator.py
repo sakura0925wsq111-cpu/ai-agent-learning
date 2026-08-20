@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
 import uuid
 from typing import Any
 
@@ -39,6 +40,7 @@ from sandbox.prompts.path_probe import build_path_probe_prompt
 from sandbox.projection import ProjectionAgent
 from planning.base import PlanningAgent, UNIFIED_OUTPUT_SCHEMA
 from planning.conversation import normalize_advisory_text
+from planning.knowledge import get_knowledge_context
 from utils.json_parser import safe_json_parse
 
 
@@ -76,6 +78,60 @@ def _matrix_match_score(matrix: dict[str, Any], path_type: str) -> int:
     except (TypeError, ValueError):
         return 0
     return max(0, min(100, round(value if value > 10 else value * 10)))
+
+
+def _is_decision_pushback(message: str) -> bool:
+    """Detect an explicit objection to the assistant handing the choice back."""
+    normalized = re.sub(r"\s+", "", str(message or ""))
+    return any(
+        marker in normalized
+        for marker in (
+            "不知道才问你", "不清楚才问你", "就是不知道", "你帮我判断",
+            "帮我选", "直接告诉我", "直接给建议", "给个方向", "先给结论",
+            "到底选什么", "你觉得选什么", "别再问", "不要再问",
+        )
+    )
+
+
+def _is_decision_request(message: str) -> bool:
+    """Detect when the user wants a direction, not another preference prompt."""
+    normalized = re.sub(r"\s+", "", str(message or ""))
+    explicit = _is_decision_pushback(normalized)
+    undecided_choice = any(marker in normalized for marker in ("不知道", "不清楚", "没想好")) and any(
+        marker in normalized for marker in ("还是", "怎么选", "选哪个", "方向")
+    )
+    return explicit or undecided_choice
+
+
+def _extract_visible_question(text: str) -> str:
+    """Return the single question that is actually present in visible text."""
+    normalized = str(text or "").replace("?", "？")
+    matches = re.findall(r"[^。！；\n]*？", normalized)
+    return matches[-1].strip() if matches else ""
+
+
+def _without_question(text: str) -> str:
+    normalized = str(text or "").replace("?", "？")
+    index = normalized.find("？")
+    if index < 0:
+        return normalized.strip()
+    sentence_start = max(
+        normalized.rfind("。", 0, index),
+        normalized.rfind("！", 0, index),
+        normalized.rfind("；", 0, index),
+    )
+    return normalized[: sentence_start + 1].strip()
+
+
+def _has_personal_decision_signal(profile: dict[str, Any]) -> bool:
+    """Require at least one personal variable beyond background/confusion."""
+    keys = (
+        "values", "personality", "learning_ability", "execution",
+        "social_ability", "stress_tolerance", "family_expectation",
+        "economic_situation", "location_preference", "interested_fields",
+        "time_window",
+    )
+    return any(profile.get(key) not in (None, "", [], {}) for key in keys)
 
 def _build_disco_sys(session, mem_ctx=""):
     """Build discovery system prompt with profile context."""
@@ -446,6 +502,115 @@ class DecisionSandbox:
 
     # ── Phase 1: Discovery ──────────────────────────────────────
 
+    def _discovery_knowledge_context(
+        self,
+        session: SandboxSession,
+        message: str,
+    ) -> str:
+        """Provide stable path facts to the discovery prompt.
+
+        This is a conservative baseline until the external evidence tools are
+        wired in.  It still prevents the discovery model from answering from
+        prompt style alone.
+        """
+        paths = list(session.path_selections)
+        for path in self._parse_path_selections(message):
+            if path not in paths:
+                paths.append(path)
+        facts: list[str] = []
+        for path in paths[:2]:
+            evidence = get_knowledge_context(path, ["path_overview", "comparison"])
+            text = str(evidence.get("text", "")).strip()
+            if text:
+                facts.append(f"{SANDBOX_PATHS.get(path, path)}：\n{text}")
+        return "\n".join(facts)
+
+    def _decision_first_fallback(
+        self,
+        session: SandboxSession,
+        message: str,
+        *,
+        allow_question: bool,
+    ) -> str:
+        """Concrete, conditional fallback for explicit 'you tell me' turns."""
+        paths = list(session.path_selections)
+        for path in self._parse_path_selections(message):
+            if path not in paths:
+                paths.append(path)
+        pair = frozenset(paths[:2])
+        if pair == frozenset(("career", "graduate")):
+            body = (
+                "你说得对，这一轮应该先由我给方向。仅按现有信息，我更建议先把就业准备作为验证主线，"
+                "同时保留考研窗口：项目和投递能较快检验岗位匹配，数学英语摸底能判断读研成本。"
+            )
+            question = "你目前项目实践和数学英语，哪一边基础更扎实？"
+        elif pair == frozenset(("career", "civil")):
+            body = (
+                "你说得对，我先给初步方向。现阶段可以先用岗位资格和真实招聘要求做双向筛选："
+                "若更重稳定与地域确定性，优先验证考公；若更看重岗位成长和选择面，先验证就业。"
+            )
+            question = "你目前更受地域限制，还是更在意岗位成长空间？"
+        elif pair == frozenset(("major", "career")):
+            body = (
+                "你说得对，我先给初步方向。可以先验证目标岗位是否真的要求转专业；"
+                "如果项目、辅修或实习也能建立能力证据，就业准备通常比直接转专业成本更低。"
+            )
+            question = "你想转入的方向，已经有明确目标岗位了吗？"
+        else:
+            body = (
+                "你说得对，我先给初步方向。现阶段不必凭感觉定终局，可以先把验证成本更低、"
+                "能更快获得真实反馈的路径作为主线，另一条保留窗口，再根据结果调整。"
+            )
+            question = "哪条路径能在两周内完成一次真实任务或摸底？"
+        return normalize_advisory_text(body + (question if allow_question else ""), 160)
+
+    def _compose_discovery_response(
+        self,
+        parsed: dict[str, Any] | None,
+        raw: str,
+        *,
+        decision_request: bool,
+        session: SandboxSession,
+        message: str,
+        allow_question: bool,
+    ) -> tuple[str, str]:
+        """Make the displayed reply and stored question share one source."""
+        if parsed:
+            response = str(parsed.get("response", "") or "").strip()
+            proposed_question = str(parsed.get("next_question", "") or "").strip()
+        else:
+            response = str(raw or "").strip()
+            proposed_question = ""
+
+        if _is_decision_pushback(message) or (decision_request and not any(
+            marker in response
+            for marker in ("更建议", "建议先", "优先", "主线", "初步方向", "初步判断", "验证")
+        )):
+            response = self._decision_first_fallback(
+                session, message, allow_question=allow_question,
+            )
+            return response, _extract_visible_question(response)
+
+        visible = normalize_advisory_text(response or "我先基于现有信息帮你梳理。", 160)
+        if not allow_question:
+            visible = normalize_advisory_text(_without_question(visible), 150)
+            return visible, ""
+
+        actual_question = _extract_visible_question(visible)
+        if not actual_question and proposed_question:
+            visible = normalize_advisory_text(f"{visible}{proposed_question}", 160)
+            actual_question = _extract_visible_question(visible)
+        return visible, actual_question
+
+    @staticmethod
+    def _merge_transition_response(analysis: str, transition: str) -> str:
+        """Keep a transition to one short insight plus one visible question."""
+        question = _extract_visible_question(transition)
+        body = _without_question(analysis)
+        if question:
+            return normalize_advisory_text(f"{body}{question}", 160)
+        return normalize_advisory_text(f"{body}{transition}", 160)
+
     def _handle_discovery(
         self,
         session: SandboxSession,
@@ -456,12 +621,25 @@ class DecisionSandbox:
         Uses LLM-driven dynamic questioning, NOT a fixed script.
         Reuses the _generate_dynamic_question pattern from PlanningAgent.
         """
-        is_first = (session.discovery_round == 0)
+        is_first = session.discovery_round == 0
+        decision_request = _is_decision_request(message)
+        will_reach_cap = session.discovery_round + 1 >= MAX_DISCOVERY_ROUNDS
+        allow_discovery_question = not will_reach_cap and session.can_ask_more()
+
+        # Remember paths already named by the user.  The old flow asked the
+        # user to select "就业和考研" again even after they had said exactly
+        # that, which made the interaction feel inattentive.
+        inferred_paths = self._parse_path_selections(message)
+        if len(inferred_paths) >= 2:
+            for path in inferred_paths:
+                if path not in session.path_selections:
+                    session.path_selections.append(path)
 
         # Build prompts
         system_prompt = build_discovery_system_prompt(
             known_profile=session.user_profile if session.user_profile else None,
             memory_context=self._format_memory(session),
+            knowledge_context=self._discovery_knowledge_context(session, message),
         )
 
         history_text = session.build_discovery_context()
@@ -469,6 +647,8 @@ class DecisionSandbox:
             history_text=history_text,
             latest_message=message,
             is_first_turn=is_first,
+            decision_request=decision_request,
+            allow_question=allow_discovery_question,
         )
 
         # Call LLM
@@ -481,14 +661,32 @@ class DecisionSandbox:
             )
         except Exception as exc:
             logger.error("Discovery LLM call failed: {}", exc)
-            # Fallback: ask a generic question
-            fallback_q = "接下来我想更了解你的情况——你觉得目前最大的困惑是什么？"
-            if is_first:
-                fallback_q = (
-                    "你好！我是你的成长规划助手。你现在对未来的方向有什么困惑吗？"
-                    "可以和我聊聊你目前的情况和想法。"
+            if decision_request:
+                fallback_q = self._decision_first_fallback(
+                    session, message, allow_question=allow_discovery_question,
                 )
-            session.record_discovery(fallback_q, message)
+            else:
+                fallback_q = "可以先从路径门槛、时间成本和能力证据做初步比较。"
+                if allow_discovery_question:
+                    fallback_q += "你目前最想先解决哪一个现实顾虑？"
+                fallback_q = normalize_advisory_text(fallback_q, 160)
+            previous_question = session.last_discovery_question or "用户主动说明"
+            session.record_discovery(
+                previous_question,
+                message,
+                previous_response=session.last_discovery_response,
+            )
+            session.last_discovery_response = fallback_q
+            session.last_discovery_question = _extract_visible_question(fallback_q)
+            if session.last_discovery_question:
+                session.mark_question_asked(session.last_discovery_question)
+            if not session.should_continue_discovery():
+                session.discovery_complete = True
+                transition = self._transition_to_path_probe(session)
+                transition["message"] = self._merge_transition_response(
+                    fallback_q, transition.get("message", ""),
+                )
+                return transition
             return self._build_response(
                 session, fallback_q,
                 extra={"discovery_round": session.discovery_round},
@@ -498,42 +696,63 @@ class DecisionSandbox:
         parsed = safe_json_parse(raw)
         if parsed is None:
             logger.warning("Discovery: failed to parse LLM JSON, using raw text")
-            if is_first:
-                next_q = "你好！我是你的成长规划助手。你现在对未来的方向有什么困惑吗？可以和我聊聊你目前的情况和想法。"
-            elif raw and raw.strip():
-                next_q = raw.strip()[:200]
-            else:
-                next_q = "接下来我想更了解你的情况——你觉得目前最大的困惑是什么？"
-            visible_response = normalize_advisory_text(next_q)
-            session.record_discovery(next_q, message)
-        else:
-            next_q = parsed.get("next_question", "")
-            visible_response = normalize_advisory_text(
-                parsed.get("response", "") or next_q or "我先基于现有信息帮你梳理。"
-            )
-            # Update cumulative profile
+
+        previous_question = session.last_discovery_question or "用户主动说明"
+        previous_response = session.last_discovery_response
+
+        if parsed:
+            # Update cumulative profile before evaluating whether discovery is
+            # genuinely ready to finish.
             updated = parsed.get("updated_profile", {})
             if isinstance(updated, dict):
-                for k, v in updated.items():
-                    if v:  # Only store non-empty values
-                        session.user_profile[k] = v
+                for key, value in updated.items():
+                    if value:
+                        session.user_profile[key] = value
                         session._profile_dirty = True
-            session.record_discovery(next_q or visible_response, message)
+
+        model_wants_finish = bool(parsed and parsed.get("finish", False))
+        deterministic_finish = model_wants_finish and _has_personal_decision_signal(
+            session.user_profile
+        )
+        will_transition = deterministic_finish or will_reach_cap
+        visible_response, actual_question = self._compose_discovery_response(
+            parsed,
+            raw,
+            decision_request=decision_request,
+            session=session,
+            message=message,
+            allow_question=not will_transition and session.can_ask_more(),
+        )
+        session.record_discovery(
+            previous_question,
+            message,
+            previous_response=previous_response,
+        )
+        session.last_discovery_response = visible_response
+        session.last_discovery_question = actual_question
+        if actual_question:
+            session.mark_question_asked(actual_question)
 
         # Check if we should advance
-        if parsed and parsed.get("finish", False):
-            logger.info("Discovery: LLM signaled finish")
+        if deterministic_finish:
+            logger.info("Discovery: readiness gate accepted model finish")
             session.discovery_complete = True
             # Transition to PATH_PROBE
             transition = self._transition_to_path_probe(session)
-            transition["message"] = f"{visible_response}\n\n{transition.get('message', '')}".strip()
+            transition["message"] = self._merge_transition_response(
+                visible_response, transition.get("message", ""),
+            )
             return transition
+        if model_wants_finish:
+            logger.info("Discovery: ignored premature model finish; personal signal missing")
 
         if not session.should_continue_discovery():
             logger.info("Discovery: max rounds reached, transitioning to path probe")
             session.discovery_complete = True
             transition = self._transition_to_path_probe(session)
-            transition["message"] = f"{visible_response}\n\n{transition.get('message', '')}".strip()
+            transition["message"] = self._merge_transition_response(
+                visible_response, transition.get("message", ""),
+            )
             return transition
 
         return self._build_response(
@@ -555,20 +774,30 @@ class DecisionSandbox:
 
         # If user already specified paths (e.g., via API), skip the selection question
         if session.path_selections:
+            if not session.can_ask_more():
+                session.path_probe_done.update(session.path_selections)
+                return self._advance_to_parallel_sim(session)
             first_path = session.path_selections[0]
-            path_label = SANDBOX_PATHS.get(first_path, first_path)
             question = self._generate_path_probe_question(session, first_path)
+            session.mark_question_asked(question)
             return self._build_response(
                 session, question,
                 extra={"phase": "path_probe", "current_path": first_path},
             )
+        if not session.can_ask_more():
+            # No personal question budget remains.  Compare every supported
+            # route conditionally instead of forcing a sixth answer.
+            session.path_selections = list(SANDBOX_PATHS)
+            session.path_probe_done.update(session.path_selections)
+            return self._advance_to_parallel_sim(session)
         # Ask which paths to compare
         path_list = SANDBOX_PATH_LIST_STR
         question = (
-            f"好的，我已经对你的情况有了基本了解。接下来我们来做路径对比。\\n\\n"
-            f"目前有以下方向可以分析：{path_list}。\\n"
+            f"我先根据已有信息做路径对比。\n\n"
+            f"目前可分析：{path_list}。\n"
             f"你想对比哪些方向？（可以说多个，比如\"就业和考研\"）"
         )
+        session.mark_question_asked(question)
         return self._build_response(
             session, question,
             extra={"phase": "path_probe", "selecting_paths": True},
@@ -592,6 +821,10 @@ class DecisionSandbox:
         if not session.path_selections:
             selections = self._parse_path_selections(message)
             if not selections:
+                if not session.can_ask_more():
+                    session.path_selections = list(SANDBOX_PATHS)
+                    session.path_probe_done.update(session.path_selections)
+                    return self._advance_to_parallel_sim(session)
                 # Re-show path selection cards
                 path_cards = []
                 icons = {"career": "/images/icon-job.png", "graduate": "/images/icon-postgrad.png", "civil": "/images/icon-civil.png", "major": "/images/icon-transfer.png"}
@@ -614,6 +847,7 @@ class DecisionSandbox:
                 resp["show_cards"] = True
                 resp["cards"] = path_cards
                 resp["report_text"] = "请选择对比方向"
+                session.mark_question_asked(resp["message"])
                 return resp
             session.path_selections = selections
             logger.info("Sandbox[{}]: selected paths: {}", session.session_id, selections)
@@ -623,8 +857,12 @@ class DecisionSandbox:
                 session.path_probe_history.setdefault(pt, [])
 
             # Generate first path's probe question immediately
+            if not session.can_ask_more():
+                session.path_probe_done.update(selections)
+                return self._advance_to_parallel_sim(session)
             first_path = selections[0]
             question = self._generate_path_probe_question(session, first_path)
+            session.mark_question_asked(question)
             return self._build_response(
                 session, question,
                 extra={"phase": "path_probe", "current_path": first_path},
@@ -640,6 +878,10 @@ class DecisionSandbox:
         # Record the answer
         session.record_path_probe(current_path, "", message)
 
+        if not session.can_ask_more():
+            session.path_probe_done.update(session.path_selections)
+            return self._advance_to_parallel_sim(session)
+
         # Check if we need more questions for this path
         rounds = session.path_probe_rounds(current_path)
         if rounds < MAX_PATH_PROBE_ROUNDS:
@@ -649,6 +891,7 @@ class DecisionSandbox:
                 logger.warning("Path probe: empty question for {}, skipping", current_path)
                 session.path_probe_done.add(current_path)
                 return self._maybe_advance_from_probe(session)
+            session.mark_question_asked(question)
             return self._build_response(
                 session, question,
                 extra={"phase": "path_probe", "current_path": current_path, "probe_round": rounds},
@@ -670,7 +913,11 @@ class DecisionSandbox:
         """Check if all paths have been probed, then advance."""
         next_path = self._find_current_probe_path(session)
         if next_path:
+            if not session.can_ask_more():
+                session.path_probe_done.update(session.path_selections)
+                return self._advance_to_parallel_sim(session)
             question = self._generate_path_probe_question(session, next_path)
+            session.mark_question_asked(question)
             return self._build_response(
                 session, question,
                 extra={"phase": "path_probe", "current_path": next_path},

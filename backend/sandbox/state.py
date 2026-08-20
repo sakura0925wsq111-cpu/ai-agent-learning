@@ -38,6 +38,7 @@ PHASE_ORDER: list[SandboxPhase] = [
 MAX_DISCOVERY_ROUNDS: int = 3
 MIN_DISCOVERY_ROUNDS: int = 0
 MAX_PATH_PROBE_ROUNDS: int = 1
+MAX_TOTAL_QUESTIONS: int = 5
 
 # ── Canonical path registry (single source of truth) ──────────
 
@@ -101,6 +102,12 @@ class SandboxSession:
     ambiguous_count: int = 0
     discovery_complete: bool = False
     user_profile: dict[str, Any] = field(default_factory=dict)
+    # The question/response shown on the preceding turn.  Keeping these
+    # separately prevents us from pairing a user's current answer with the
+    # *new* question generated after that answer.
+    last_discovery_question: str = ""
+    last_discovery_response: str = ""
+    questions_asked: int = 0
 
     # ── Phase 2: Path Probe ────────────────────────────────────
 
@@ -126,7 +133,9 @@ class SandboxSession:
     _SERIALIZED_FIELDS: tuple[str, ...] = (
         "session_id", "user_id", "current_phase", "phase_index", "finished",
         "error_message", "discovery_round", "discovery_history", "discovery_answers",
-        "ambiguous_count", "discovery_complete", "user_profile", "path_selections",
+        "ambiguous_count", "discovery_complete", "user_profile",
+        "last_discovery_question", "last_discovery_response", "questions_asked",
+        "path_selections",
         "path_probe_history", "path_probe_done", "path_reports",
         "parallel_sim_complete", "projection_result", "memory_snapshot",
     )
@@ -157,10 +166,19 @@ class SandboxSession:
         cleaned = text.strip()
         return any(p in cleaned for p in AMBIGUOUS_PATTERNS)
 
-    def record_discovery(self, question: str, answer: str) -> None:
-        """Record a discovery-phase Q&A pair."""
+    def record_discovery(
+        self,
+        question: str,
+        answer: str,
+        *,
+        previous_response: str = "",
+    ) -> None:
+        """Record the user's answer against the question they actually saw."""
         self.discovery_answers[question] = answer
-        self.discovery_history.append({"q": question, "a": answer})
+        entry = {"q": question, "a": answer}
+        if previous_response:
+            entry["response"] = previous_response
+        self.discovery_history.append(entry)
         self.discovery_round += 1
         if self.is_ambiguous(answer):
             self.ambiguous_count += 1
@@ -168,6 +186,17 @@ class SandboxSession:
     def should_continue_discovery(self) -> bool:
         """Return whether the hard discovery cap still allows another turn."""
         return self.discovery_round < MAX_DISCOVERY_ROUNDS
+
+    def can_ask_more(self) -> bool:
+        """Apply the five-question cap across the complete sandbox chain."""
+        return self.questions_asked < MAX_TOTAL_QUESTIONS
+
+    def mark_question_asked(self, text: str = "") -> bool:
+        """Count a question only when it is actually shown to the user."""
+        if not text or not self.can_ask_more():
+            return False
+        self.questions_asked += 1
+        return True
 
     def record_path_probe(self, path_type: str, question: str, answer: str) -> None:
         """Record a path-specific probe Q&A pair."""
@@ -187,8 +216,13 @@ class SandboxSession:
             return "（暂无对话记录）"
         lines = ["## 发现层对话记录"]
         for i, entry in enumerate(self.discovery_history, 1):
-            lines.append(f"Q{i}: {entry['q']}")
-            lines.append(f"A{i}: {entry['a']}")
+            previous_response = str(entry.get("response", "")).strip()
+            if previous_response:
+                lines.append(f"AI{i}: {previous_response}")
+            question = str(entry.get("q", "")).strip()
+            if question and question != "用户主动说明":
+                lines.append(f"Q{i}: {question}")
+            lines.append(f"用户{i}: {entry['a']}")
         return "\n".join(lines)
 
     def build_user_context_for_agent(self) -> str:
@@ -260,6 +294,8 @@ class SandboxSession:
             "discovery_round": 0, "discovery_answers": {},
             "discovery_history": [], "ambiguous_count": 0,
             "discovery_complete": False, "user_profile": {},
+            "last_discovery_question": "", "last_discovery_response": "",
+            "questions_asked": 0,
             "path_selections": [], "path_probe_history": {},
             "path_reports": {}, "parallel_sim_complete": False,
             "projection_result": {}, "memory_snapshot": {},

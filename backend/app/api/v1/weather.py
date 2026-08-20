@@ -105,8 +105,11 @@ WMO_CODES = {
 }
 
 
-def _resolve_coords(city):
-    """Resolve city name to coordinates. Falls back to geocoding API."""
+def resolve_city_coords(city: str) -> tuple[float, float] | None:
+    """Resolve a city name without substituting a different city on failure."""
+    city = str(city or "").strip()
+    if not city:
+        return None
     if city in _CITY_LOOKUP:
         return _CITY_LOOKUP[city]
     try:
@@ -121,7 +124,11 @@ def _resolve_coords(city):
             return (loc["latitude"], loc["longitude"])
     except Exception as e:
         logger.warning("Geocoding failed: {}", e)
-    return _CITY_LOOKUP.get("北京", (39.90, 116.40))
+    return None
+
+
+# Backward-compatible private name for callers that imported the old helper.
+_resolve_coords = resolve_city_coords
 
 
 def _condition_icon(cond):
@@ -163,13 +170,16 @@ def _build_advice(temp, cond):
 _WIND_DIRS = ["北", "东北", "东", "东南", "南", "西南", "西", "西北"]
 
 
-@router.get("", response_model=APIResponse[WeatherResponse])
-async def get_weather(city: str = Query("北京", description="city name")):
-    """Get current weather for a city."""
-    lat, lon = _resolve_coords(city)
+async def fetch_weather(city: str, *, timeout: float = 8) -> WeatherResponse | None:
+    """Fetch normalized current weather for reuse by weather and Today APIs."""
+    coords = resolve_city_coords(city)
+    if coords is None:
+        logger.warning("Weather city could not be resolved: {}", city)
+        return None
+    lat, lon = coords
     try:
         async with httpx.AsyncClient() as client:
-            r = await client.get(
+            response = await client.get(
                 "https://api.open-meteo.com/v1/forecast",
                 params={
                     "latitude": lat,
@@ -177,26 +187,43 @@ async def get_weather(city: str = Query("北京", description="city name")):
                     "current": "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m",
                     "timezone": "Asia/Shanghai",
                 },
-                timeout=8,
+                timeout=timeout,
             )
-            r.raise_for_status()
-            data = r.json()
-        cur = data["current"]
-        code = cur["weather_code"]
-        temp = round(cur["temperature_2m"])
-        humidity = cur["relative_humidity_2m"]
-        wind_speed = cur["wind_speed_10m"]
-        wind_dir = cur["wind_direction_10m"]
+            response.raise_for_status()
+            current = response.json()["current"]
+        code = current["weather_code"]
+        temp = round(current["temperature_2m"])
+        humidity = current["relative_humidity_2m"]
+        wind_speed = current.get("wind_speed_10m", 0)
+        wind_direction = current.get("wind_direction_10m", 0)
         condition = WMO_CODES.get(code, "未知")
-        dir_idx = round(wind_dir / 45) % 8
-        wind = _WIND_DIRS[dir_idx] + "风 " + str(round(wind_speed)) + "级" if wind_speed > 0 else "无风"
-        icon = _condition_icon(condition)
-        advice = _build_advice(temp, condition)
-        logger.info("Weather: {} {}C {} {}% {}", city, temp, condition, humidity, wind)
-        return APIResponse.ok(data=WeatherResponse(
-            temp=temp, condition=condition, icon=icon,
-            humidity=humidity, wind=wind, location=city, advice=advice,
-        ))
-    except Exception as e:
-        logger.error("Weather failed: {}", e)
+        direction_index = round(wind_direction / 45) % 8
+        wind = (
+            _WIND_DIRS[direction_index] + "风 " + str(round(wind_speed)) + "级"
+            if wind_speed > 0 else "无风"
+        )
+        return WeatherResponse(
+            temp=temp,
+            condition=condition,
+            icon=_condition_icon(condition),
+            humidity=humidity,
+            wind=wind,
+            location=city,
+            advice=_build_advice(temp, condition),
+        )
+    except Exception as exc:
+        logger.warning("Weather fetch failed for {}: {}", city, exc)
+        return None
+
+
+@router.get("", response_model=APIResponse[WeatherResponse])
+async def get_weather(city: str = Query("北京", description="city name")):
+    """Get current weather for a city."""
+    weather = await fetch_weather(city)
+    if weather is None:
         raise HTTPException(status_code=503, detail="天气数据暂时获取不到，请稍后重试")
+    logger.info(
+        "Weather: {} {}C {} {}% {}",
+        city, weather.temp, weather.condition, weather.humidity, weather.wind,
+    )
+    return APIResponse.ok(data=weather)

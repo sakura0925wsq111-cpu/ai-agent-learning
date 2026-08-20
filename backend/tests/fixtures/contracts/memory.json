@@ -1,0 +1,5 @@
+{
+  "empty": {"user_id": "fixture-user", "total": 0, "max_capacity": 50, "type_counts": {}, "memories": [], "context_count": 0, "contexts": []},
+  "full": {"user_id": "fixture-user", "total": 50, "max_capacity": 50, "type_counts": {"profile": 8, "goal": 12, "action": 15, "fact": 15}, "memories": [], "context_count": 0, "contexts": []},
+  "special_key": {"user_id": "fixture-user", "total": 1, "max_capacity": 50, "type_counts": {"fact": 1}, "memories": [{"key": "偏好/地点&方向", "value": "沿海城市", "memory_type": "fact", "confidence": 0.8, "source": "手动设置", "importance": 5, "updated_at": "2026-08-13T12:00:00"}], "context_count": 0, "contexts": []}
+}

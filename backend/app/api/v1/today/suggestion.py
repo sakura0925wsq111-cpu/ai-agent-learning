@@ -1,7 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 """AI Today Suggestion API — LLM-powered daily advice."""
 
-import httpx
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from loguru import logger
@@ -13,6 +12,7 @@ from services.today import TodayService
 from services.llm_service import get_llm_service
 from utils.auth import get_current_user_id, require_user_access
 from core.rate_limit import enforce_ai_daily_limit
+from app.api.v1.weather import fetch_weather
 
 router = APIRouter()
 
@@ -31,26 +31,8 @@ async def get_suggestion(
     # Fetch weather for suggestion context
     weather = None
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.get(
-                "https://api.open-meteo.com/v1/forecast",
-                params={
-                    "latitude": 39.90,
-                    "longitude": 116.40,
-                    "current": "temperature_2m,relative_humidity_2m,weather_code",
-                    "timezone": "Asia/Shanghai",
-                },
-                timeout=5,
-            )
-            if r.status_code == 200:
-                data = r.json()
-                cur = data["current"]
-                weather = {
-                    "temp": round(cur["temperature_2m"]),
-                    "condition": _code_to_condition(cur["weather_code"]),
-                    "location": payload.city,
-                    "advice": _weather_advice(round(cur["temperature_2m"]), cur["weather_code"]),
-                }
+        resolved = await fetch_weather(payload.city, timeout=5)
+        weather = resolved.model_dump() if resolved is not None else None
     except Exception as exc:
         logger.warning("Suggestion weather fetch failed: {}", exc)
 
@@ -91,30 +73,3 @@ async def get_suggestion(
         growth_progress=growth_progress,
     )
     return APIResponse.ok(data=result)
-
-
-def _code_to_condition(code: int) -> str:
-    mapping = {
-        0: "晴", 1: "少云", 2: "局部多云", 3: "多云",
-        45: "雾", 51: "小毛毛雨", 53: "中毛毛雨", 55: "大毛毛雨",
-        61: "小雨", 63: "中雨", 65: "大雨",
-        71: "小雪", 73: "中雪", 75: "大雪",
-        80: "阵雨", 95: "雷暴",
-    }
-    return mapping.get(code, "未知")
-
-
-def _weather_advice(temp: int, code: int) -> str:
-    if code in (95, 96):
-        return "今天有雷暴天气，尽量避免户外活动，注意安全哦~"
-    if code in (71, 73, 75):
-        return "下雪天路滑，出门注意保暖和防滑！"
-    if code in (61, 63, 65, 80):
-        return "下雨天记得带伞，路面湿滑注意安全~"
-    if temp >= 35:
-        return "高温预警！注意防暑降温，多喝水。"
-    if temp <= 5:
-        return "天气较冷，注意保暖，多喝热水~"
-    if 15 <= temp <= 25:
-        return "天气舒适宜人，适合出门散步或运动！"
-    return "天气不错，祝你有愉快的一天~"

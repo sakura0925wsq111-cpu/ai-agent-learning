@@ -1,0 +1,22 @@
+{
+  "complete": {
+    "session_id": "sandbox-1",
+    "user_id": "fixture-user",
+    "finished": true,
+    "path_selections": ["career", "graduate"],
+    "path_reports": {},
+    "projection_result": {
+      "summary": "两条路径的投入结构不同，需要先验证优先级。",
+      "projections": [
+        {"path_type": "career", "path_label": "就业", "core_insight": "尽快用实习验证岗位匹配。", "time_projection": {"short_term": "完成作品集与岗位访谈", "mid_term": "形成稳定投递策略", "long_term": "建立专业方向", "key_milestones": ["首份作品集"]}, "strengths": [], "challenges": [], "best_for": "重视实践反馈的人", "deal_breakers": "无法投入岗位验证的人"},
+        {"path_type": "graduate", "path_label": "考研", "core_insight": "需要验证研究兴趣与备考成本。", "time_projection": {"short_term": "完成院校与方向调研", "mid_term": "形成备考节奏", "long_term": "进入研究训练", "key_milestones": ["目标院校清单"]}, "strengths": [], "challenges": [], "best_for": "愿意持续深造的人", "deal_breakers": "缺乏长期投入意愿的人"}
+      ],
+      "comparison_matrix": {"dimensions": ["兴趣匹配", "准备成本", "反馈速度"], "scores": {"career": [8, 6, 9], "graduate": [7, 8, 5]}},
+      "relationship_analysis": {"mutually_exclusive": [], "can_be_sequential": ["先实习验证再决定"], "complementary": [], "note": "短期验证可以共享。"},
+      "decision_guide": {"questions_to_ask_yourself": ["我更需要实践反馈还是研究训练？"], "if_you_value_X_then_Y": [], "possible_hybrid_strategies": []},
+      "key_uncertainties": [{"factor": "真实岗位体验", "impact": "影响就业方向判断", "how_to_reduce": "完成两次岗位访谈"}]
+    }
+  },
+  "missing_matrix": {"session_id": "sandbox-2", "user_id": "fixture-user", "finished": true, "path_selections": ["career", "civil"], "path_reports": null, "projection_result": {"summary": "仅提供文字比较", "projections": [], "comparison_matrix": null, "relationship_analysis": null, "decision_guide": null, "key_uncertainties": []}},
+  "path_missing": {"session_id": "sandbox-3", "user_id": "fixture-user", "finished": false, "path_selections": [], "path_reports": null, "projection_result": null}
+}

@@ -4,6 +4,14 @@
 !.env.example
 api.env
 
+# WeChat Developer Tools machine-local settings
+**/project.private.config.json
+
+# Local agent metadata and generated presentation assets
+.workbuddy/
+deliverables/
+docs/design/
+
 # Python environments, caches, coverage, and packaging
 .venv/
 venv/

@@ -1,0 +1,5 @@
+{
+  "empty": {"user_id": "fixture-user", "year": 2026, "month": 8, "month_label": "8月", "first_weekday": 6, "total_days": 31, "days": []},
+  "multiple_types": {"user_id": "fixture-user", "year": 2026, "month": 8, "month_label": "8月", "first_weekday": 6, "total_days": 31, "days": [{"date": "2026-08-13", "weekday": 4, "weekday_label": "四", "is_today": true, "events": [{"id": "course-1", "title": "人工智能导论", "time": "08:00", "end_time": "10:00", "location": "B202", "event_type": "course", "color": "#2F5BFF", "sort_key": 1}, {"id": "todo-1", "title": "完成项目复盘", "time": "2026-08-13T20:00:00", "end_time": "", "location": "", "event_type": "todo", "color": "#8E8E93", "sort_key": 99}]}]},
+  "month_boundary": {"requested": {"year": 2026, "month": 8}, "previous_last_day": "2026-07-31", "current_first_day": "2026-08-01", "next_first_day": "2026-09-01", "rule": "response days stay inside requested month"}
+}

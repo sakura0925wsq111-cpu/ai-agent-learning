@@ -33,6 +33,7 @@ def sync_plan(
             user_id=payload.user_id,
             growth_session_id=payload.growth_session_id,
             phase=payload.phase,
+            start_date=payload.start_date,
         )
         return APIResponse.ok(data=result)
     except ValueError as exc:

@@ -1,0 +1,6 @@
+{
+  "new": {"user_id": "fixture-user", "page_state": "new", "report_count": 0, "active_session": null, "latest_report": null, "active_plan": null, "coach": {"available": false}},
+  "planning": {"user_id": "fixture-user", "page_state": "planning", "report_count": 0, "active_session": {"session_id": "growth-1", "agent": "career", "stage": "questioning", "current_step": 2, "total_steps": 5}, "latest_report": null, "active_plan": null, "coach": {"available": false}},
+  "report_ready": {"user_id": "fixture-user", "page_state": "report_ready", "report_count": 1, "active_session": null, "latest_report": {"session_id": "growth-1", "agent": "career", "title": "就业指导报告", "progress": 0.0}, "active_plan": null, "coach": {"available": true}},
+  "executing": {"user_id": "fixture-user", "page_state": "executing", "report_count": 1, "active_session": null, "latest_report": {"session_id": "growth-1", "agent": "career", "title": "就业指导报告"}, "active_plan": {"session_id": "growth-1", "phase_key": "phase_1", "completed": 1, "total": 4, "cancelled": 0, "progress": 0.25}, "coach": {"available": true, "session_id": "growth-1", "agent": "career"}}
+}

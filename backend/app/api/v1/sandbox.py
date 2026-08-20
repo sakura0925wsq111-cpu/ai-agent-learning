@@ -162,23 +162,30 @@ async def start_session(
             session.session_id, session.path_selections,
         )
 
-    # Kick off discovery phase
-    result = sandbox.chat(session, "开始", db_session=db)
-
-    # Persist session
+    # Do not send a hidden synthetic "开始" turn through the LLM.  That turn
+    # used to consume one of the three discovery rounds and was incorrectly
+    # stored as if the user had answered a question.  The client displays this
+    # same greeting before the user's first real message.
+    greeting = "你好，我是你的决策教练。你可以直接告诉我现在最纠结的选择，我会先给分析，再和你补齐关键信息。"
+    session.last_discovery_response = greeting
+    session.last_discovery_question = "你现在最纠结的选择是什么？"
+    sandbox._persist_memory(
+        session,
+        db,
+        user_message="",
+        assistant_message=greeting,
+    )
 
     return SandboxChatResponse(
         session_id=session.session_id,
         user_id=session.user_id,
-        phase=result["phase"],
-        finished=result.get("finished", False),
-        message=result["message"],
-        discovery_round=result.get("discovery_round", 0),
-        max_discovery_rounds=result.get("max_discovery_rounds", 7),
-        path_selections=result.get("path_selections", []),
-        projection_result=_build_projection(result.get("projection_result")),
-        state=result.get("state"),
-        error=result.get("error"),
+        phase=session.current_phase.value,
+        finished=False,
+        message=greeting,
+        discovery_round=0,
+        max_discovery_rounds=3,
+        path_selections=session.path_selections,
+        state=session.to_dict(),
     )
 
 

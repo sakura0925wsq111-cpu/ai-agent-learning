@@ -184,6 +184,37 @@ def _task_fields(task: Any, index: int) -> tuple[str, str | None]:
     return str(title).strip(), str(deadline).strip() if deadline else None
 
 
+_PHASE_RANGE_RE = _re.compile(r"(?:第)?\s*(\d+)\s*(?:[-—~至]\s*(\d+))?\s*周")
+
+
+def _phase_duration_days(phase_data: dict[str, Any]) -> int:
+    """Read a phase's week span, with a conservative two-week fallback."""
+    label = str(
+        phase_data.get("phase") or phase_data.get("label")
+        or phase_data.get("period") or ""
+    )
+    match = _PHASE_RANGE_RE.search(label)
+    if not match:
+        return 14
+    start_week = int(match.group(1))
+    end_week = int(match.group(2) or start_week)
+    return max(1, end_week - start_week + 1) * 7
+
+
+def _distributed_deadline(
+    start_date: date,
+    *,
+    task_index: int,
+    task_count: int,
+    duration_days: int,
+) -> str:
+    """Place tasks at even checkpoints through the selected phase window."""
+    count = max(1, task_count)
+    checkpoint = ((task_index + 1) * duration_days + count - 1) // count
+    offset = max(0, checkpoint - 1)
+    return (start_date + timedelta(days=offset)).isoformat()
+
+
 class TodayService:
     """Orchestrates Today Mode business logic."""
 
@@ -382,6 +413,7 @@ class TodayService:
         user_id: str,
         growth_session_id: str,
         phase: str,
+        start_date: date | None = None,
     ) -> dict[str, Any]:
         """Sync one report phase into Todo with bidirectional traceability."""
         existing = db.query(PlanTask).filter(
@@ -408,6 +440,7 @@ class TodayService:
                         "todo_id": item.todo_id,
                         "title": todo_map[item.todo_id].title,
                         "status": todo_map[item.todo_id].status,
+                        "deadline": todo_map[item.todo_id].deadline,
                     }
                     for item in existing if item.todo_id in todo_map
                 ],
@@ -437,11 +470,19 @@ class TodayService:
             }
 
         synced: list[dict[str, Any]] = []
+        duration_days = _phase_duration_days(phase_data)
         try:
             for index, task in enumerate(tasks):
                 title, deadline = _task_fields(task, index)
                 if not title:
                     continue
+                if deadline is None and start_date is not None:
+                    deadline = _distributed_deadline(
+                        start_date,
+                        task_index=index,
+                        task_count=len(tasks),
+                        duration_days=duration_days,
+                    )
                 todo = Todo(
                     user_id=user_id,
                     title=title,

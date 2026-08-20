@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   quality:
-    name: Backend tests and miniprogram syntax
+    name: Backend tests and frontend syntax
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -50,9 +50,13 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Check miniprogram JavaScript syntax
+      - name: Check available frontend JavaScript syntax
         shell: bash
         run: |
           set -euo pipefail
-          find miniprogram -type f -name '*.js' -print0 \
-            | xargs -0 -r -n 1 node --check
+          for frontend_dir in miniprogram miniprogram-v2; do
+            if [ -d "$frontend_dir" ]; then
+              find "$frontend_dir" -type f -name '*.js' -print0 \
+                | xargs -0 -r -n 1 node --check
+            fi
+          done

@@ -241,5 +241,16 @@ def normalize_advisory_text(text: str, max_chars: int = 160) -> str:
             question = cleaned[question_start + 1:]
             cleaned = cleaned[:question_start + 1]
     body_limit = max_chars - len(question)
-    body = cleaned[: max(1, body_limit - 1)].rstrip("，；、。！？") + "…"
+    candidate = cleaned[: max(1, body_limit)]
+    # Prefer a complete sentence over a mechanically truncated phrase such as
+    # “去招聘网站浏…”.  If no sentence boundary is available, a late clause
+    # boundary is still more readable than cutting in the middle of a word.
+    sentence_cut = max(candidate.rfind("。"), candidate.rfind("！"), candidate.rfind("；"))
+    if sentence_cut >= max(12, int(body_limit * 0.55)):
+        body = candidate[: sentence_cut + 1]
+    else:
+        clause_cut = max(candidate.rfind("，"), candidate.rfind("、"), candidate.rfind("："))
+        if clause_cut >= max(12, int(body_limit * 0.65)):
+            candidate = candidate[:clause_cut]
+        body = candidate.rstrip("，；、。！？：") + "…"
     return body + question

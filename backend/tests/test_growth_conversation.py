@@ -8,7 +8,7 @@ import os
 import tempfile
 
 from planning.agents.graduate import GraduatePlanningAgent
-from planning.conversation import analyze_turn
+from planning.conversation import analyze_turn, normalize_advisory_text
 from planning.knowledge import get_knowledge_context
 from planning.readiness import evaluate_advice_readiness
 from planning.graph import build_growth_graph
@@ -18,7 +18,7 @@ from sandbox.prompts.discovery import DISCOVERY_SYSTEM_PROMPT
 from sandbox.orchestrator import DecisionSandbox
 from evals.growth_dialogues import DIALOGUE_CASES, cases_by_agent
 from scripts.evaluate_growth_conversations import run_evaluation
-from sandbox.state import SandboxPhase, SandboxSession
+from sandbox.state import MAX_TOTAL_QUESTIONS, SandboxPhase, SandboxSession
 
 
 class _FakeLLM:
@@ -77,6 +77,31 @@ class _SandboxReportLLM:
 class GrowthConversationTests(unittest.TestCase):
     def test_follow_up_question_cap_is_five(self):
         self.assertEqual(MAX_FOLLOW_UP_ROUNDS, 5)
+        self.assertEqual(MAX_TOTAL_QUESTIONS, 5)
+
+    def test_sandbox_question_cap_counts_only_visible_prompts(self):
+        session = SandboxSession(session_id="question-cap", user_id="u1")
+        for index in range(7):
+            session.mark_question_asked(f"问题{index + 1}")
+
+        self.assertEqual(session.questions_asked, 5)
+        restored = SandboxSession.from_dict(session.to_dict())
+        self.assertEqual(restored.questions_asked, 5)
+        self.assertFalse(restored.can_ask_more())
+
+    def test_long_advisory_text_trims_at_sentence_boundary(self):
+        text = (
+            "计算机就业不完全依赖研究生学历，工程实践岗位更看重项目与实习。"
+            "算法和研究型岗位通常更重视研究生阶段训练。"
+            "一个低成本验证动作是去招聘网站浏览目标岗位并记录要求。"
+            "你目前对哪类技术问题更有热情？"
+        )
+
+        result = normalize_advisory_text(text, 80)
+
+        self.assertLessEqual(len(result), 80)
+        self.assertEqual(result.count("？"), 1)
+        self.assertNotIn("招聘网站浏…", result)
 
     def test_each_direction_has_a_personalized_advice_standard(self):
         fixtures = {
@@ -164,6 +189,17 @@ class GrowthConversationTests(unittest.TestCase):
         self.assertEqual(agent.state.questions_asked, 2)
         self.assertEqual(agent.state.unavailable_dimensions["target"], "unknown")
         self.assertEqual(agent.state.last_asked_dimension, "foundation")
+
+    def test_uncertain_answer_acknowledgement_keeps_concrete_choice_signal(self):
+        agent = GraduatePlanningAgent(_FakeLLM())
+        agent.init_state({"major": "通信工程", "grade": "大三"})
+
+        acknowledgement = agent._fallback_acknowledgement(
+            "我还没想好该冲985还是选稳一点的学校"
+        )
+
+        self.assertTrue("985" in acknowledgement or "稳" in acknowledgement)
+        self.assertIn("拿不准", acknowledgement)
 
     def test_fifth_unavailable_answer_produces_conditional_advice_without_more_questions(self):
         llm = _FakeLLM(response=json.dumps({
@@ -356,6 +392,73 @@ class GrowthConversationTests(unittest.TestCase):
         self.assertIn("你更看重", result["message"])
         self.assertEqual(session.discovery_round, 1)
 
+    def test_sandbox_decision_pushback_gets_direction_instead_of_repeat_question(self):
+        llm = _FakeLLM(response=json.dumps({
+            "response": (
+                "理解，你希望我先给出方向参考，而不是继续追问。"
+                "从目前信息看，两条路都可行，取决于你的偏好。"
+            ),
+            "next_question": "如果考研，你更看重薪资提升还是想避开就业压力？",
+            "reasoning": "继续询问偏好",
+            "updated_profile": {},
+            "finish": True,
+        }, ensure_ascii=False))
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+        session = SandboxSession(
+            session_id="pushback",
+            user_id="u1",
+            discovery_round=1,
+            discovery_history=[{
+                "q": "你现在最纠结的选择是什么？",
+                "a": "不知道考研还是就业",
+            }],
+            last_discovery_question="如果有实习机会，你会先就业还是读研？",
+            last_discovery_response="两条路需要结合目标和投入成本判断。",
+            user_profile={
+                "major": "计算机科学与技术",
+                "grade": "大三",
+                "core_confusion": "就业与考研路径选择",
+            },
+            path_selections=["career", "graduate"],
+        )
+
+        result = sandbox.chat(session, "我就是不知道才问你啊")
+
+        self.assertEqual(result["phase"], "discovery")
+        self.assertIn("更建议先把就业准备作为验证主线", result["message"])
+        self.assertNotIn("取决于你的偏好", result["message"])
+        self.assertNotIn("你更看重薪资提升", result["message"])
+        self.assertEqual(result["message"].count("？"), 1)
+        self.assertLessEqual(len(result["message"]), 160)
+        self.assertEqual(
+            session.discovery_history[-1]["q"],
+            "如果有实习机会，你会先就业还是读研？",
+        )
+        self.assertEqual(session.discovery_history[-1]["a"], "我就是不知道才问你啊")
+        self.assertEqual(session.last_discovery_question, "你目前项目实践和数学英语，哪一边基础更扎实？")
+
+    def test_sandbox_named_paths_are_remembered_and_transition_has_real_newlines(self):
+        llm = _FakeLLM(response=json.dumps({
+            "response": "我先比较现有信息，再进入两条路径的具体分析。",
+            "next_question": "",
+            "updated_profile": {},
+            "finish": False,
+        }, ensure_ascii=False))
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+        session = sandbox.start_session("u1")
+
+        sandbox.chat(session, "不知道考研还是就业")
+        transition = sandbox._transition_to_path_probe(SandboxSession(
+            session_id="newline",
+            user_id="u1",
+            current_phase=SandboxPhase.DISCOVERY,
+            phase_index=0,
+        ))
+
+        self.assertEqual(session.path_selections, ["career", "graduate"])
+        self.assertNotIn("\\n", transition["message"])
+        self.assertIn("\n", transition["message"])
+
     def test_structured_response_is_short_soft_and_single_question(self):
         llm = _FakeLLM(response=json.dumps({
             "acknowledgement": "明白了。",
@@ -440,6 +543,30 @@ class GrowthConversationTests(unittest.TestCase):
 
 
 class GrowthGraphRoundTests(unittest.IsolatedAsyncioTestCase):
+    async def test_sandbox_start_does_not_consume_a_hidden_discovery_round(self):
+        from app.api.v1.sandbox import start_session as start_sandbox_session
+        from sandbox.schemas import SandboxStartRequest
+
+        llm = _FakeLLM(response="should not be called")
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+
+        response = await start_sandbox_session(
+            SandboxStartRequest(user_id="u1"),
+            sandbox=sandbox,
+            db=None,
+            current_user_id="u1",
+        )
+
+        session = sandbox.get_session(response.session_id)
+        self.assertIsNotNone(session)
+        self.assertEqual(session.discovery_round, 0)
+        self.assertEqual(session.discovery_history, [])
+        self.assertEqual(llm.calls, [])
+        self.assertEqual(
+            session.last_discovery_question,
+            "你现在最纠结的选择是什么？",
+        )
+
     async def test_sandbox_stream_hides_internal_json(self):
         llm = _FakeLLM(response=json.dumps({
             "response": "考研方向要比较目标岗位、当前基础和时间成本。你更偏向研究还是工程实践？",

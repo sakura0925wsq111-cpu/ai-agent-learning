@@ -108,6 +108,7 @@ class GrowthTodayLoopTests(unittest.TestCase):
         self.assertTrue(second["already_synced"])
         self.assertEqual(self.db.query(Todo).count(), 2)
         self.assertEqual(self.db.query(PlanTask).count(), 2)
+        self.assertIsNone(first["todos"][0]["deadline"])
 
         todo = self.db.query(Todo).order_by(Todo.created_at.asc()).first()
         todo.status = "done"
@@ -121,6 +122,21 @@ class GrowthTodayLoopTests(unittest.TestCase):
         self.assertEqual(progress["completed"], 1)
         self.assertEqual(progress["overall_completion"], 0.5)
         self.assertEqual(progress["current_phase"]["phase_key"], "phase_1")
+
+    def test_sync_optional_start_date_distributes_only_missing_deadlines(self) -> None:
+        from datetime import date
+
+        result = TodayService().sync_growth_plan(
+            self.db,
+            user_id=self.user.id,
+            growth_session_id=self.session.id,
+            phase="phase_1",
+            start_date=date(2026, 8, 17),
+        )
+
+        self.assertEqual(result["synced_count"], 2)
+        self.assertEqual(result["todos"][0]["deadline"], "2026-08-23")
+        self.assertEqual(result["todos"][1]["deadline"], "2026-08-15T20:00:00")
 
     def test_dashboard_switches_from_report_ready_to_executing(self) -> None:
         growth = GrowthService(_CoachLLM())

@@ -1,7 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 """Today Overview API — aggregated daily snapshot."""
 
-import httpx
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from loguru import logger
@@ -10,15 +9,13 @@ from database.session import get_db
 from schemas.response import APIResponse
 from services.today import TodayService
 from utils.auth import get_current_user_id, require_user_access
+from app.api.v1.weather import fetch_weather
 
 router = APIRouter()
 
 
 def _get_today_service() -> TodayService:
     return TodayService()
-
-
-CITY_COORDS_CACHE: dict[str, tuple[float, float]] = {}
 
 
 @router.get("/overview", response_model=APIResponse[dict])
@@ -33,29 +30,12 @@ async def get_overview(
     service = _get_today_service()
     overview = service.get_overview(db, user_id=user_id)
 
-    # Fetch weather (reuse logic from weather API)
+    # Reuse the canonical city resolution and weather mapping.  A failed city
+    # lookup stays unavailable instead of silently returning Beijing weather.
     weather = None
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.get(
-                "https://api.open-meteo.com/v1/forecast",
-                params={
-                    "latitude": 39.90,
-                    "longitude": 116.40,
-                    "current": "temperature_2m,relative_humidity_2m,weather_code",
-                    "timezone": "Asia/Shanghai",
-                },
-                timeout=5,
-            )
-            if r.status_code == 200:
-                data = r.json()
-                cur = data["current"]
-                weather = {
-                    "temp": round(cur["temperature_2m"]),
-                    "humidity": cur["relative_humidity_2m"],
-                    "code": cur["weather_code"],
-                    "location": city,
-                }
+        resolved = await fetch_weather(city, timeout=5)
+        weather = resolved.model_dump() if resolved is not None else None
     except Exception as exc:
         logger.warning("Overview weather fetch failed: {}", exc)
 

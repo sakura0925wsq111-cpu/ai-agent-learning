@@ -1,0 +1,5 @@
+{
+  "complete": {"session_id": "growth-1", "agent": "career", "report": {"summary": "围绕产品岗位建立验证计划", "goal": "完成一轮真实岗位验证", "action_plan": [{"phase_key": "phase_1", "phase": "第1-2周", "title": "建立基线", "tasks": ["复盘一个项目", {"title": "访谈一名从业者", "deadline": "2026-08-20"}]}, {"phase_key": "phase_2", "phase": "第3-4周", "title": "市场验证", "tasks": ["完成三次投递"]}]}},
+  "legacy": {"session_id": "growth-2", "agent": "graduate", "report": {"current_status": "基础资料已完成", "plan": [{"label": "第1周", "actions": ["整理院校清单"]}]}},
+  "no_action_plan": {"session_id": "growth-3", "agent": "civil", "report": {"summary": "报告仅包含总结"}}
+}

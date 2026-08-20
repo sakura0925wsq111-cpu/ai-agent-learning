@@ -45,6 +45,10 @@ class SyncPlanRequest(BaseModel):
     user_id: str
     growth_session_id: str
     phase: str = Field(..., pattern=r"^phase_[1-4]$")
+    start_date: date | None = Field(
+        default=None,
+        description="Optional phase start date used to distribute missing deadlines",
+    )
 
 
 class SyncPlanResponse(BaseModel):

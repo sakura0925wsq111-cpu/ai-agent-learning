@@ -1,0 +1,15 @@
+{
+  "normal": {
+    "user_id": "fixture-user",
+    "date": "2026-08-13",
+    "greeting": "下午好",
+    "weather": {"temp": 27, "condition": "多云", "icon": "☁️", "humidity": 68, "wind": "东风 2级", "location": "青岛", "advice": "适合正常出行"},
+    "courses_count": 1,
+    "todos_count": 1,
+    "nearest_exam": {"id": "exam-1", "subject": "数据结构", "exam_date": "2026-08-20", "start_time": "09:00", "location": "A101"},
+    "courses_today": [{"id": "course-1", "name": "人工智能导论", "start": 1, "end": 2, "location": "B202"}],
+    "pending_todos": [{"id": "todo-1", "title": "完成项目复盘", "status": "pending", "deadline": "2026-08-13T20:00:00", "source": "manual"}]
+  },
+  "empty": {"user_id": "fixture-user", "date": "2026-08-13", "greeting": "下午好", "weather": null, "courses_count": 0, "todos_count": 0, "nearest_exam": null, "courses_today": [], "pending_todos": []},
+  "weather_failure": {"user_id": "fixture-user", "date": "2026-08-13", "greeting": "下午好", "weather": null, "courses_count": 1, "todos_count": 0, "nearest_exam": null, "courses_today": [{"id": "course-1", "name": "人工智能导论", "start": 1, "end": 2}], "pending_todos": []}
+}
