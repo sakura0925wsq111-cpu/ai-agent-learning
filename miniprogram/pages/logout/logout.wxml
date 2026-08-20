@@ -1,8 +1,0 @@
-<view class="container">
-  <!-- 全屏 loading -->
-  <view class="logout-loading">
-    <view class="spinner"></view>
-    <text class="loading-text">正在注销...</text>
-    <text class="loading-sub">您的数据正在安全清除中</text>
-  </view>
-</view>
