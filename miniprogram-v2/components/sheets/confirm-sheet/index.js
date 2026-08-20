@@ -1,0 +1,1 @@
+Component({ properties:{visible:Boolean,title:String,message:String,confirmLabel:{type:String,value:"确认"},destructive:Boolean,submitting:Boolean},methods:{close(){this.triggerEvent("close");},submit(){this.triggerEvent("confirm");}} });

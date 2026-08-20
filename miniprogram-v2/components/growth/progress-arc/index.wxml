@@ -1,0 +1,1 @@
+<view class="arc"><canvas type="2d" id="arcCanvas" class="arc__canvas"></canvas><view class="arc__copy"><text class="arc__value">{{percent}}%</text><text class="arc__label">{{label}}</text></view></view>

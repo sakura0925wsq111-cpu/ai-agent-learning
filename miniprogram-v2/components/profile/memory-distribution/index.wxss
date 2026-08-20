@@ -1,0 +1,9 @@
+.distribution__track { height: 22rpx; display: flex; overflow: hidden; border-radius: 999rpx; background: var(--color-surface-secondary); }
+.distribution__segment { height: 100%; min-width: 0; background: var(--color-primary); }
+.distribution__segment--goal, .distribution__dot--goal { background: var(--color-cyan); }
+.distribution__segment--action, .distribution__dot--action { background: #78A7FF; }
+.distribution__segment--fact, .distribution__dot--fact { background: #8B95A3; }
+.distribution__legend { margin-top: 24rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx 22rpx; }
+.distribution__item { display: grid; grid-template-columns: 14rpx 1fr auto; align-items: center; gap: 10rpx; color: var(--color-secondary); font-size: 21rpx; }
+.distribution__dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--color-primary); }
+.distribution__value { color: var(--color-ink); font-variant-numeric: tabular-nums; }

@@ -1,0 +1,12 @@
+.radar { box-sizing: border-box; padding: 28rpx 18rpx 24rpx; display: flex; flex-direction: column; align-items: center; border-radius: 28rpx; background: #171A21; color: #F7F8FA; }
+.radar__head { width: 100%; box-sizing: border-box; padding: 0 14rpx; display: flex; align-items: flex-start; justify-content: space-between; }
+.radar__kicker, .radar__title { display: block; }
+.radar__kicker { color: #858D9A; font-size: 19rpx; }
+.radar__title { margin-top: 6rpx; font-size: 28rpx; font-weight: 650; }
+.radar__max { color: #858D9A; font-family: monospace; font-size: 18rpx; }
+.radar__canvas { width: 600rpx; height: 600rpx; }
+.radar__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 14rpx 24rpx; }
+.radar__legend-item { display: flex; align-items: center; gap: 8rpx; color: #C5CBD4; font-size: 21rpx; }
+.radar__swatch { width: 24rpx; height: 5rpx; border-radius: 999rpx; background: #2868F5; }
+.radar__swatch--1 { background: #32C7E8; }.radar__swatch--2 { background: #FF9F0A; }.radar__swatch--3 { background: #30D158; }
+.radar__note { margin-top: 18rpx; color: #777F8C; font-size: 19rpx; }

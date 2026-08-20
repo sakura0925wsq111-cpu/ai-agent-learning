@@ -1,0 +1,1 @@
+<bottom-sheet visible="{{visible}}" title="{{title}}" submit-label="{{confirmLabel}}" destructive="{{destructive}}" submitting="{{submitting}}" bind:close="close" bind:submit="submit"><text class="message">{{message}}</text></bottom-sheet>

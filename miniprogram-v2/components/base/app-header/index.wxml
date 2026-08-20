@@ -1,0 +1,10 @@
+<view class="header {{back || compact ? 'header--compact' : ''}}" style="padding-top: {{statusBarHeight}}px">
+  <view class="header__bar">
+    <button wx:if="{{back}}" class="header__back" bindtap="onBack" aria-label="返回"><text class="header__back-icon">‹</text></button>
+    <view class="header__copy">
+      <text class="header__title">{{title}}</text>
+      <text wx:if="{{eyebrow}}" class="header__eyebrow">{{eyebrow}}</text>
+    </view>
+    <button wx:if="{{actionLabel}}" class="header__action" bindtap="onAction">{{actionLabel}}</button>
+  </view>
+</view>

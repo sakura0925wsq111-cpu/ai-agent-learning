@@ -1,0 +1,3 @@
+.badge { display: inline-flex; padding: 5rpx 12rpx; border-radius: 999rpx; background: var(--color-surface-secondary); color: var(--color-secondary); font-size: 18rpx; }
+.badge--ai_plan { background: var(--color-success-soft); color: var(--color-success); }
+.badge--pdf_import, .badge--excel_import { background: var(--color-primary-soft); color: var(--color-primary); }

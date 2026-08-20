@@ -1,0 +1,21 @@
+<view class="login-page">
+  <view class="login-hero" style="padding-top: {{heroTop}}px">
+    <text class="login-brand">iCampus</text>
+    <view class="login-road" aria-hidden="true"><view></view><view></view><view></view></view>
+    <text class="login-title">欢迎回来</text>
+    <text class="login-subtitle">继续整理今天，也继续靠近想去的方向</text>
+  </view>
+
+  <view class="login-card surface">
+    <text class="field-label">学号</text>
+    <view class="login-field"><text class="login-field__icon">♙</text><input data-key="studentId" value="{{studentId}}" bindinput="input" placeholder="请输入学号" maxlength="50"/></view>
+    <view class="password-label"><text class="field-label">密码</text><text bindtap="forgot">忘记密码</text></view>
+    <view class="login-field"><text class="login-field__icon">▣</text><input password="{{!showPassword}}" data-key="password" value="{{password}}" bindinput="input" placeholder="请输入密码" maxlength="100" confirm-type="done" bindconfirm="submit"/><text class="password-eye" bindtap="togglePassword">{{showPassword ? '◉' : '⊘'}}</text></view>
+    <button class="button button--primary login-submit" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{submitting ? '正在登录…' : '登录'}}</button>
+    <view class="divider-or"><view></view><text>或</text><view></view></view>
+    <button class="button button--secondary demo-button" disabled="{{submitting}}" bindtap="fillDemo">使用演示账号</button>
+  </view>
+
+  <view class="create-row"><text>还没有账号？</text><text bindtap="register">创建账号</text></view>
+  <view class="legal-row" bindtap="toggleAgreement"><view class="legal-check {{agreed ? 'legal-check--checked' : ''}}">{{agreed ? '✓' : ''}}</view><text>登录即表示同意</text><text class="legal-link" catchtap="agreement">《用户协议》</text><text>和</text><text class="legal-link" catchtap="agreement">《隐私政策》</text></view>
+</view>

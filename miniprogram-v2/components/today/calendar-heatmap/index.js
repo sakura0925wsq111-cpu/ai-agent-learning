@@ -1,0 +1,1 @@
+Component({ data: { weekdays: ["一", "二", "三", "四", "五", "六", "日"] }, properties: { cells: { type: Array, value: [] } }, methods: { select(event) { const day = event.currentTarget.dataset.day; if (day && !day.blank) this.triggerEvent("select", day); } } });

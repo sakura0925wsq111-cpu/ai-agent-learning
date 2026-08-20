@@ -1,0 +1,36 @@
+page {
+  --color-hero: #E8EDF9;
+  --color-canvas: #F5F6F4;
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F4F5F7;
+  --color-surface-elevated: #FFFFFF;
+  --color-ink: #111318;
+  --color-secondary: #6B7280;
+  --color-muted: #9CA3AF;
+  --color-line: #E7E8EA;
+  --color-line-strong: #D7DAE0;
+  --color-primary: #2868F5;
+  --color-primary-deep: #1554E8;
+  --color-primary-soft: #EEF3FF;
+  --color-cyan: #20AFC4;
+  --color-cyan-soft: #EAF9FA;
+  --color-graphite: #111318;
+  --color-danger: #EF5B64;
+  --color-danger-soft: #FFF0F1;
+  --color-success: #24B47E;
+  --color-success-soft: #EAF8F3;
+  --color-warning: #F59E42;
+  --color-warning-soft: #FFF4E9;
+  --space-1: 8rpx;
+  --space-2: 16rpx;
+  --space-3: 24rpx;
+  --space-4: 32rpx;
+  --space-5: 48rpx;
+  --space-6: 64rpx;
+  --page-gutter: 34rpx;
+  --radius-control: 20rpx;
+  --radius-module: 24rpx;
+  --radius-visual: 28rpx;
+  --shadow-module: 0 12rpx 34rpx rgba(30, 45, 70, .07);
+  --shadow-float: 0 18rpx 48rpx rgba(30, 45, 70, .13);
+}

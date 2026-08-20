@@ -1,0 +1,37 @@
+<view class="intro">
+  <view class="intro__hero" style="padding-top: {{heroTop}}px">
+    <view class="brand">iCampus</view>
+    <text class="brand__sub">大学生成长决策与执行系统</text>
+    <view class="route-art" aria-hidden="true">
+      <view class="route-art__line"></view>
+      <view class="route-art__pin">●</view>
+      <view class="route-art__node route-art__node--one">⌖</view>
+      <view class="route-art__node route-art__node--two">▥</view>
+      <view class="route-art__node route-art__node--three">⚑</view>
+    </view>
+    <view class="intro__headline"><text>让选择有依据，</text><text>让成长可行动</text></view>
+    <view class="intro__copy"><text>用真实数据整理今天、探索方向，</text><text>并持续看见自己的成长。</text></view>
+  </view>
+
+  <view class="feature-list">
+    <view class="feature surface" bindtap="start">
+      <view class="feature__icon feature__icon--blue">✓</view>
+      <view class="feature__copy"><text>今日行动</text><text>课表、考试与待办统一安排</text></view>
+      <text class="feature__arrow">›</text>
+    </view>
+    <view class="feature surface" bindtap="start">
+      <view class="feature__icon feature__icon--cyan">◇</view>
+      <view class="feature__copy"><text>路径探索</text><text>基于个人信息对比四种发展方向</text></view>
+      <text class="feature__arrow">›</text>
+    </view>
+    <view class="feature surface" bindtap="start">
+      <view class="feature__icon feature__icon--orange">↗</view>
+      <view class="feature__copy"><text>成长报告</text><text>记录行动结果与能力变化</text></view>
+      <text class="feature__arrow">›</text>
+    </view>
+  </view>
+
+  <button class="button button--primary intro__start" bindtap="start">开始使用</button>
+  <button class="intro__login" bindtap="login">已有账号，直接登录</button>
+  <view class="intro__privacy"><text class="shield">◇</text><text>你的数据由你管理</text></view>
+</view>

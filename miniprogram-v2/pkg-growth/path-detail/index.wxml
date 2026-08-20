@@ -1,0 +1,22 @@
+<view class="page--plain detail-page">
+  <view class="detail-hero">
+    <app-header title="路径沙盘推演" back bind:back="back"/>
+    <view class="detail-art" aria-hidden="true"><view></view><view></view><view></view></view>
+    <text class="detail-title">{{projection.label}}路径详情</text>
+    <view class="core-insight"><text>◎</text><view><text>{{projection.coreInsight}}</text><text>基于：个人档案、能力画像与目标偏好</text></view></view>
+  </view>
+  <view wx:if="{{loading}}" class="card loading-card"><skeleton rows="7"/></view>
+  <state-view wx:elif="{{error}}" state="error" title="路径详情暂不可用" message="{{error}}" bind:action="retry"/>
+  <block wx:else>
+    <view class="future-card surface">
+      <text class="card-heading">未来三步</text>
+      <view class="future-step" wx:for="{{projection.milestones}}" wx:key="key"><view class="future-rail"><view class="future-dot {{index === 0 ? 'future-dot--green' : index === 1 ? 'future-dot--blue' : ''}}">{{index === 0 ? '✓' : index === 1 ? '○' : ''}}</view><view wx:if="{{index < projection.milestones.length - 1}}" class="future-line"></view></view><text class="future-time {{index === 0 ? 'green' : index === 1 ? 'blue' : ''}}">未来 {{item.label}}</text><text class="future-copy">{{item.text}}</text></view>
+    </view>
+    <view class="fit-grid"><view class="fit-card surface"><view class="fit-head fit-head--green"><text>♥</text><text>更适合你的地方</text></view><view class="tag-list"><text wx:for="{{strengths}}" wx:key="*this" class="tag tag--green">{{item}}</text></view></view><view class="fit-card surface"><view class="fit-head fit-head--orange"><text>!</text><text>需要正视的挑战</text></view><view class="tag-list"><text wx:for="{{challenges}}" wx:key="*this" class="tag tag--orange">{{item}}</text></view></view></view>
+    <view class="uncertainty-card surface"><view class="uncertainty-head"><text>?</text><text>关键不确定性</text></view><text class="uncertainty-factor">{{uncertainty.factor}}</text><view class="uncertainty-reduce"><text>▤</text><text>降低不确定性：</text><text>{{uncertainty.howToReduce}}</text><text>›</text></view></view>
+    <view class="truth-note"><text>ⓘ</text><text>{{projection.deal_breakers || '请通过真实实践验证你是否适应这条路径的工作节奏与责任压力。'}}</text></view>
+    <button class="button button--primary choose-button" loading="{{starting}}" disabled="{{starting}}" bindtap="plan">选择{{projection.label}}，进入专项规划 <text>›</text></button>
+    <button class="button button--secondary back-compare" bindtap="back">返回方案对比</button>
+  </block>
+  <mini-tabbar selected="1"/>
+</view>

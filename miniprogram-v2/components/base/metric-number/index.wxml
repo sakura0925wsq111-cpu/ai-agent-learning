@@ -1,0 +1,5 @@
+<view class="metric {{accent ? 'metric--accent' : ''}}">
+  <text class="metric__value">{{value}}</text>
+  <text class="metric__label">{{label}}</text>
+  <text wx:if="{{note}}" class="metric__note">{{note}}</text>
+</view>

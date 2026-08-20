@@ -1,0 +1,18 @@
+{
+  "navigationStyle":"custom",
+  "usingComponents":{
+    "app-header":"../../components/base/app-header/index",
+    "progress-arc":"../../components/growth/progress-arc/index",
+    "state-view":"../../components/base/state-view/index",
+    "skeleton":"../../components/base/skeleton/index",
+    "trajectory-timeline":"../../components/today/trajectory-timeline/index",
+    "calendar-heatmap":"../../components/today/calendar-heatmap/index",
+    "task-row":"../../components/growth/task-row/index",
+    "weather-sheet":"../../components/sheets/weather-sheet/index",
+    "event-detail-sheet":"../../components/sheets/event-detail-sheet/index",
+    "todo-editor-sheet":"../../components/sheets/todo-editor-sheet/index",
+    "course-editor-sheet":"../../components/sheets/course-editor-sheet/index",
+    "exam-editor-sheet":"../../components/sheets/exam-editor-sheet/index",
+    "confirm-sheet":"../../components/sheets/confirm-sheet/index"
+  }
+}

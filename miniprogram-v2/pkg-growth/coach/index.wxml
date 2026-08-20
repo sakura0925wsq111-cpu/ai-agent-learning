@@ -1,0 +1,15 @@
+<view class="coach-page">
+  <view class="coach-hero" style="padding-top: {{heroTop}}px">
+    <view class="coach-art" aria-hidden="true"><view></view><view></view><text>⚑</text></view>
+    <text class="coach-eyebrow">基于真实执行状态</text>
+    <text class="coach-title">AI 成长教练</text>
+    <text class="coach-subtitle">把困难说清楚，把下一步变具体</text>
+    <view class="context-pill"><text>✓</text><text>已读取：行动计划与长期记忆</text></view>
+  </view>
+  <state-view wx:if="{{error && !messages.length}}" state="error" title="教练暂不可用" message="{{error}}" bind:action="retry"/>
+  <scroll-view wx:else class="messages" scroll-y enhanced scroll-into-view="{{scrollId}}"><view class="messages__inner"><stream-message wx:for="{{messages}}" wx:key="id" id="{{item.id}}" role="{{item.role}}" content="{{item.content}}" streaming="{{item.streaming}}"/><view wx:if="{{suggestedTask && !sending}}" class="suggestion surface"><view class="suggestion__head"><text>✦</text><text>建议的下一步</text><text>贴合你的目标</text></view><text class="suggestion__task">{{suggestedTask}}</text><text class="suggestion__meta">预计 20 分钟 · 本周内</text><view class="suggestion__actions"><button bindtap="askCreate">确认后加入待办</button><button bindtap="dismissSuggestion">暂不添加</button></view></view><view class="truth-line">ⓘ 建议不会自动修改你的计划</view></view></scroll-view>
+  <view class="quick"><button wx:for="{{quick}}" wx:key="*this" data-value="{{item}}" bindtap="quick" disabled="{{sending}}"><text>{{index === 0 ? '●' : index === 1 ? '?' : '▥'}}</text>{{item}}</button></view>
+  <view class="composer"><textarea class="composer__input" value="{{input}}" bindinput="input" auto-height maxlength="2000" placeholder="告诉教练你现在卡在哪里…" disabled="{{sending}}"/><button class="composer__send" disabled="{{sending || !input}}" bindtap="send">➤</button></view>
+  <mini-tabbar selected="2"/>
+</view>
+<confirm-sheet visible="{{confirmTask}}" title="把这条建议加入待办？" message="{{suggestedTask}}" confirm-label="确认加入" submitting="{{submitting}}" bind:close="closeConfirm" bind:confirm="createTask"/>

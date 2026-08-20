@@ -1,0 +1,60 @@
+{
+  "pages": [
+    "pages/launch/index",
+    "pages/auth/login/index",
+    "pages/auth/register/index",
+    "pages/onboarding/index",
+    "pages/agreement/index",
+    "pages/today/index",
+    "pages/explore/index",
+    "pages/action/index",
+    "pages/passport/index",
+    "pages/settings/index"
+  ],
+  "subpackages": [
+    {
+      "root": "pkg-today",
+      "pages": ["import/index", "import-preview/index"]
+    },
+    {
+      "root": "pkg-growth",
+      "pages": [
+        "sandbox-chat/index",
+        "sandbox-result/index",
+        "path-detail/index",
+        "planner-chat/index",
+        "report/index",
+        "coach/index",
+        "history/index"
+      ]
+    },
+    {
+      "root": "pkg-profile",
+      "pages": ["memory/index", "capability/index"]
+    }
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#F5F6F4",
+    "backgroundTextStyle": "dark",
+    "navigationBarTextStyle": "black"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#6B7280",
+    "selectedColor": "#2868F5",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      {"pagePath": "pages/today/index", "text": "今天"},
+      {"pagePath": "pages/explore/index", "text": "探索"},
+      {"pagePath": "pages/action/index", "text": "行动"},
+      {"pagePath": "pages/passport/index", "text": "我的"}
+    ]
+  },
+  "networkTimeout": {
+    "request": 60000,
+    "uploadFile": 60000
+  },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

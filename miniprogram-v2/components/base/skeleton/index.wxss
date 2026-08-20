@@ -1,0 +1,2 @@
+.skeleton { display: flex; flex-direction: column; gap: 18rpx; }
+.skeleton__row { height: 82rpx; border-radius: 18rpx; background: var(--color-line-strong); animation: shimmer 1.2s ease-in-out infinite; }

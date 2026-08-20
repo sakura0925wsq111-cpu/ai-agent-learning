@@ -1,0 +1,1 @@
+.form { padding: 12rpx 28rpx 30rpx; border-color: var(--color-line); }.form__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }.submit { margin-top: 24rpx; }

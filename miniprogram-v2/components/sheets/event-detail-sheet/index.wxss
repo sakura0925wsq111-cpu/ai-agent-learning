@@ -1,0 +1,1 @@
+.detail { padding: 24rpx 0 48rpx; }.detail__title { display: block; margin: 22rpx 0 30rpx; color: var(--color-ink); font-size: 38rpx; font-weight: 680; line-height: 1.4; }.detail__line { display: block; padding: 17rpx 0; border-top: 1rpx solid var(--color-line); color: var(--color-secondary); font-size: 25rpx; }

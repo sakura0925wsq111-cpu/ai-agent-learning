@@ -1,0 +1,1 @@
+<text class="badge badge--{{source}}">{{label || (source === 'ai_plan' ? '成长计划' : source === 'pdf_import' ? '课程导入' : source === 'excel_import' ? '考试导入' : '手动')}}</text>

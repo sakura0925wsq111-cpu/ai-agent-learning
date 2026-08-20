@@ -1,0 +1,7 @@
+<view class="calendar">
+  <view wx:for="{{weekdays}}" wx:key="*this" class="calendar__weekday">{{item}}</view>
+  <view wx:for="{{cells}}" wx:key="key" class="calendar__day {{item.blank ? 'calendar__day--blank' : ''}} {{item.isToday ? 'calendar__day--today' : ''}}" data-day="{{item}}" bindtap="select">
+    <text wx:if="{{!item.blank}}">{{item.number}}</text>
+    <view wx:if="{{!item.blank && item.count}}" class="calendar__heat calendar__heat--{{item.level}}"></view>
+  </view>
+</view>

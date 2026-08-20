@@ -1,0 +1,1 @@
+<view class="track"><view wx:for="{{milestones}}" wx:key="key" class="track__item"><view class="track__label">{{item.label}}</view><view class="track__rail"><view class="track__dot"></view><view wx:if="{{index < milestones.length - 1}}" class="track__line"></view></view><text class="track__text">{{item.text}}</text></view></view>

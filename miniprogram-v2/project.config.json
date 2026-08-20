@@ -1,0 +1,41 @@
+{
+  "compileType": "miniprogram",
+  "miniprogramRoot": "./",
+  "appid": "wx90364c8375614a54",
+  "projectname": "iCampus-V2",
+  "setting": {
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "enhance": true,
+    "minifyWXML": true,
+    "minifyWXSS": true,
+    "uploadWithSourceMap": true,
+    "disableSWC": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "value": "project.config.json",
+        "type": "file"
+      }
+    ],
+    "include": []
+  },
+  "simulatorPluginLibVersion": {},
+  "editorSetting": {}
+}

@@ -1,0 +1,2 @@
+const { toDateKey } = require("../../../utils/date");
+Component({ properties:{visible:Boolean,phase:Object,submitting:Boolean},data:{startDate:""},lifetimes:{attached(){this.setData({startDate:toDateKey(new Date())});}},methods:{change(e){this.setData({startDate:e.detail.value});},close(){this.triggerEvent("close");},submit(){this.triggerEvent("submit",{phase:this.data.phase.key,start_date:this.data.startDate});}} });

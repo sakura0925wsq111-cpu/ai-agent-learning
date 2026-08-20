@@ -1,0 +1,10 @@
+<view class="map">
+  <view class="map__grid">
+    <view wx:for="{{viewPaths}}" wx:key="type" class="path path--{{item.type}} {{item.selected ? 'path--selected' : ''}}" data-path="{{item}}" bindtap="toggle">
+      <view class="path__top"><view class="path__icon">{{item.icon}}</view><view class="path__mark">{{item.selected ? '✓' : ''}}</view></view>
+      <text class="path__title">{{item.label}}</text>
+      <text class="path__desc">{{item.shortDescription}}</text>
+      <view class="path__watermark">{{item.icon}}</view>
+    </view>
+  </view>
+</view>

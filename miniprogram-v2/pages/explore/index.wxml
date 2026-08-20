@@ -1,0 +1,24 @@
+<view class="page explore-page">
+  <view class="explore-hero" style="padding-top: {{heroTop}}px">
+    <view class="path-art" aria-hidden="true"><view></view><view></view><view></view></view>
+    <text class="explore-title">发展方向探索</text>
+    <text class="explore-subtitle">先比较大方向，再进入专项规划</text>
+    <view class="choose-tip"><view class="choose-tip__icon">▤</view><view><text>选择 2–3 条路径</text><text>AI 将通过对话补充你的真实条件</text></view></view>
+  </view>
+
+  <view wx:if="{{loading}}" class="card loading-card"><skeleton rows="6"/></view>
+  <state-view wx:elif="{{error}}" state="error" title="探索空间暂不可用" message="{{error}}" bind:action="retry"/>
+  <block wx:else>
+    <view class="selected-summary surface"><view class="selected-summary__check">✓</view><text>已选择 {{selected.length}} 条：</text><text class="selected-summary__names">{{selectedLabels}}</text><text class="selected-summary__arrow">›</text></view>
+    <path-coordinate-map paths="{{paths}}" selected="{{selected}}" max="3" bind:toggle="togglePath"/>
+    <button class="button button--primary compare-button" loading="{{starting}}" disabled="{{starting || selected.length < 2}}" bindtap="startSandbox">开始路径对比 <text>›</text></button>
+    <view class="process-card surface">
+      <view class="process-step"><text class="process-step__num">1</text><text class="process-step__icon">?</text><text>回答关键问题</text></view>
+      <view class="process-arrow">→</view>
+      <view class="process-step"><text class="process-step__num">2</text><text class="process-step__icon">⌁</text><text>生成路径推演</text></view>
+      <view class="process-arrow">→</view>
+      <view class="process-step"><text class="process-step__num">3</text><text class="process-step__icon">⚑</text><view class="process-step__copy"><text>选择方向并</text><text>生成行动计划</text></view></view>
+    </view>
+    <view class="explore-note"><text>ⓘ</text><text>路径范围来自当前系统能力 · AI 结果不是成功率</text></view>
+  </block>
+</view>

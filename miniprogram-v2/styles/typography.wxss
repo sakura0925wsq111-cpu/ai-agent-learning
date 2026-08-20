@@ -1,0 +1,8 @@
+.eyebrow { font-size: 22rpx; line-height: 1.45; color: var(--color-secondary); font-weight: 400; }
+.display { font-size: 64rpx; line-height: 1.12; font-weight: 700; letter-spacing: -2rpx; }
+.title { font-size: 44rpx; line-height: 1.25; font-weight: 700; letter-spacing: -.8rpx; }
+.section-title { font-size: 29rpx; line-height: 1.35; font-weight: 650; }
+.body { font-size: 28rpx; line-height: 1.62; }
+.caption { font-size: 22rpx; line-height: 1.5; color: var(--color-secondary); }
+.mono, .number { font-family: "SFMono-Regular", "SF Pro Text", Consolas, monospace; font-variant-numeric: tabular-nums; }
+.number { letter-spacing: -1rpx; }

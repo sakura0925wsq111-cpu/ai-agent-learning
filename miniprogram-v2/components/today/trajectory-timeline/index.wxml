@@ -1,0 +1,7 @@
+<view class="timeline">
+  <view wx:for="{{viewEvents}}" wx:key="id" class="timeline__item {{item.isNext ? 'timeline__item--next' : ''}}" data-item="{{item}}" bindtap="select">
+    <view class="timeline__rail"><view class="timeline__dot timeline__dot--{{item.type}}"></view><view wx:if="{{index < events.length - 1}}" class="timeline__line"></view></view>
+    <view class="timeline__time">{{item.timeLabel}}</view>
+    <view class="timeline__copy"><view class="timeline__head"><text>{{item.title}}</text><text class="timeline__type">{{item.isNext ? '下一项' : item.typeLabel}}</text></view><text wx:if="{{item.location}}" class="timeline__meta">{{item.location}}</text></view>
+  </view>
+</view>

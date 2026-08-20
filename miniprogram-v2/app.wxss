@@ -1,0 +1,18 @@
+@import "styles/tokens.wxss";
+@import "styles/typography.wxss";
+@import "styles/layout.wxss";
+@import "styles/motion.wxss";
+
+page {
+  min-height: 100%;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+  font-size: 28rpx;
+  -webkit-font-smoothing: antialiased;
+}
+
+button::after { border: 0; }
+button { line-height: 1.2; }
+input, textarea { color: var(--color-ink); font: inherit; }
+image { display: block; }

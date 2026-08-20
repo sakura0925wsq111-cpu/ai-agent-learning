@@ -1,0 +1,21 @@
+<view class="page--plain">
+  <app-header title="设置" eyebrow="V2 独立配置" back bind:back="back"/>
+  <view class="group">
+    <text class="group__title">日常体验</text>
+    <view class="setting"><view><text class="setting__label">天气城市</text><text class="setting__note">天气失败时不会使用其他城市替代</text></view><input class="setting__input" data-key="city" value="{{city}}" bindinput="input" bindblur="saveCity"/></view>
+    <view class="setting"><view><text class="setting__label">AI 今日建议</text><text class="setting__note">关闭后仅加载基础日程</text></view><switch color="#2868F5" checked="{{suggestionEnabled}}" data-key="suggestionEnabled" bindchange="toggle"/></view>
+    <view class="setting"><view><text class="setting__label">减少动效</text><text class="setting__note">适合对动画敏感的用户</text></view><switch color="#2868F5" checked="{{reduceMotion}}" data-key="reduceMotion" bindchange="toggle"/></view>
+  </view>
+  <view class="group">
+    <text class="group__title">开发调试</text>
+    <view class="setting setting--column"><view><text class="setting__label">V2 API 地址</text><text class="setting__note">只影响 V2 开发版，不修改原版配置</text></view><input class="field api" data-key="apiBase" value="{{apiBase}}" bindinput="input" placeholder="http://127.0.0.1:8000"/><button class="small-button" bindtap="saveApi">保存地址</button></view>
+  </view>
+  <view class="group">
+    <text class="group__title">账户与隐私</text>
+    <view class="setting setting--link" bindtap="agreement"><text class="setting__label">用户协议与隐私说明</text><text>›</text></view>
+    <view class="setting setting--link" bindtap="askLogout"><text class="setting__label">退出登录</text><text>›</text></view>
+    <view class="setting setting--link danger" bindtap="askDelete"><text class="setting__label">删除账户</text><text>›</text></view>
+  </view>
+  <view class="version"><text>iCampus V2 · 2.0.0</text><text>原版与 V2 并列开发，存储及项目入口互相隔离。</text></view>
+</view>
+<confirm-sheet visible="{{confirm !== ''}}" title="{{confirm === 'delete' ? '删除账户？' : '退出当前账户？'}}" message="{{confirm === 'delete' ? '账户与相关服务端数据将被删除，此操作无法恢复。' : 'V2 本地登录状态会被清除，原版登录状态不受影响。'}}" confirm-label="{{confirm === 'delete' ? '确认删除账户' : '确认退出'}}" destructive="{{confirm === 'delete'}}" submitting="{{submitting}}" bind:close="closeConfirm" bind:confirm="confirmAction"/>

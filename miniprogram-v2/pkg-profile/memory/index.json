@@ -1,0 +1,1 @@
+{"navigationStyle":"custom","usingComponents":{"app-header":"../../components/base/app-header/index","state-view":"../../components/base/state-view/index","skeleton":"../../components/base/skeleton/index","source-badge":"../../components/growth/source-badge/index","confirm-sheet":"../../components/sheets/confirm-sheet/index"}}

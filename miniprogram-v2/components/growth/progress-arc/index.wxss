@@ -1,0 +1,11 @@
+.arc { position: relative; width: 280rpx; height: 280rpx; }
+.arc__canvas {
+  position: absolute;
+  left: -37rpx;
+  top: -37rpx;
+  width: 250rpx;
+  height: 250rpx;
+}
+.arc__copy { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(8rpx); }
+.arc__value { color: var(--color-ink); font-size: 54rpx; line-height: 1; font-weight: 720; letter-spacing: -2rpx; font-variant-numeric: tabular-nums; }
+.arc__label { margin-top: 10rpx; color: var(--color-secondary); font-size: 21rpx; }

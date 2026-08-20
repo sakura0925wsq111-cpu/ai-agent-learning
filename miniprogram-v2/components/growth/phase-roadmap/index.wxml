@@ -1,0 +1,9 @@
+<view class="roadmap">
+  <view class="roadmap__inner">
+    <view wx:for="{{viewPhases}}" wx:key="key" class="phase {{currentKey === item.key ? 'phase--current' : ''}}" data-phase="{{item}}" bindtap="select">
+      <view class="phase__rail"><view class="phase__dot">{{index + 1}}</view><view wx:if="{{index < viewPhases.length - 1}}" class="phase__line"></view></view>
+      <text class="phase__title">{{item.title}}</text>
+      <text class="phase__count">{{item.synced ? '● 已同步' : '○ 未同步'}}</text>
+    </view>
+  </view>
+</view>

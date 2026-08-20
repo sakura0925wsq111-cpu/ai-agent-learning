@@ -1,0 +1,1 @@
+.form { padding-top: 8rpx; }.label { display: block; margin: 22rpx 0 10rpx; color: var(--color-secondary); font-size: 23rpx; }.field { box-sizing: border-box; width: 100%; min-height: 88rpx; padding: 22rpx; border-radius: var(--radius-control); background: var(--color-surface-secondary); color: var(--color-ink); font-size: 27rpx; }.area { min-height: 170rpx; }

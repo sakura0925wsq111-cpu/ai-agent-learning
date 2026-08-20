@@ -1,0 +1,11 @@
+.task { display: flex; align-items: flex-start; gap: 18rpx; padding: 24rpx 0; border-bottom: 1rpx solid var(--color-line); }
+.task:last-child { border-bottom: 0; }
+.task__check { flex: none; width: 38rpx; height: 38rpx; margin: 2rpx 0 0; padding: 0; border: 2rpx solid var(--color-line-strong); border-radius: 4rpx; background: transparent; color: white; font-size: 22rpx; transition: transform 120ms ease, background 160ms ease; }
+.task__check:active { transform: scale(.88); }
+.task__copy { flex: 1; min-width: 0; }
+.task__title { color: var(--color-ink); font-size: 27rpx; line-height: 1.45; }
+.task__meta { margin-top: 9rpx; display: flex; align-items: center; gap: 12rpx; color: var(--color-secondary); font-size: 20rpx; }
+.task__more { flex: none; margin: 0; padding: 0 8rpx; background: transparent; color: var(--color-secondary); font-size: 28rpx; }
+.task--done .task__check { border-color: var(--color-success); background: var(--color-success); }
+.task--done .task__title { color: var(--color-ink); text-decoration: none; }
+.task--cancelled { opacity: .55; }

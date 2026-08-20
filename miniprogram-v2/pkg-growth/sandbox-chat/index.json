@@ -1,0 +1,1 @@
+{"navigationStyle":"custom","usingComponents":{"app-header":"../../components/base/app-header/index","stream-message":"../../components/growth/stream-message/index","question-card":"../../components/growth/question-card/index","state-view":"../../components/base/state-view/index"}}

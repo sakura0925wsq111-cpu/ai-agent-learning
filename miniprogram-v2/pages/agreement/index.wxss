@@ -1,0 +1,1 @@
+.document { padding: 10rpx 8rpx 50rpx; }.document .title { display: block; margin-bottom: 24rpx; }.document .section-title { display: block; margin-top: 42rpx; margin-bottom: 12rpx; }.document .body { display: block; color: var(--color-secondary); }

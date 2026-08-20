@@ -1,0 +1,10 @@
+{
+  "navigationStyle":"custom",
+  "usingComponents":{
+    "app-header":"../../components/base/app-header/index",
+    "state-view":"../../components/base/state-view/index",
+    "skeleton":"../../components/base/skeleton/index",
+    "memory-distribution":"../../components/profile/memory-distribution/index",
+    "profile-editor-sheet":"../../components/sheets/profile-editor-sheet/index"
+  }
+}

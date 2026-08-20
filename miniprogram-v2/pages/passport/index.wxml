@@ -1,0 +1,51 @@
+<view class="page passport-page">
+  <view class="passport-hero" style="padding-top: {{heroTop}}px">
+    <view class="profile-art" aria-hidden="true"><view></view><view></view><text>⚑</text></view>
+    <text class="passport-eyebrow">数字成长档案</text>
+    <view class="passport-name"><text>{{user.nickname || user.name || '同学'}}</text><text bindtap="edit">↗</text></view>
+    <text class="passport-major">{{user.grade || '年级待完善'}} · {{user.major || '专业待完善'}}</text>
+    <view class="passport-stats">
+      <view><text>成长报告</text><text>{{reports.length}}</text></view>
+      <view><text>长期记忆</text><text class="blue">{{memory.total}}<text>/{{memory.max_capacity}}</text></text></view>
+      <view><text>进行中计划</text><text>{{dashboard.activePlan ? 1 : 0}}</text></view>
+      <view><text>计划进度</text><text class="blue">{{dashboard.activePlan ? dashboard.activePlan.percent : 0}}<text>%</text></text></view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="card loading-card"><skeleton rows="6"/></view>
+  <state-view wx:elif="{{error}}" state="error" title="个人数据暂不可用" message="{{error}}" bind:action="retry"/>
+  <block wx:else>
+    <view wx:if="{{partial}}" class="partial">部分信息暂未加载，已有内容仍可查看。</view>
+
+    <view class="current-path surface" bindtap="openActionOrExplore">
+      <view class="current-path__head"><text>当前成长路径</text><text>›</text></view>
+      <block wx:if="{{dashboard.activePlan}}">
+        <view class="current-path__title"><text>{{dashboard.activePlan.title}}</text><text class="status-pill">进行中</text><text>进度 <text class="blue">{{dashboard.activePlan.percent}}%</text></text></view>
+        <view class="path-progress"><view style="width: {{dashboard.activePlan.percent}}%"></view></view>
+        <text class="next-label">下一步行动</text><view class="next-row"><text class="next-arrow">→</text><text>{{dashboard.activePlan.next_action || '继续完成当前阶段任务'}}</text></view>
+      </block>
+      <block wx:else><text class="current-path__empty">从路径探索开始建立成长档案</text></block>
+    </view>
+
+    <view class="memory-basis surface" bindtap="capability">
+      <text class="card-heading">AI 了解我的依据</text>
+      <view class="memory-bar"><view class="memory-bar__profile" style="flex: {{memoryStats.profile || 1}}"></view><view class="memory-bar__goal" style="flex: {{memoryStats.goal || 1}}"></view><view class="memory-bar__action" style="flex: {{memoryStats.action || 1}}"></view><view class="memory-bar__fact" style="flex: {{memoryStats.fact || 1}}"></view></view>
+      <view class="memory-types"><view><text>个人档案</text><text>{{memoryStats.profile}}</text></view><view><text>目标</text><text>{{memoryStats.goal}}</text></view><view><text>行动</text><text>{{memoryStats.action}}</text></view><view><text>事实与背景</text><text>{{memoryStats.fact}}</text></view></view>
+      <view class="memory-source">来源：个人资料、成长计划与手动记录</view>
+    </view>
+
+    <view class="recent-reports surface">
+      <view class="card-heading-row"><text class="card-heading">最近的成长报告</text><text bindtap="history">›</text></view>
+      <view wx:for="{{recentReports}}" wx:key="report_id" class="report-row" data-id="{{item.session_id}}" bindtap="openReport"><view class="report-icon">▤</view><text>{{item.title}}</text><text>{{item.created_at || (index === 0 ? '今天' : '近期')}}</text><text>›</text></view>
+      <view wx:if="{{!recentReports.length}}" class="empty-copy">完成专项规划后，报告会出现在这里。</view>
+    </view>
+
+    <view class="profile-grid">
+      <view class="profile-entry surface" bindtap="edit"><text class="entry-icon">♙</text><view><text>个人资料</text><text>管理你的基本信息与偏好</text></view><text>›</text></view>
+      <view class="profile-entry surface" bindtap="memory"><text class="entry-icon">⌘</text><view><text>长期记忆</text><text>查看与管理 AI 记住的内容</text></view><text>›</text></view>
+      <view class="profile-entry surface" bindtap="openActionOrExplore"><text class="entry-icon">☑</text><view><text>计划与待办</text><text>管理当前计划与待办事项</text></view><text>›</text></view>
+      <view class="profile-entry surface" bindtap="history"><text class="entry-icon">▥</text><view><text>报告历史</text><text>查看过往报告与分析</text></view><text>›</text></view>
+    </view>
+  </block>
+</view>
+<profile-editor-sheet visible="{{editing}}" value="{{user}}" submitting="{{submitting}}" bind:close="closeEdit" bind:submit="saveProfile"/>

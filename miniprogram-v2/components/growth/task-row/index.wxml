@@ -1,0 +1,5 @@
+<view class="task {{task.done ? 'task--done' : ''}} {{task.cancelled ? 'task--cancelled' : ''}}">
+  <button class="task__check" bindtap="toggle" aria-label="切换任务状态">{{task.done ? '✓' : task.cancelled ? '–' : ''}}</button>
+  <view class="task__copy"><text class="task__title">{{task.title}}</text><view class="task__meta"><text>{{task.deadlineLabel || '未安排日期'}}</text><source-badge source="{{task.source || 'manual'}}" label="{{task.sourceLabel || ''}}" /></view></view>
+  <button wx:if="{{editable}}" class="task__more" bindtap="remove" aria-label="取消或删除">···</button>
+</view>

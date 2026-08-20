@@ -1,0 +1,30 @@
+<view class="page--plain comparison-page">
+  <view class="comparison-hero">
+    <app-header title="" back bind:back="back"/>
+    <view class="door-art" aria-hidden="true"><view></view><view></view><view></view></view>
+    <text class="comparison-title">路径模拟对比</text>
+    <text class="comparison-subtitle">AI 推演结果 · 不是成功率</text>
+    <view wx:if="{{!loading}}" class="path-tabs"><view wx:for="{{result.projections}}" wx:key="type" class="path-tab {{selectedType === item.type ? 'path-tab--active' : ''}}" data-type="{{item.type}}" bindtap="choose"><text>{{item.type === 'career' ? '▣' : item.type === 'graduate' ? '▤' : item.type === 'civil' ? '▥' : '◆'}}</text><text>{{item.label}}</text></view></view>
+  </view>
+  <view wx:if="{{loading}}" class="card loading-card"><skeleton rows="7"/></view>
+  <state-view wx:elif="{{error}}" state="error" title="结果暂不可用" message="{{error}}" bind:action="retry"/>
+  <block wx:else>
+    <view class="conclusion surface"><view class="conclusion__head"><text>⚑</text><text>总体结论</text></view><text class="conclusion__text">{{result.summary}}</text></view>
+
+    <view wx:if="{{comparisonRows.length}}" class="compare-card surface">
+      <view class="compare-head"><text>关键维度对比</text><view><text class="legend legend--blue"></text><text>{{seriesA.label}}</text><text class="legend legend--cyan"></text><text>{{seriesB.label}}</text></view></view>
+      <view wx:for="{{comparisonRows}}" wx:key="label" class="compare-row"><text>{{item.label}}</text><view class="score-side"><view class="score-track"><view class="score-fill score-fill--blue" style="width: {{item.widthA}}%"></view></view><text class="score-blue">{{item.valueA}}</text></view><view class="compare-divider"></view><view class="score-side"><view class="score-track"><view class="score-fill score-fill--cyan" style="width: {{item.widthB}}%"></view></view><text class="score-cyan">{{item.valueB}}</text></view></view>
+      <text class="score-note">AI推演评分 / 10</text><view class="score-truth">分值只用于同次推演内比较</view>
+    </view>
+    <view wx:else class="card empty-copy">报告没有可验证的矩阵分值，已隐藏对比图。</view>
+
+    <view class="projection-grid">
+      <view class="projection-card surface" bindtap="detail"><view class="projection-card__head"><text>⌁</text><text>{{selectedProjection.label}}路径推演</text></view><view wx:for="{{selectedProjection.milestones}}" wx:key="key" class="milestone"><view></view><text>{{item.label}}：</text><text>{{item.text}}</text></view><text class="detail-link">查看路径详情 ›</text></view>
+      <view class="risk-card surface"><view class="risk-card__head"><text>!</text><text>关键不确定性</text></view><text class="risk-card__factor">{{primaryUncertainty.factor || '仍需真实体验验证'}}</text><text class="risk-card__copy">降低方式：{{primaryUncertainty.howToReduce || '完成一次真实实践或访谈'}}</text><view class="risk-bubble"></view></view>
+    </view>
+
+    <view class="question-card surface"><text class="question-icon">?</text><text>{{decisionQuestion || '我更需要实践反馈，还是研究训练？'}}</text><view class="question-art"></view></view>
+    <view class="choice-bar"><view><text>当前选择：</text><text>{{selectedProjection.label}}</text></view><button loading="{{starting}}" disabled="{{starting || !selectedType}}" bindtap="plan">进入专项规划 <text>›</text></button></view>
+    <view class="source-line">来源：路径沙盘对话 · 生成于当前会话</view>
+  </block>
+</view>

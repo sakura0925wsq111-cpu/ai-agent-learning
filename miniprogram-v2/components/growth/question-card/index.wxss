@@ -1,0 +1,6 @@
+.question { padding: 28rpx; border: 1rpx solid var(--color-line); border-radius: var(--radius-module); background: var(--color-surface); box-shadow: var(--shadow-module); }
+.question__step { color: var(--color-primary); font-size: 20rpx; font-weight: 620; }
+.question__text { display: block; margin-top: 12rpx; color: var(--color-ink); font-size: 29rpx; line-height: 1.55; font-weight: 620; }
+.question__options { margin-top: 22rpx; display: flex; flex-direction: column; gap: 12rpx; }
+.question__option { width: 100%; min-height: 82rpx; margin: 0; padding: 0 22rpx; display: flex; align-items: center; justify-content: space-between; border-radius: 20rpx; background: var(--color-surface-secondary); color: var(--color-ink); font-size: 25rpx; text-align: left; }
+.question__option:active { background: var(--color-primary-soft); color: var(--color-primary); }

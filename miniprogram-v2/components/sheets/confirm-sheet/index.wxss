@@ -1,0 +1,1 @@
+.message { display: block; padding: 24rpx 0 44rpx; color: var(--color-secondary); font-size: 26rpx; line-height: 1.7; }

@@ -1,0 +1,4 @@
+{
+  "desc": "iCampus V2 sitemap",
+  "rules": [{"action": "allow", "page": "*"}]
+}

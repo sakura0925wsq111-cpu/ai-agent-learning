@@ -1,0 +1,1 @@
+Component({ properties:{visible:Boolean,value:Object,submitting:Boolean},data:{form:{}},observers:{value(value){this.setData({form:Object.assign({},value||{})});}},methods:{input(e){this.setData({[`form.${e.currentTarget.dataset.key}`]:e.detail.value});},close(){this.triggerEvent("close");},submit(){this.triggerEvent("submit",this.data.form);}} });

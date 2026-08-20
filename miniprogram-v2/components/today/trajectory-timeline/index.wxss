@@ -1,0 +1,14 @@
+.timeline__item { min-height: 108rpx; display: grid; grid-template-columns: 28rpx 112rpx 1fr; gap: 14rpx; }
+.timeline__rail { position: relative; display: flex; justify-content: center; }
+.timeline__dot { position: relative; z-index: 1; width: 14rpx; height: 14rpx; margin-top: 12rpx; border: 5rpx solid var(--color-surface); border-radius: 50%; background: var(--color-muted); box-shadow: 0 0 0 2rpx var(--color-muted); }
+.timeline__dot--course { background: var(--color-primary); box-shadow: 0 0 0 2rpx var(--color-primary); }
+.timeline__dot--exam { background: var(--color-danger); box-shadow: 0 0 0 2rpx var(--color-danger); }
+.timeline__dot--ai_plan { background: var(--color-success); box-shadow: 0 0 0 2rpx var(--color-success); }
+.timeline__line { position: absolute; top: 29rpx; bottom: -12rpx; width: 2rpx; background: var(--color-line); }
+.timeline__time { padding-top: 4rpx; color: var(--color-secondary); font-size: 23rpx; font-variant-numeric: tabular-nums; }
+.timeline__item--next .timeline__time { color: var(--color-primary); font-weight: 650; }
+.timeline__copy { padding-bottom: 29rpx; }
+.timeline__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12rpx; color: var(--color-ink); font-size: 27rpx; font-weight: 600; }
+.timeline__type { flex: none; color: var(--color-secondary); font-size: 20rpx; font-weight: 450; }
+.timeline__item--next .timeline__type { color: var(--color-primary); }
+.timeline__meta { display: block; margin-top: 7rpx; color: var(--color-secondary); font-size: 22rpx; }

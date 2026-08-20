@@ -1,0 +1,5 @@
+.metric { display: flex; min-width: 0; flex-direction: column; gap: 5rpx; }
+.metric__value { color: var(--color-ink); font-size: 48rpx; line-height: 1.1; font-weight: 720; letter-spacing: -1rpx; font-variant-numeric: tabular-nums; }
+.metric__label { color: var(--color-secondary); font-size: 23rpx; }
+.metric__note { color: var(--color-muted); font-size: 19rpx; }
+.metric--accent .metric__value { color: var(--color-primary); }

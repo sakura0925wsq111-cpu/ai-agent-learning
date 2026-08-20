@@ -1,0 +1,6 @@
+<view class="state">
+  <view class="state__mark">{{state === 'error' ? '!' : state === 'offline' ? '×' : state === 'loading' ? '…' : '▣'}}</view>
+  <text class="state__title">{{title}}</text>
+  <text wx:if="{{message}}" class="state__message">{{message}}</text>
+  <button wx:if="{{state === 'error' || state === 'offline' || state === 'empty'}}" class="state__action" bindtap="action">{{actionLabel}}</button>
+</view>

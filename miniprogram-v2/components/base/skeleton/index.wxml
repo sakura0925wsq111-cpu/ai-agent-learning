@@ -1,0 +1,1 @@
+<view class="skeleton"><view wx:for="{{rows}}" wx:key="index" class="skeleton__row" style="width: {{index % 2 ? 76 : 100}}%"></view></view>

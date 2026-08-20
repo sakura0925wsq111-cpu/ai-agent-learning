@@ -1,0 +1,55 @@
+<view class="page today-page">
+  <view class="today-hero {{!loading && !fatalError ? 'today-hero--joined' : ''}}" style="padding-top: {{heroTop}}px">
+    <view class="today-hero__orb"></view>
+    <view class="today-hero__top">
+      <view><text class="today-title">今天</text><text class="today-date">{{dateLabel}}</text></view>
+      <view class="weather" bindtap="openWeather"><text>{{overview.weather.location || '青岛'}}</text><text wx:if="{{overview.weather.available}}">{{overview.weather.temp}}°</text><text>{{overview.weather.condition || overview.weather.label || '天气'}}</text><text class="weather__symbol">☁</text></view>
+    </view>
+    <text class="greeting">{{greeting}}，{{userName}} 👋</text>
+    <view wx:if="{{loading}}" class="hero-loading"><skeleton rows="3"/></view>
+    <view wx:elif="{{fatalError}}" class="hero-error"><text>{{fatalError}}</text><text class="hero-error__retry" bindtap="retry">重新加载</text></view>
+    <view wx:else class="today-metrics">
+      <view class="completion"><progress-arc class="completion__progress" percent="{{completion.percent}}" label="今日完成度"/></view>
+      <view class="metric"><view class="metric__icon metric__icon--blue">✓</view><text class="metric__value metric__value--blue">{{completion.completed || 0}}</text><text>已完成</text></view>
+      <view class="metric"><view class="metric__icon metric__icon--orange">⌛</view><text class="metric__value metric__value--orange">{{completion.total - completion.completed}}</text><text>待处理</text></view>
+      <view class="metric"><view class="metric__icon metric__icon--red">□</view><text class="metric__value metric__value--red">{{completion.total || 0}}</text><text>今日到期</text></view>
+    </view>
+  </view>
+  <view wx:if="{{!loading && !fatalError}}" class="completion-note-band"><text class="completion__note">按今天到期任务计算</text></view>
+
+  <block wx:if="{{!loading && !fatalError}}">
+    <view class="insight-grid">
+      <view class="next-card surface" bindtap="selectNextEvent">
+        <view class="card-kicker"><text class="card-kicker__icon">✓</text><text>下一个日程</text></view>
+        <text class="next-card__title">{{nextAction.title}}</text>
+        <text class="next-card__meta">{{nextAction.meta}}</text>
+        <view class="calendar-art"><view class="calendar-art__box"></view><text class="calendar-art__clock">◷</text></view>
+      </view>
+      <view class="ai-card surface" bindtap="openCoach">
+        <view class="card-kicker"><text class="ai-badge">AI</text><text>今日智能建议</text></view>
+        <text class="ai-card__copy">{{suggestionLoading ? '正在结合日程生成建议…' : suggestion || '建议暂不可用，不影响今天的基础日程。'}}</text>
+        <view class="round-arrow">›</view>
+      </view>
+    </view>
+
+    <view wx:if="{{partialErrors.length}}" class="partial">部分信息暂不可用，其余内容仍可操作。</view>
+
+    <view class="timeline-card surface">
+      <view class="card-title"><text class="card-title__icon">◷</text><text>今日时间线</text></view>
+      <trajectory-timeline class="timeline-card__content" wx:if="{{timeline.events.length}}" events="{{timeline.events}}" bind:select="selectEvent"/>
+      <view wx:else class="empty-copy">今天暂时没有课程、考试或截止任务</view>
+    </view>
+
+    <view class="weekly surface">
+      <view class="weekly__head"><view class="card-title"><text class="card-title__icon">▥</text><text>近7天活动</text></view><text>共 <text class="weekly__total">{{sevenDayCount}}</text> 项</text></view>
+      <view class="weekly__plot"><view wx:for="{{weekBars}}" wx:key="key" class="weekly__column"><text class="weekly__value number">{{item.count}}</text><view class="weekly__track"><view class="weekly__bar {{item.isToday ? 'weekly__bar--today' : ''}}" style="height: {{item.height}}%"></view></view><text class="weekly__label">{{item.dateLabel}}({{item.label}})</text></view></view>
+    </view>
+    <view class="data-source" bindtap="openImport">来源：课表导入、手动待办、成长计划 · 数据截至 09:30</view>
+  </block>
+</view>
+<weather-sheet visible="{{sheet === 'weather'}}" weather="{{overview.weather}}" city="{{overview.weather.location || '青岛'}}" bind:close="closeSheet" bind:submit="updateCity"/>
+<event-detail-sheet visible="{{sheet === 'event'}}" event="{{selectedEvent}}" bind:close="closeSheet"/>
+<todo-editor-sheet visible="{{sheet === 'todo'}}" value="{{editingTodo}}" submitting="{{submitting}}" bind:close="closeSheet" bind:submit="saveTodo"/>
+<course-editor-sheet visible="{{sheet === 'course'}}" submitting="{{submitting}}" bind:close="closeSheet" bind:submit="saveCourse"/>
+<exam-editor-sheet visible="{{sheet === 'exam'}}" submitting="{{submitting}}" bind:close="closeSheet" bind:submit="saveExam"/>
+<confirm-sheet visible="{{sheet === 'confirm'}}" title="{{confirmTask.source === 'ai_plan' ? '取消执行这项任务？' : '删除这项待办？'}}" message="{{confirmTask.source === 'ai_plan' ? '成长计划任务会保留执行记录，并标记为已取消。' : '删除后无法恢复。'}}" confirm-label="{{confirmTask.source === 'ai_plan' ? '确认取消执行' : '确认删除'}}" destructive submitting="{{submitting}}" bind:close="closeSheet" bind:confirm="confirmRemove"/>

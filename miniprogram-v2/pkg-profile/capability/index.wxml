@@ -1,0 +1,24 @@
+<view class="page--plain capability-page">
+  <view class="capability-hero">
+    <app-header title="个人能力画像" eyebrow="基于成长报告与 AI 记忆 · 非测评分数" back bind:back="back"/>
+    <view class="capability-art" aria-hidden="true"><view></view><view></view><text>↗</text></view>
+    <view wx:if="{{!loading}}" class="capability-user"><view class="capability-avatar">{{initial}}</view><view><text>{{user.nickname || user.name || '同学'}}</text><text>{{user.grade || '年级待完善'}} · {{user.major || '专业待完善'}}</text></view></view>
+    <view wx:if="{{!loading}}" class="capability-stats"><view><text>{{dashboard.reportCount}}</text><text>份成长报告</text></view><view><text>{{memory.total}}<text>/{{memory.max_capacity}}</text></text><text>AI记忆</text></view><view><text>{{dashboard.activePlan ? 1 : 0}}</text><text>个进行中计划</text></view></view>
+  </view>
+
+  <view wx:if="{{loading}}" class="card loading-card"><skeleton rows="7"/></view>
+  <state-view wx:elif="{{error}}" state="error" title="能力画像暂不可用" message="{{error}}" bind:action="retry"/>
+  <block wx:else>
+    <view class="latest-report surface" wx:if="{{report}}" bindtap="openReport"><view class="report-mark">▤</view><view><text>最近成长报告</text><text>{{report.title}}</text><text>生成于 {{reportDate}}</text></view><view class="report-side"><text>▤</text><text>›</text></view></view>
+    <view class="insight-grid">
+      <view class="insight-card surface"><view class="insight-head insight-head--green"><text>★</text><text>报告中的优势</text></view><text wx:for="{{strengths}}" wx:key="*this" class="insight-item insight-item--green">{{item}}</text><view class="insight-source">来自最近报告 <text>›</text></view></view>
+      <view class="insight-card surface"><view class="insight-head insight-head--orange"><text>!</text><text>仍需验证</text></view><text wx:for="{{risks}}" wx:key="*this" class="insight-item insight-item--orange">{{item}}</text><view class="insight-source">来自最近报告 <text>›</text></view></view>
+    </view>
+    <view class="next-step surface" bindtap="action"><view class="next-step__icon">✓</view><view><text>下一步行动</text><text>{{nextAction}}</text><text>{{nextMeta}}</text></view><text class="next-step__arrow">›</text></view>
+    <view class="memory-summary surface"><text class="card-heading">AI记忆分布</text><view class="memory-types"><view><text class="blue">♙</text><text>个人资料</text><text>{{counts.profile}}</text></view><view><text class="green">◎</text><text>目标</text><text>{{counts.goal}}</text></view><view><text class="orange">☑</text><text>行动</text><text>{{counts.action}}</text></view><view><text class="purple">▤</text><text>事实</text><text>{{counts.fact}}</text></view></view></view>
+    <button class="button button--primary improve" bindtap="edit">继续完善画像</button>
+    <button class="button button--secondary manage" bindtap="memory">管理 AI 记忆</button>
+    <view class="source-line">来源：成长报告、个人资料、AI记忆 · 数据截至 09:30</view>
+  </block>
+  <mini-tabbar selected="3"/>
+</view>

@@ -1,0 +1,1 @@
+.intro { display: block; margin-top: 14rpx; }.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }.next { margin-top: 28rpx; }.choice-copy { display: block; margin-bottom: 22rpx; }.import { margin-top: 14rpx; }
