@@ -50,6 +50,18 @@ function run() {
   assert.strictEqual(report.normalizeReport(reports.legacy).phases[0].tasks[0].title, "整理院校清单");
   assert.strictEqual(report.normalizeReport(reports.no_action_plan).phases.length, 0);
 
+  const stringInsights = report.normalizeReport({ report: { strengths: ["项目执行力"], risks: ["缺少实习验证"] } });
+  assert.deepStrictEqual(stringInsights.strengths, ["项目执行力"]);
+  assert.deepStrictEqual(stringInsights.risks, ["缺少实习验证"]);
+
+  const objectInsights = report.normalizeReport({ report: { strengths: [{ point: "项目能力", detail: "拥有完整项目开发经历" }], risks: [{ point: "实践验证", detail: "尚未有正式实习经历" }] } });
+  assert.deepStrictEqual(objectInsights.strengths, ["项目能力：拥有完整项目开发经历"]);
+  assert.deepStrictEqual(objectInsights.risks, ["实践验证：尚未有正式实习经历"]);
+
+  const missingInsights = report.normalizeReport({ report: { summary: "字段缺失" } });
+  assert.deepStrictEqual(missingInsights.strengths, []);
+  assert.deepStrictEqual(missingInsights.risks, []);
+
   assert.deepStrictEqual(parseSseBlock("event: done\ndata: {\"finished\":true}"), { event: "done", data: { finished: true } });
   assert.deepStrictEqual(parseSseBlock("data: plain text"), { event: "message", data: "plain text" });
 

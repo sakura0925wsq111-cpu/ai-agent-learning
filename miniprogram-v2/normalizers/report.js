@@ -10,6 +10,18 @@ function task(item, index) {
   };
 }
 
+function normalizeInsight(item) {
+  if (typeof item === "string") return item;
+  item = item || {};
+  return item.point && item.detail
+    ? `${item.point}：${item.detail}`
+    : item.point || item.detail || "";
+}
+
+function normalizeInsightList(items) {
+  return Array.isArray(items) ? items.map(normalizeInsight).filter(Boolean) : [];
+}
+
 function normalizeReport(raw) {
   const wrapper = raw || {};
   const report = wrapper.report || wrapper;
@@ -37,11 +49,11 @@ function normalizeReport(raw) {
     title: report.title || `${AGENT_LABELS[agent] || "成长"}行动路线`,
     summary: report.summary || report.current_status || report.overview || "报告已生成",
     goal: report.goal || report.target || "",
-    strengths: report.strengths || report.advantages || [],
-    risks: report.risks || report.challenges || [],
+    strengths: normalizeInsightList(report.strengths || report.advantages),
+    risks: normalizeInsightList(report.risks || report.challenges),
     phases,
     createdAt: wrapper.created_at || report.created_at || ""
   };
 }
 
-module.exports = { AGENT_LABELS, normalizeReport };
+module.exports = { AGENT_LABELS, normalizeInsight, normalizeReport };
