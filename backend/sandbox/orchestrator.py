@@ -1147,6 +1147,14 @@ class DecisionSandbox:
                 pt, report = future.result()
                 reports[pt] = report
 
+        # Workers finish in nondeterministic order; preserve the user's path
+        # selection order for projection cards, scores, and downstream UI.
+        reports = {
+            path_type: reports[path_type]
+            for path_type in session.path_selections
+            if path_type in reports
+        }
+
         session.path_reports = reports
         session.parallel_sim_complete = True
 
