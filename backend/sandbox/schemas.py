@@ -128,8 +128,13 @@ class SandboxStateDict(TypedDict, total=False):
     ambiguous_count: int
     discovery_complete: bool
     user_profile: dict
+    unavailable_discovery_questions: list
+    unavailable_discovery_dimensions: list
     path_selections: list
+    path_selection_source: str
+    path_selection_locked: bool
     path_probe_history: dict
+    path_probe_pending_questions: dict
     path_probe_done: list
     path_reports: dict
     parallel_sim_complete: bool
@@ -146,6 +151,8 @@ class SandboxChatResponse(BaseModel):
     discovery_round: int = 0
     max_discovery_rounds: int = 7
     path_selections: list[str] = Field(default_factory=list)
+    path_selection_source: str = "conversation"
+    path_selection_locked: bool = False
     path_reports: dict[str, dict[str, Any]] | None = None
     projection_result: ProjectionResult | None = None
     show_cards: bool = False

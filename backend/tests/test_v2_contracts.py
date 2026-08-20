@@ -82,6 +82,19 @@ class V2ContractFixtureTests(unittest.TestCase):
         self.assertIsNone(legacy.start_date)
         self.assertEqual(enhanced.start_date.isoformat(), "2026-08-17")
 
+    def test_exam_import_rows_accept_date_cells(self) -> None:
+        from datetime import date
+
+        from app.api.v1.today.import_ import _extract_exams_from_rows
+
+        items = _extract_exams_from_rows([
+            ("考试科目", "考试日期", "考试地点"),
+            ("数据结构", date(2026, 8, 20), "B202"),
+        ])
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["subject"], "数据结构")
+        self.assertEqual(items[0]["exam_date"].isoformat(), "2026-08-20")
+
 
 class V2WeatherContractTests(unittest.IsolatedAsyncioTestCase):
     def test_known_city_resolution_is_not_beijing(self) -> None:

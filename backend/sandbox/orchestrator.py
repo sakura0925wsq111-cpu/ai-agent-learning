@@ -123,6 +123,45 @@ def _without_question(text: str) -> str:
     return normalized[: sentence_start + 1].strip()
 
 
+_KNOWLEDGE_TEST_MARKERS = (
+    "你知道", "你了解", "了解过", "是否了解", "是否知道", "知不知道",
+)
+
+_LOCKED_PATH_CHOICE_MARKERS = (
+    "更倾向", "更希望", "更愿意", "更看重", "选哪个", "哪条路径",
+    "哪个方向", "直接就业还是读研", "读研还是就业", "适合读研",
+)
+
+_DISCOVERY_DIMENSION_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("target", ("目标", "方向", "岗位", "院校", "专业")),
+    ("values", ("更看重", "薪资", "收入", "稳定", "成长", "兴趣", "价值")),
+    ("ability", ("基础", "项目", "实习", "数学", "英语", "成绩", "能力", "技能")),
+    ("constraints", ("时间", "家庭", "城市", "地域", "经济", "投入", "成本")),
+)
+
+
+def _question_key(text: str) -> str:
+    """Build a small stable key for repeated-question checks."""
+    return re.sub(r"[\s，。！？?、：:]+", "", str(text or "")).strip()
+
+
+def _question_dimension(text: str) -> str:
+    """Map a question to one coarse personal-information dimension."""
+    normalized = _question_key(text)
+    for dimension, keywords in _DISCOVERY_DIMENSION_KEYWORDS:
+        if any(keyword in normalized for keyword in keywords):
+            return dimension
+    return ""
+
+
+def _replace_visible_question(text: str, old_question: str, new_question: str) -> str:
+    """Replace the one question shown to the user without touching the insight."""
+    index = text.rfind(old_question)
+    if index < 0:
+        return text
+    return f"{text[:index]}{new_question}"
+
+
 def _has_personal_decision_signal(profile: dict[str, Any]) -> bool:
     """Require at least one personal variable beyond background/confusion."""
     keys = (
@@ -345,160 +384,42 @@ class DecisionSandbox:
 
 
     async def chat_stream(self, session, message, db_session=None):
-        """Stream sandbox response. Yields (event, data) tuples for SSE."""
-        from sandbox.state import MAX_DISCOVERY_ROUNDS
+        """Primary SSE transport for sandbox turns.
+
+        State transitions deliberately reuse :meth:`chat`.  The previous
+        streaming implementation duplicated the state machine and drifted from
+        the normal endpoint: it forgot selected paths, failed to record the
+        first path-probe answer, and skipped persistence.  SSE remains the
+        preferred client transport; the non-stream endpoint is only a network
+        fallback in the mini-program.
+        """
         import json as _json
 
         if not message.strip():
-            yield ("done", _json.dumps({"phase": session.current_phase.value, "finished": False, "message": "请输入内容"}, ensure_ascii=False))
-            return
-
-        if session.current_phase == SandboxPhase.DISCOVERY:
-            yield ("status", _json.dumps({"phase": "discovery", "status": "thinking"}, ensure_ascii=False))
-            
-            is_first = (session.discovery_round == 0)
-            mem_ctx = self._format_memory(session)
-            system_prompt = _build_disco_sys(session, mem_ctx)
-            
-            history_text = session.build_discovery_context()
-            user_prompt = build_discovery_user_prompt(
-                history_text=history_text,
-                latest_message=message,
-                is_first_turn=is_first,
-            )
-
-            try:
-                full = ""
-                for chunk in self.llm.chat_stream(user_prompt, system_prompt, temperature=0.7, max_tokens=1024):
-                    full += chunk
-                
-                parsed = _safe_json(full)
-                nq = parsed.get("next_question", "") if parsed else ""
-                visible_response = (
-                    parsed.get("response", "") or nq or full
-                    if parsed else full
-                )
-                visible_response = normalize_advisory_text(visible_response)
-                finish = parsed.get("finish", False) if parsed else False
-                
-                if parsed and parsed.get("updated_profile"):
-                    for k, v in parsed["updated_profile"].items():
-                        if v: session.user_profile[k] = v
-                
-                session.record_discovery(nq or visible_response, message)
-                
-                if finish or session.discovery_round >= MAX_DISCOVERY_ROUNDS:
-                    session.advance_phase()
-                    visible_response = (
-                        f"{visible_response}\n\n接下来可以比较就业规划、考研规划、"
-                        "考公考编规划或转专业规划。你想重点比较哪些方向？"
-                    )
-
-                yield ("token", visible_response)
-                
-                yield ("done", _json.dumps({
-                    "phase": session.current_phase.value, "finished": False,
-                    "message": visible_response,
-                    "discovery_round": session.discovery_round,
-                    "max_discovery_rounds": MAX_DISCOVERY_ROUNDS,
-                    "path_selections": session.path_selections,
-                    "show_cards": False, "state": session.to_dict(),
-                }, ensure_ascii=False))
-            except Exception as e:
-                yield ("done", _json.dumps({
-                    "phase": "discovery", "finished": False,
-                    "message": "抱歉，请稍后重试。",
-                    "discovery_round": session.discovery_round,
-                    "max_discovery_rounds": MAX_DISCOVERY_ROUNDS,
-                    "state": session.to_dict(),
-                }, ensure_ascii=False))
-            return
-
-        elif session.current_phase == SandboxPhase.PATH_PROBE:
-            yield ("status", _json.dumps({"phase": "path_probe", "status": "thinking"}, ensure_ascii=False))
-
-            if not session.path_selections:
-                selections = self._parse_path_selections(message)
-                if not selections:
-                    result = self.chat(session, message, db_session)
-                    yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
-                    return
-                session.path_selections = selections
-                for pt in selections:
-                    session.path_probe_history.setdefault(pt, [])
-
-            current_path = self._find_current_probe_path(session)
-            if current_path is None:
-                result = self._advance_to_parallel_sim(session)
-                yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
-                return
-
-            if session.path_probe_history.get(current_path):
-                session.record_path_probe(current_path, "", message)
-
-            rounds = session.path_probe_rounds(current_path)
-            if rounds >= MAX_PATH_PROBE_ROUNDS:
-                session.path_probe_done.add(current_path)
-                result = self._maybe_advance_from_probe(session)
-                yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
-                return
-
-            question_system_prompt = build_path_probe_prompt(
-                current_path,
-                session.build_discovery_context(),
-            )
-            question_user_prompt = "请先给出一段路径信息，再生成一个高价值的个人澄清问题。"
-            full_question = ""
-            try:
-                for chunk in self.llm.chat_stream(
-                    question_user_prompt,
-                    question_system_prompt,
-                    temperature=0.7,
-                    max_tokens=512,
-                ):
-                    full_question += chunk
-            except Exception:
-                full_question = "这条路径需要同时考虑目标、基础和时间成本。你最大的个人顾虑是什么？"
-
-            parsed_question = _safe_json(full_question)
-            if parsed_question:
-                insight = str(parsed_question.get("insight", "")).strip()
-                questions = parsed_question.get("questions", [])
-                next_question = str(questions[0]).strip() if questions else ""
-                question = normalize_advisory_text(f"{insight}{next_question}".strip(), 140)
-            else:
-                question = normalize_advisory_text(full_question.strip(), 140)
-            if not question:
-                question = "这条路径需要结合你的个人目标判断。你目前最想优先解决什么问题？"
-
-            yield ("token", question)
-
             yield ("done", _json.dumps({
-                "phase": "path_probe", "finished": False,
-                "message": question,
+                "phase": session.current_phase.value,
+                "finished": False,
+                "message": "请输入内容",
                 "path_selections": session.path_selections,
-                "show_cards": False, "state": session.to_dict(),
+                "path_selection_source": session.path_selection_source,
+                "path_selection_locked": session.path_selection_locked,
+                "state": session.to_dict(),
             }, ensure_ascii=False))
+            return
 
-        elif session.current_phase in (SandboxPhase.PARALLEL_SIM, SandboxPhase.PROJECTION):
-            yield ("status", _json.dumps({"phase": session.current_phase.value, "status": "analyzing"}, ensure_ascii=False))
+        status = "analyzing" if session.current_phase in (
+            SandboxPhase.PARALLEL_SIM, SandboxPhase.PROJECTION,
+        ) else "thinking"
+        yield ("status", _json.dumps({
+            "phase": session.current_phase.value,
+            "status": status,
+        }, ensure_ascii=False))
 
-            if session.current_phase == SandboxPhase.PARALLEL_SIM:
-                result = self._handle_parallel_sim(session)
-            else:
-                result = self._handle_projection(session)
-
-            report_text = result.get("report_text", "")
-            if report_text:
-                for i in range(0, len(report_text), 30):
-                    chunk = report_text[i:i+30]
-                    yield ("token", chunk)
-
-            yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
-
-        else:
-            result = self.chat(session, message, db_session)
-            yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
+        result = self.chat(session, message, db_session)
+        visible = str(result.get("report_text") or result.get("message") or "")
+        for index in range(0, len(visible), 30):
+            yield ("token", visible[index:index + 30])
+        yield ("done", _json.dumps(result, ensure_ascii=False, default=str))
 
     # ── Phase 1: Discovery ──────────────────────────────────────
 
@@ -564,6 +485,115 @@ class DecisionSandbox:
             question = "哪条路径能在两周内完成一次真实任务或摸底？"
         return normalize_advisory_text(body + (question if allow_question else ""), 160)
 
+    def _safe_sandbox_personal_question(
+        self,
+        session: SandboxSession,
+        path_type: str | None = None,
+    ) -> str:
+        """Return an answerable fallback when a model asks a knowledge-test question."""
+        by_path = {
+            "career": [
+                ("target", "你更想先验证哪类目标岗位？"),
+                ("ability", "你目前有哪些项目、实习或作品可以作为能力证据？"),
+                ("constraints", "你对城市、收入或工作强度有什么现实限制？"),
+            ],
+            "graduate": [
+                ("target", "你希望读研后进入哪类岗位或研究方向？"),
+                ("ability", "数学、英语或专业课里，哪一项最需要补基础？"),
+                ("constraints", "你能为读研投入多久的准备周期？"),
+            ],
+            "civil": [
+                ("target", "你更关注哪个地区或哪类公职岗位？"),
+                ("ability", "行测和申论中，哪一项目前更缺少练习？"),
+                ("constraints", "你能接受多长的备考周期，并准备什么备选方案？"),
+            ],
+            "major": [
+                ("target", "你希望转入哪个专业或对应方向？"),
+                ("ability", "目标专业相关课程或技能里，你已有哪部分基础？"),
+                ("constraints", "你能接受的补修或毕业时间成本大概是多少？"),
+            ],
+        }
+        candidates = by_path.get(path_type or "", [])
+        if not candidates:
+            pair = frozenset(session.path_selections[:2])
+            if pair == frozenset(("career", "graduate")):
+                candidates = [
+                    ("target", "你希望未来进入哪类岗位或方向？"),
+                    ("ability", "项目实践和数学英语里，哪一边基础更扎实？"),
+                    ("constraints", "你目前最受时间、家庭还是地域哪项限制？"),
+                ]
+            elif pair == frozenset(("career", "civil")):
+                candidates = [
+                    ("target", "你更关注哪类岗位或哪个地区？"),
+                    ("ability", "你目前有哪些项目、实习或考试基础？"),
+                    ("constraints", "你能接受多长的备考或求职周期？"),
+                ]
+            else:
+                candidates = [
+                    ("target", "你目前最想优先验证哪类方向？"),
+                    ("ability", "你已有哪项基础或经历可以作为判断依据？"),
+                    ("constraints", "你目前最受时间、家庭还是地域哪项限制？"),
+                ]
+        for dimension, question in candidates:
+            if dimension not in session.unavailable_discovery_dimensions:
+                return question
+        return candidates[-1][1]
+
+    def _sanitize_sandbox_question(
+        self,
+        session: SandboxSession,
+        question: str,
+        *,
+        path_type: str | None = None,
+        latest_answer: str = "",
+    ) -> str:
+        """Keep sandbox questions personal, singular, and non-repetitive."""
+        candidate = str(question or "").strip().replace("?", "？")
+        if candidate and not candidate.endswith("？"):
+            candidate = candidate.rstrip("。！…") + "？"
+        candidate_key = _question_key(candidate)
+        candidate_dimension = _question_dimension(candidate)
+        repeated_after_unknown = candidate_key in session.unavailable_discovery_questions
+        dimension_was_skipped = (
+            bool(candidate_dimension)
+            and candidate_dimension in session.unavailable_discovery_dimensions
+        )
+        if (
+            not candidate
+            or any(marker in candidate for marker in _KNOWLEDGE_TEST_MARKERS)
+            or (session.path_selection_locked and any(
+                marker in candidate for marker in _LOCKED_PATH_CHOICE_MARKERS
+            ))
+            or repeated_after_unknown
+            or dimension_was_skipped
+        ):
+            return self._safe_sandbox_personal_question(session, path_type)
+        return candidate
+
+    def _sanitize_sandbox_advisory(
+        self,
+        session: SandboxSession,
+        text: str,
+        *,
+        path_type: str | None = None,
+        latest_answer: str = "",
+        max_chars: int = 160,
+    ) -> str:
+        """Replace an invalid displayed question while preserving its insight."""
+        visible = normalize_advisory_text(text, max_chars)
+        shown_question = _extract_visible_question(visible)
+        if not shown_question:
+            return visible
+        safe_question = self._sanitize_sandbox_question(
+            session,
+            shown_question,
+            path_type=path_type,
+            latest_answer=latest_answer,
+        )
+        if safe_question != shown_question:
+            visible = _replace_visible_question(visible, shown_question, safe_question)
+        return normalize_advisory_text(visible, max_chars)
+
     def _compose_discovery_response(
         self,
         parsed: dict[str, Any] | None,
@@ -591,14 +621,27 @@ class DecisionSandbox:
             )
             return response, _extract_visible_question(response)
 
-        visible = normalize_advisory_text(response or "我先基于现有信息帮你梳理。", 160)
+        visible = self._sanitize_sandbox_advisory(
+            session,
+            response or "我先基于现有信息帮你梳理。",
+            latest_answer=message,
+        )
         if not allow_question:
             visible = normalize_advisory_text(_without_question(visible), 150)
             return visible, ""
 
         actual_question = _extract_visible_question(visible)
         if not actual_question and proposed_question:
-            visible = normalize_advisory_text(f"{visible}{proposed_question}", 160)
+            proposed_question = self._sanitize_sandbox_question(
+                session,
+                proposed_question,
+                latest_answer=message,
+            )
+            visible = self._sanitize_sandbox_advisory(
+                session,
+                f"{visible}{proposed_question}",
+                latest_answer=message,
+            )
             actual_question = _extract_visible_question(visible)
         return visible, actual_question
 
@@ -630,7 +673,7 @@ class DecisionSandbox:
         # user to select "就业和考研" again even after they had said exactly
         # that, which made the interaction feel inattentive.
         inferred_paths = self._parse_path_selections(message)
-        if len(inferred_paths) >= 2:
+        if not session.path_selection_locked and len(inferred_paths) >= 2:
             for path in inferred_paths:
                 if path not in session.path_selections:
                     session.path_selections.append(path)
@@ -649,6 +692,7 @@ class DecisionSandbox:
             is_first_turn=is_first,
             decision_request=decision_request,
             allow_question=allow_discovery_question,
+            paths_locked=session.path_selection_locked,
         )
 
         # Call LLM
@@ -671,6 +715,11 @@ class DecisionSandbox:
                     fallback_q += "你目前最想先解决哪一个现实顾虑？"
                 fallback_q = normalize_advisory_text(fallback_q, 160)
             previous_question = session.last_discovery_question or "用户主动说明"
+            if session.is_ambiguous(message):
+                session.mark_discovery_unavailable(
+                    _question_key(previous_question),
+                    _question_dimension(previous_question),
+                )
             session.record_discovery(
                 previous_question,
                 message,
@@ -699,6 +748,11 @@ class DecisionSandbox:
 
         previous_question = session.last_discovery_question or "用户主动说明"
         previous_response = session.last_discovery_response
+        if session.is_ambiguous(message):
+            session.mark_discovery_unavailable(
+                _question_key(previous_question),
+                _question_dimension(previous_question),
+            )
 
         if parsed:
             # Update cumulative profile before evaluating whether discovery is
@@ -779,6 +833,7 @@ class DecisionSandbox:
                 return self._advance_to_parallel_sim(session)
             first_path = session.path_selections[0]
             question = self._generate_path_probe_question(session, first_path)
+            session.path_probe_pending_questions[first_path] = question
             session.mark_question_asked(question)
             return self._build_response(
                 session, question,
@@ -862,6 +917,7 @@ class DecisionSandbox:
                 return self._advance_to_parallel_sim(session)
             first_path = selections[0]
             question = self._generate_path_probe_question(session, first_path)
+            session.path_probe_pending_questions[first_path] = question
             session.mark_question_asked(question)
             return self._build_response(
                 session, question,
@@ -876,7 +932,8 @@ class DecisionSandbox:
             return self._advance_to_parallel_sim(session)
 
         # Record the answer
-        session.record_path_probe(current_path, "", message)
+        pending_question = session.path_probe_pending_questions.pop(current_path, "")
+        session.record_path_probe(current_path, pending_question, message)
 
         if not session.can_ask_more():
             session.path_probe_done.update(session.path_selections)
@@ -891,6 +948,7 @@ class DecisionSandbox:
                 logger.warning("Path probe: empty question for {}, skipping", current_path)
                 session.path_probe_done.add(current_path)
                 return self._maybe_advance_from_probe(session)
+            session.path_probe_pending_questions[current_path] = question
             session.mark_question_asked(question)
             return self._build_response(
                 session, question,
@@ -917,6 +975,7 @@ class DecisionSandbox:
                 session.path_probe_done.update(session.path_selections)
                 return self._advance_to_parallel_sim(session)
             question = self._generate_path_probe_question(session, next_path)
+            session.path_probe_pending_questions[next_path] = question
             session.mark_question_asked(question)
             return self._build_response(
                 session, question,
@@ -961,6 +1020,7 @@ class DecisionSandbox:
             )
         else:
             history_text = "尚无补充问题。"
+        latest_answer = str(current_answers[-1].get("a", "")) if current_answers else ""
 
         user_prompt = f"""## 需要补充的路径信息
 路径类型: {SANDBOX_PATHS.get(path_type, path_type)}
@@ -981,14 +1041,38 @@ class DecisionSandbox:
                 insight = str(parsed.get("insight", "")).strip()
                 question = str(questions[0]).strip() if questions else ""
                 if insight and question:
-                    return normalize_advisory_text(f"{insight}{question}", 140)
+                    return self._sanitize_sandbox_advisory(
+                        session,
+                        f"{insight}{question}",
+                        path_type=path_type,
+                        latest_answer=latest_answer,
+                        max_chars=140,
+                    )
                 if insight or question:
-                    return normalize_advisory_text(insight or question, 140)
-            return normalize_advisory_text(raw, 140) if raw else "关于这条路，你还有什么想补充的吗？"
+                    return self._sanitize_sandbox_advisory(
+                        session,
+                        insight or question,
+                        path_type=path_type,
+                        latest_answer=latest_answer,
+                        max_chars=140,
+                    )
+            return self._sanitize_sandbox_advisory(
+                session,
+                raw or "关于这条路，你还有什么想补充的吗？",
+                path_type=path_type,
+                latest_answer=latest_answer,
+                max_chars=140,
+            )
         except Exception as exc:
             logger.warning("Path probe question generation failed: {}", exc)
             label = SANDBOX_PATHS.get(path_type, path_type)
-            return f"关于{label}这条路，你最大的顾虑是什么？"
+            return self._sanitize_sandbox_advisory(
+                session,
+                f"关于{label}这条路，你最大的顾虑是什么？",
+                path_type=path_type,
+                latest_answer=latest_answer,
+                max_chars=140,
+            )
 
     def _parse_path_selections(self, message: str) -> list[str]:
         """Parse user message to determine which paths they want to compare.
@@ -1003,9 +1087,11 @@ class DecisionSandbox:
             List of matching path type keys.
         """
         selected: list[str] = []
+        message_text = str(message or "")
+        normalized = message_text.lower()
 
         for path_type, words in PATH_KEYWORDS.items():
-            if any(w in message for w in words):
+            if path_type in normalized or any(w in message_text for w in words):
                 selected.append(path_type)
 
         # If nothing matched, try globals like "all" / "对比"
@@ -1676,6 +1762,9 @@ class DecisionSandbox:
             "phase": session.current_phase.value,
             "finished": session.finished,
             "message": message,
+            "path_selections": session.path_selections,
+            "path_selection_source": session.path_selection_source,
+            "path_selection_locked": session.path_selection_locked,
         }
 
         if extra:
@@ -1685,9 +1774,6 @@ class DecisionSandbox:
         if session.current_phase == SandboxPhase.DISCOVERY:
             response["discovery_round"] = session.discovery_round
             response["max_discovery_rounds"] = MAX_DISCOVERY_ROUNDS
-
-        if session.current_phase == SandboxPhase.PATH_PROBE:
-            response["path_selections"] = session.path_selections
 
         if session.current_phase in (SandboxPhase.PROJECTION, SandboxPhase.COMPLETED):
             response["path_reports"] = session.path_reports

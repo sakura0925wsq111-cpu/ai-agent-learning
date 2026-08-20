@@ -299,20 +299,8 @@ _DATE_TIME_RE_PATTERNS = [
 ]
 
 
-def _extract_exams_from_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
-    try:
-        import openpyxl
-    except ImportError:
-        raise RuntimeError("openpyxl required: pip install openpyxl")
-
-    wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
-    ws = wb.active
-    if not ws:
-        raise RuntimeError("Excel file has no active sheet")
-
-    rows = list(ws.iter_rows(values_only=True))
+def _extract_exams_from_rows(rows: list[tuple[Any, ...]] | list[list[Any]]) -> list[dict[str, Any]]:
     if len(rows) < 2:
-        wb.close()
         return []
 
     header = rows[0]
@@ -324,7 +312,6 @@ def _extract_exams_from_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
             col_idx[key] = ci
 
     if "subject" not in col_idx or "exam_date_raw" not in col_idx:
-        wb.close()
         return []
 
     exams: list[dict[str, Any]] = []
@@ -337,7 +324,13 @@ def _extract_exams_from_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
             continue
 
         subject = str(row[subj_col] or "").strip() if subj_col < len(row) else ""
-        date_raw = str(row[date_col] or "").strip() if date_col < len(row) else ""
+        date_value = row[date_col] if date_col < len(row) else None
+        if isinstance(date_value, datetime):
+            date_raw = date_value.strftime("%Y-%m-%d %H:%M")
+        elif isinstance(date_value, dt_date):
+            date_raw = date_value.isoformat()
+        else:
+            date_raw = str(date_value or "").strip()
         location = (
             str(row[loc_col] or "").strip()
             if loc_col is not None and loc_col < len(row)
@@ -381,8 +374,46 @@ def _extract_exams_from_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
         if not matched:
             logger.warning("Could not parse an exam date value")
 
-    wb.close()
     return exams
+
+
+def _extract_exams_from_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
+    try:
+        import openpyxl
+    except ImportError:
+        raise RuntimeError("openpyxl required: pip install openpyxl")
+
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+    try:
+        ws = wb.active
+        if not ws:
+            raise RuntimeError("Excel file has no active sheet")
+        return _extract_exams_from_rows(list(ws.iter_rows(values_only=True)))
+    finally:
+        wb.close()
+
+
+def _extract_exams_from_xls(file_bytes: bytes) -> list[dict[str, Any]]:
+    try:
+        import xlrd
+    except ImportError:
+        raise RuntimeError("xlrd required: pip install xlrd")
+
+    wb = xlrd.open_workbook(file_contents=file_bytes)
+    try:
+        ws = wb.sheet_by_index(0)
+        rows: list[list[Any]] = []
+        for row_index in range(ws.nrows):
+            row: list[Any] = []
+            for cell in ws.row(row_index):
+                value = cell.value
+                if cell.ctype == xlrd.XL_CELL_DATE:
+                    value = xlrd.xldate_as_datetime(value, wb.datemode)
+                row.append(value)
+            rows.append(row)
+        return _extract_exams_from_rows(rows)
+    finally:
+        wb.release_resources()
 
 
 # Exam PDF parser (LLM fallback)
@@ -497,14 +528,19 @@ async def import_excel(
 ):
     require_user_access(user_id, current_user_id)
     try:
+        filename = (file.filename or "").lower()
+        is_xls = filename.endswith(".xls") and not filename.endswith(".xlsx")
         file_bytes = await _read_upload(
-            file, suffixes=(".xlsx",), label=".xlsx", magic=(b"PK\x03\x04",)
+            file,
+            suffixes=(".xlsx", ".xls"),
+            label=".xlsx 或 .xls",
+            magic=(b"\xD0\xCF\x11\xE0",) if is_xls else (b"PK\x03\x04",),
         )
     except ValueError as exc:
         return APIResponse.error(code=400, message=str(exc))
 
     try:
-        items = _extract_exams_from_xlsx(file_bytes)
+        items = _extract_exams_from_xls(file_bytes) if is_xls else _extract_exams_from_xlsx(file_bytes)
     except Exception as exc:
         logger.error("Excel exam import failed: {}", exc)
         return APIResponse.error(code=400, message=str(exc))

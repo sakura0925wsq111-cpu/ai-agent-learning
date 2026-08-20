@@ -11,6 +11,8 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
+import json
 from typing import Any
 
 import re
@@ -18,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 
 from sandbox.orchestrator import DecisionSandbox
+from sandbox.state import SANDBOX_PATHS
 from sandbox.schemas import (
     SandboxStartRequest,
     SandboxChatRequest,
@@ -32,6 +35,7 @@ from database.session import get_db
 from sqlalchemy.orm import Session
 from core.rate_limit import enforce_ai_daily_limit
 from utils.auth import get_current_user_id, require_user_access
+from utils.json_parser import safe_json_parse
 
 
 
@@ -50,6 +54,84 @@ def _clean_message(msg: str) -> str:
             continue
         cleaned.append(line)
     return chr(10).join(cleaned).strip()
+
+
+def _initial_question_for_paths(path_types: list[str]) -> str:
+    """Start with a personal fact, never a request to choose a selected path."""
+    pair = frozenset(path_types[:2])
+    if pair == frozenset(("career", "graduate")):
+        return "你现在最能代表自己能力的一项项目、实习或作品是什么？暂时没有也可以直接说“暂无”。"
+    if pair == frozenset(("career", "civil")):
+        return "你计划毕业后优先在哪个城市或地区发展？暂时没有也可以直接说“暂无”。"
+    if pair == frozenset(("graduate", "civil")):
+        return "你目前已经开始准备的内容是什么？比如专业课、英语、行测或申论；暂时没有也可以直接说“暂无”。"
+    if pair == frozenset(("major", "career")):
+        return "你希望转入的专业或对应岗位方向是什么？暂时没有也可以直接说“暂无”。"
+    return "你现在最能代表自己能力的一项经历是什么？暂时没有也可以直接说“暂无”。"
+
+
+_INVALID_FIRST_QUESTION_MARKERS = (
+    "更希望", "更愿意", "更看重", "选哪个", "哪条路径", "哪个方向",
+    "纠结", "你知道", "你了解", "是否了解", "是否知道",
+)
+
+
+def _valid_initial_question(raw: str) -> str:
+    """Accept only one factual, user-answerable LLM question."""
+    question = re.sub(r"\s+", "", str(raw or "")).replace("?", "？")
+    if question and not question.endswith("？"):
+        question = question.rstrip("。！…") + "？"
+    if (
+        len(question) < 8
+        or len(question) > 90
+        or question.count("？") != 1
+        or any(marker in question for marker in _INVALID_FIRST_QUESTION_MARKERS)
+    ):
+        return ""
+    return question
+
+
+async def _initial_question_from_llm(sandbox: DecisionSandbox, session) -> str:
+    """Generate the first preselected-path question; fall back safely on failure."""
+    labels = "、".join(SANDBOX_PATHS.get(path_type, path_type) for path_type in session.path_selections)
+    profile = {key: value for key, value in session.user_profile.items() if value}
+    system_prompt = """你是大学生成长决策沙盘的首轮提问助手。用户已经固定选择了对比路径。
+
+只输出 JSON：{"question":"..."}。
+
+规则：
+1. 只问一个用户本人能确认的事实：项目、实习、作品、课程基础、已开始的准备、目标地区或现实约束。
+2. 不能要求用户在已选路径之间做选择，禁止问“更希望/更愿意/更看重/选哪个/哪条路径”。
+3. 不问用户是否知道薪资、政策、考试内容等 AI 应回答的信息。
+4. 问题必须自然、具体，允许用户回答“暂无”或“不知道”。
+5. 不要解释、标题、Markdown 或第二个问题。"""
+    user_prompt = (
+        f"已选路径：{labels}\n"
+        f"已知画像：{json.dumps(profile, ensure_ascii=False) if profile else '暂无'}\n"
+        "请生成第一轮问题。"
+    )
+    try:
+        raw = await asyncio.wait_for(
+            asyncio.to_thread(
+                sandbox.llm.chat,
+                user_message=user_prompt,
+                system_prompt=system_prompt,
+                temperature=0.2,
+                max_tokens=160,
+                request_timeout=20,
+                max_retries=0,
+            ),
+            timeout=22,
+        )
+        parsed = safe_json_parse(raw)
+        candidate = parsed.get("question", "") if isinstance(parsed, dict) else raw
+        question = _valid_initial_question(candidate)
+        if question:
+            return question
+        logger.warning("Sandbox initial question rejected; using deterministic fallback")
+    except Exception as exc:
+        logger.warning("Sandbox initial question generation failed; using fallback: {}", type(exc).__name__)
+    return _initial_question_for_paths(session.path_selections)
 
 router = APIRouter(tags=["sandbox"])
 
@@ -157,6 +239,8 @@ async def start_session(
     # Pre-set paths if specified
     if request.paths:
         session.path_selections = [p.value for p in request.paths]
+        session.path_selection_source = "preset"
+        session.path_selection_locked = True
         logger.info(
             "Sandbox[{}]: pre-selected paths: {}",
             session.session_id, session.path_selections,
@@ -166,9 +250,19 @@ async def start_session(
     # used to consume one of the three discovery rounds and was incorrectly
     # stored as if the user had answered a question.  The client displays this
     # same greeting before the user's first real message.
-    greeting = "你好，我是你的决策教练。你可以直接告诉我现在最纠结的选择，我会先给分析，再和你补齐关键信息。"
+    if session.path_selections:
+        labels = "、".join(
+            SANDBOX_PATHS.get(path_type, path_type)
+            for path_type in session.path_selections
+        )
+        first_question = await _initial_question_from_llm(sandbox, session)
+        greeting = f"已记录你选择的{labels}。\n\n第一轮：{first_question}"
+        session.last_discovery_question = first_question
+        session.mark_question_asked(first_question)
+    else:
+        greeting = "你好，我是你的决策教练。你可以直接告诉我现在最纠结的选择，我会先给分析，再和你补齐关键信息。"
+        session.last_discovery_question = "你现在最纠结的选择是什么？"
     session.last_discovery_response = greeting
-    session.last_discovery_question = "你现在最纠结的选择是什么？"
     sandbox._persist_memory(
         session,
         db,
@@ -185,6 +279,8 @@ async def start_session(
         discovery_round=0,
         max_discovery_rounds=3,
         path_selections=session.path_selections,
+        path_selection_source=session.path_selection_source,
+        path_selection_locked=session.path_selection_locked,
         state=session.to_dict(),
     )
 
@@ -212,6 +308,8 @@ async def chat(
             finished=True,
             message="本次分析已完成。可以查看对比结果。",
             path_selections=session.path_selections,
+            path_selection_source=session.path_selection_source,
+            path_selection_locked=session.path_selection_locked,
             path_reports=session.path_reports if session.path_reports else None,
             projection_result=_build_projection(session.projection_result),
             state=session.to_dict(),
@@ -231,6 +329,8 @@ async def chat(
             discovery_round=session.discovery_round,
             max_discovery_rounds=7,
             path_selections=session.path_selections,
+            path_selection_source=session.path_selection_source,
+            path_selection_locked=session.path_selection_locked,
             state=session.to_dict(),
         )
 
@@ -247,6 +347,8 @@ async def chat(
         discovery_round=result.get("discovery_round", 0),
         max_discovery_rounds=result.get("max_discovery_rounds", 7),
         path_selections=result.get("path_selections", []),
+        path_selection_source=result.get("path_selection_source", session.path_selection_source),
+        path_selection_locked=result.get("path_selection_locked", session.path_selection_locked),
         path_reports=result.get("path_reports"),
         projection_result=_build_projection(result.get("projection_result")),
         show_cards=result.get("show_cards", False),
@@ -282,6 +384,8 @@ async def resume_session(
             finished=True,
             message="本次分析已完成。可以查看对比结果。",
             path_selections=session.path_selections,
+            path_selection_source=session.path_selection_source,
+            path_selection_locked=session.path_selection_locked,
             path_reports=session.path_reports if session.path_reports else None,
             projection_result=_build_projection(session.projection_result),
             state=session.to_dict(),
@@ -297,6 +401,8 @@ async def resume_session(
             discovery_round=session.discovery_round,
             max_discovery_rounds=7,
             path_selections=session.path_selections,
+            path_selection_source=session.path_selection_source,
+            path_selection_locked=session.path_selection_locked,
             state=session.to_dict(),
         )
 
@@ -313,6 +419,8 @@ async def resume_session(
         discovery_round=result.get("discovery_round", 0),
         max_discovery_rounds=result.get("max_discovery_rounds", 7),
         path_selections=result.get("path_selections", []),
+        path_selection_source=result.get("path_selection_source", session.path_selection_source),
+        path_selection_locked=result.get("path_selection_locked", session.path_selection_locked),
         path_reports=result.get("path_reports"),
         projection_result=_build_projection(result.get("projection_result")),
         show_cards=result.get("show_cards", False),
