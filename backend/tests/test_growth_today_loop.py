@@ -195,6 +195,8 @@ class GrowthTodayLoopTests(unittest.TestCase):
         self.assertIn("真实执行进度", llm.system_prompt)
         self.assertIn('"completed": 1', llm.system_prompt)
         self.assertIn("调整建议", llm.system_prompt)
+        self.assertIn("下一步行动：<动作任务>", llm.system_prompt)
+        self.assertIn("二选一", llm.system_prompt)
 
 
 if __name__ == "__main__":

@@ -6,13 +6,14 @@ const growthStore = require("../../stores/growth-store");
 const { normalizeDashboard, normalizeProgress } = require("../../normalizers/progress");
 const { normalizeReport } = require("../../normalizers/report");
 const { todo } = require("../../normalizers/today");
-const { selectTab, showError, requireSession, getHeroTop } = require("../../utils/page");
+const { selectTab, setTabBarHidden, showError, requireSession, getHeroTop } = require("../../utils/page");
 const { formatTime } = require("../../utils/date");
 
 Page({
   data: { loading: true, error: "", dashboard: null, progress: null, report: null, currentPhase: null, weekCount: 0, weekBars: [], selectedPhase: null, syncedKeys: [], nextTask: null, confirmTask: null, submitting: false, heroTop: 86, refreshedLabel: "" },
   onLoad() { this.setData({ heroTop: getHeroTop(12) }); },
   onShow() { selectTab(this, 2); if (requireSession()) this.load(); },
+  onHide() { setTabBarHidden(this, false); },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()); },
   async load() {
     this.setData({ loading: !this.data.dashboard, error: "" });
@@ -66,8 +67,8 @@ Page({
     try { await todoService.toggle(sessionStore.state.userId, task.id); await this.load(); }
     catch (error) { const previous = progress.phases.find((phase) => phase.key === this.data.selectedPhase.key); this.setData({ progress, selectedPhase: Object.assign({}, this.data.selectedPhase, { tasks: previous.tasks }) }); showError(error, "任务状态更新失败，已恢复"); }
   },
-  askRemove(event) { this.setData({ confirmTask: event.detail }); },
-  closeConfirm() { this.setData({ confirmTask: null }); },
+  askRemove(event) { this.setData({ confirmTask: event.detail }, () => setTabBarHidden(this, true)); },
+  closeConfirm() { this.setData({ confirmTask: null }, () => setTabBarHidden(this, false)); },
   async confirmRemove() { const task = this.data.confirmTask; if (!task) return; this.setData({ submitting: true }); try { await todoService.remove(sessionStore.state.userId, task.id); this.closeConfirm(); await this.load(); } catch (error) { showError(error, "取消执行失败"); } finally { this.setData({ submitting: false }); } },
   explore() { wx.switchTab({ url: "/pages/explore/index" }); },
   report() { if (this.data.dashboard.activePlan) wx.navigateTo({ url: `/pkg-growth/report/index?sessionId=${this.data.dashboard.activePlan.session_id}` }); },

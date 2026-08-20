@@ -1,6 +1,14 @@
 function selectTab(page, selected) {
   if (typeof page.getTabBar === "function" && page.getTabBar()) {
-    page.getTabBar().setData({ selected });
+    const data = page.data || {};
+    const hidden = Boolean(data.sheet || data.editing || data.confirmTask);
+    page.getTabBar().setData({ selected, hidden });
+  }
+}
+
+function setTabBarHidden(page, hidden) {
+  if (typeof page.getTabBar === "function" && page.getTabBar()) {
+    page.getTabBar().setData({ hidden: Boolean(hidden) });
   }
 }
 
@@ -29,4 +37,4 @@ function getHeroTop(extra) {
   return Math.ceil(Math.max(statusBarHeight + 44, capsuleBottom) + Number(extra || 10));
 }
 
-module.exports = { selectTab, showError, requireSession, getHeroTop };
+module.exports = { selectTab, setTabBarHidden, showError, requireSession, getHeroTop };

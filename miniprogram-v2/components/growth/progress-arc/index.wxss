@@ -1,8 +1,8 @@
 .arc { position: relative; width: 280rpx; height: 280rpx; }
 .arc__canvas {
   position: absolute;
-  left: -37rpx;
-  top: -37rpx;
+  left: 8rpx;
+  top: 8rpx;
   width: 250rpx;
   height: 250rpx;
 }

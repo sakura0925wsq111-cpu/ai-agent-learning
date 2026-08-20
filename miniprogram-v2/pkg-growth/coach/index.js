@@ -3,6 +3,7 @@ const todoService = require("../../services/todo-service");
 const sessionStore = require("../../stores/session-store");
 const { AGENT_LABELS } = require("../../normalizers/report");
 const { showError, requireSession, getHeroTop } = require("../../utils/page");
+const { taskFromCoachReply } = require("../../utils/coach-task");
 
 Page({
   data: { sessionId: "", agent: "career", agentLabel: "成长", messages: [], input: "", loading: true, error: "", sending: false, scrollId: "", quick: ["汇报进展", "遇到困难", "复盘本周"], suggestedTask: "", confirmTask: false, submitting: false, heroTop: 86 },
@@ -33,7 +34,7 @@ Page({
     } finally { this.setData({ sending: false }); this._stream = null; }
   },
   updateAssistant(id, content, streaming) { this.setData({ messages: this.data.messages.map((item) => item.id === id ? Object.assign({}, item, { content, streaming }) : item), scrollId: id }); },
-  makeSuggestion(text) { const parts = String(text || "").split(/[。！？\n]/).map((item) => item.trim()).filter(Boolean); const suggestedTask = parts.length ? parts[parts.length - 1].slice(0, 120) : ""; this.setData({ suggestedTask }); },
+  makeSuggestion(text) { this.setData({ suggestedTask: taskFromCoachReply(text) }); },
   askCreate() { this.setData({ confirmTask: true }); },
   dismissSuggestion() { this.setData({ suggestedTask: "" }); },
   closeConfirm() { this.setData({ confirmTask: false }); },

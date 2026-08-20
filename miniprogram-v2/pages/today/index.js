@@ -8,7 +8,7 @@ const uiStore = require("../../stores/ui-store");
 const { normalizeOverview, normalizeTimeline, normalizeCalendar, todayCompletion, todo } = require("../../normalizers/today");
 const { normalizeDashboard } = require("../../normalizers/progress");
 const { toDateKey, weekday, monthRange, formatTime } = require("../../utils/date");
-const { selectTab, showError, requireSession, getHeroTop } = require("../../utils/page");
+const { selectTab, setTabBarHidden, showError, requireSession, getHeroTop } = require("../../utils/page");
 
 function safe(promise, key) {
   return promise.then((value) => ({ key, ok: true, value })).catch((error) => ({ key, ok: false, error }));
@@ -24,6 +24,7 @@ Page({
   },
   onLoad() { const now = new Date(); const user = sessionStore.state.user || {}; const hour = now.getHours(); this.setData({ selectedDate: toDateKey(now), dateLabel: `${now.getMonth() + 1}月${now.getDate()}日 · ${weekday(now)}`, userName: user.nickname || user.name || "同学", greeting: hour < 11 ? "早上好" : hour < 14 ? "中午好" : hour < 19 ? "下午好" : "晚上好", heroTop: getHeroTop(12) }); },
   onShow() { selectTab(this, 0); if (requireSession()) this.load(false); },
+  onHide() { setTabBarHidden(this, false); },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()); },
 
   async load(force) {
@@ -103,19 +104,20 @@ Page({
     try { const result = await todayService.timeline(sessionStore.state.userId, day.date); this.setData({ timeline: normalizeTimeline(result), loadingTimeline: false }); }
     catch (error) { this.setData({ loadingTimeline: false }); showError(error, "当天轨迹加载失败"); }
   },
-  selectEvent(event) { this.setData({ sheet: "event", selectedEvent: event.detail }); },
-  selectNextEvent() { if (this.data.nextEvent) this.setData({ sheet: "event", selectedEvent: this.data.nextEvent }); },
-  openWeather() { this.setData({ sheet: "weather" }); },
-  updateCity(event) { uiStore.setCity(event.detail.city); this.setData({ sheet: "", suggestion: "" }); this.load(true); },
+  setSheet(sheet, extra) { this.setData(Object.assign({ sheet }, extra || {}), () => setTabBarHidden(this, Boolean(sheet))); },
+  selectEvent(event) { this.setSheet("event", { selectedEvent: event.detail }); },
+  selectNextEvent() { if (this.data.nextEvent) this.setSheet("event", { selectedEvent: this.data.nextEvent }); },
+  openWeather() { this.setSheet("weather"); },
+  updateCity(event) { uiStore.setCity(event.detail.city); this.setSheet("", { suggestion: "" }); this.load(true); },
   openAdd() {
     wx.showActionSheet({ itemList: ["新增待办", "新增课程", "新增考试", "导入课表/考试"], success: ({ tapIndex }) => {
-      if (tapIndex === 0) this.setData({ sheet: "todo", editingTodo: { deadline: this.data.overview.date || this.data.selectedDate } });
-      if (tapIndex === 1) this.setData({ sheet: "course" });
-      if (tapIndex === 2) this.setData({ sheet: "exam" });
+      if (tapIndex === 0) this.setSheet("todo", { editingTodo: { deadline: this.data.overview.date || this.data.selectedDate } });
+      if (tapIndex === 1) this.setSheet("course");
+      if (tapIndex === 2) this.setSheet("exam");
       if (tapIndex === 3) wx.navigateTo({ url: "/pkg-today/import/index" });
     } });
   },
-  closeSheet() { this.setData({ sheet: "", editingTodo: {}, selectedEvent: {}, confirmTask: null }); },
+  closeSheet() { this.setSheet("", { editingTodo: {}, selectedEvent: {}, confirmTask: null }); },
 
   async saveTodo(event) {
     if (!event.detail.title) { showError(null, "请输入任务内容"); return; }
@@ -131,6 +133,8 @@ Page({
   },
   async saveCourse(event) {
     if (!event.detail.name) { showError(null, "请输入课程名称"); return; }
+    const schedule = (event.detail.schedule || [])[0] || {};
+    if (!Number.isInteger(schedule.start) || !Number.isInteger(schedule.end) || schedule.start < 1 || schedule.end < schedule.start) { showError(null, "请填写有效的开始和结束节次"); return; }
     this.setData({ submitting: true });
     try { await todayService.createCourse(sessionStore.state.userId, event.detail); this.closeSheet(); await this.load(true); }
     catch (error) { showError(error, "课程保存失败"); }
@@ -138,6 +142,7 @@ Page({
   },
   async saveExam(event) {
     if (!event.detail.subject || !event.detail.exam_date) { showError(null, "请填写科目和日期"); return; }
+    if (event.detail.start_time && event.detail.end_time && event.detail.end_time <= event.detail.start_time) { showError(null, "结束时间应晚于开始时间"); return; }
     this.setData({ submitting: true });
     try { await todayService.createExam(sessionStore.state.userId, event.detail); this.closeSheet(); await this.load(true); }
     catch (error) { showError(error, "考试保存失败"); }
@@ -150,7 +155,7 @@ Page({
     try { await todoService.toggle(sessionStore.state.userId, task.id); await this.load(true); }
     catch (error) { this.setData({ todos: previous }); showError(error, "状态更新失败，已恢复"); }
   },
-  askRemove(event) { const task = event.detail; this.setData({ confirmTask: task, sheet: "confirm" }); },
+  askRemove(event) { const task = event.detail; this.setSheet("confirm", { confirmTask: task }); },
   async confirmRemove() {
     const task = this.data.confirmTask; if (!task) return;
     this.setData({ submitting: true });

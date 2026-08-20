@@ -9,6 +9,7 @@ const projection = require("../miniprogram-v2/normalizers/projection");
 const progress = require("../miniprogram-v2/normalizers/progress");
 const report = require("../miniprogram-v2/normalizers/report");
 const { parseSseBlock, createDecoder } = require("../miniprogram-v2/services/stream");
+const { taskFromCoachReply } = require("../miniprogram-v2/utils/coach-task");
 
 function backendFixture(name) {
   const file = path.join(__dirname, "..", "backend", "tests", "fixtures", "contracts", name);
@@ -31,6 +32,14 @@ function run() {
   assert.strictEqual(today.event({ event_type: "exam", time: "00:00" }).timeLabel, "时间待定");
   assert.strictEqual(today.normalizeOverview(fixtures.today.weatherFailure).weather.available, false);
   assert.strictEqual(today.todayCompletion([], "2026-08-13").available, false);
+  assert.strictEqual(
+    taskFromCoachReply("需要我提供一个模板吗？还是你先自己试一版？"),
+    ""
+  );
+  assert.strictEqual(
+    taskFromCoachReply("你已经完成第一项。\n下一步行动：整理 10 个目标岗位的 JD 要求。"),
+    "整理 10 个目标岗位的 JD 要求"
+  );
 
   const backendProgress = backendFixture("progress.json");
   assert.strictEqual(progress.normalizeProgress(backendProgress.partial).percent, 50);
@@ -91,6 +100,8 @@ function run() {
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /changePaths/);
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.wxml"), /pathSelectionLocked/);
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.wxml"), /本次对比/);
+  assert.match(frontendFile("pkg-growth/coach/index.js"), /taskFromCoachReply/);
+  assert.match(frontendFile("pkg-growth/coach/index.wxml"), /追问和二选一只保留在对话中/);
   assert.match(frontendFile("custom-tab-bar/index.wxml"), /activeIcon/);
   assert.match(frontendFile("utils/page.js"), /getHeroTop/);
   assert.doesNotMatch(frontendFile("custom-tab-bar/index.wxss"), /transition|transform/);
@@ -108,6 +119,11 @@ function run() {
   assert.doesNotMatch(frontendFile("pkg-growth/coach/index.wxml"), /预计 20 分钟/);
   assert.match(frontendFile("components/base/state-view/index.wxss"), /justify-content:\s*center/);
   assert.match(frontendFile("components/base/mini-tabbar/index.wxml"), /mini-tab__icon/);
+  assert.match(frontendFile("custom-tab-bar/index.wxml"), /wx:if="{{!hidden}}"/);
+  assert.match(frontendFile("utils/page.js"), /setTabBarHidden/);
+  assert.match(frontendFile("pages/today/index.js"), /setSheet\(sheet, extra\)/);
+  assert.match(frontendFile("components/sheets/course-editor-sheet/index.js"), /observers:\s*\{\s*visible/);
+  assert.match(frontendFile("components/sheets/exam-editor-sheet/index.js"), /observers:\s*\{\s*visible/);
   assert.doesNotMatch(frontendFile("styles/tokens.wxss"), /#0A84FF/);
 
   process.stdout.write("frontend-v2 contracts: ok\n");

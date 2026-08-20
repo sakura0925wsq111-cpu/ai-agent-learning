@@ -1,6 +1,7 @@
 Component({
   data: {
     selected: 0,
+    hidden: false,
     tabs: [
       { pagePath: "/pages/today/index", text: "今天", icon: "/assets/icons/today.svg", activeIcon: "/assets/icons/today-active.svg" },
       { pagePath: "/pages/explore/index", text: "探索", icon: "/assets/icons/explore.svg", activeIcon: "/assets/icons/explore-active.svg" },
