@@ -80,6 +80,7 @@ class PathProjection(BaseModel):
 class ComparisonMatrix(BaseModel):
     dimensions: list[str] = Field(default_factory=list)
     scores: dict[str, list[int]] = Field(default_factory=dict)
+    source: str = Field(default="llm", description="llm or unavailable")
 
 
 class RelationshipAnalysis(BaseModel):

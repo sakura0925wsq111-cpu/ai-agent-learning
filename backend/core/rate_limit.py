@@ -10,11 +10,10 @@ import hashlib
 import threading
 import time
 from collections import defaultdict, deque
-from datetime import date
-
 from fastapi import Depends, HTTPException, Request, status
 
 from core.config import settings
+from core.time import business_today
 from utils.auth import get_current_user_id
 
 
@@ -59,7 +58,7 @@ def enforce_ai_daily_limit(
     current_user_id: str = Depends(get_current_user_id),
 ) -> str:
     if not _limiter.allow(
-        f"ai:{date.today().isoformat()}:{current_user_id}",
+        f"ai:{business_today().isoformat()}:{current_user_id}",
         limit=settings.ai_daily_limit,
         window_seconds=24 * 60 * 60,
     ):

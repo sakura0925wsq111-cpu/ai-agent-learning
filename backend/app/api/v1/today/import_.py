@@ -19,6 +19,7 @@ from database.session import get_db
 from schemas.response import APIResponse
 from schemas.today import ImportConfirmRequest
 from core.config import settings
+from core.time import business_today
 from models.today import Course, Exam, ImportPreview
 from services.llm_service import get_llm_service
 from utils.auth import get_current_user_id, require_user_access
@@ -132,7 +133,7 @@ def _is_course_active_in_week(
 
 
 def _get_current_week(semester_start: dt_date) -> int:
-    delta = dt_date.today() - semester_start
+    delta = business_today() - semester_start
     if delta.days < 0:
         return 0
     return delta.days // 7 + 1

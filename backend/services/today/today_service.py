@@ -11,6 +11,7 @@ from typing import Any
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from core.time import business_now, business_today
 from models.today import Course, Exam, PlanTask
 from models.todo import Todo
 from models.growth import GrowthReport
@@ -24,7 +25,7 @@ todo_crud = CRUDBase[Todo](Todo)
 # ── Greeting helper ─────────────────────────────────────────────
 
 def _greeting() -> str:
-    hour = datetime.now().hour
+    hour = business_now().hour
     if hour < 12:
         return "早上好"
     if hour < 18:
@@ -33,11 +34,11 @@ def _greeting() -> str:
 
 
 def _today_str() -> str:
-    return date.today().isoformat()
+    return business_today().isoformat()
 
 
 def _weekday_today() -> int:
-    return date.today().isoweekday()  # 1=Mon, 7=Sun
+    return business_today().isoweekday()  # 1=Mon, 7=Sun
 
 
 # ── Week calculation helpers ────────────────────────────────────
@@ -88,7 +89,7 @@ def _get_current_week(semester_start: date | None) -> int | None:
     """
     if semester_start is None:
         return None
-    delta = date.today() - semester_start
+    delta = business_today() - semester_start
     if delta.days < 0:
         return 0  # Semester hasn't started yet
     return delta.days // 7 + 1
@@ -226,7 +227,7 @@ class TodayService:
     def get_overview(self, db: Session, *, user_id: str) -> dict[str, Any]:
         """Aggregate today's snapshot: courses, todos, nearest exam."""
         weekday = _weekday_today()
-        today = date.today()
+        today = business_today()
 
         # Courses today: filter by weekday AND week range
         all_courses = db.query(Course).filter(Course.user_id == user_id).all()
@@ -562,6 +563,7 @@ class TodayService:
             ph["todos"].append({
                 "id": todo.id,
                 "plan_task_id": pt.id,
+                "plan_task_index": pt.plan_task_index,
                 "description": todo.title,
                 "deadline": todo.deadline,
                 "status": todo.status,
@@ -599,7 +601,7 @@ class TodayService:
     ):
         import json
         from datetime import date as date_type
-        target = target_date or date_type.today()
+        target = target_date or business_today()
         weekday = target.isoweekday()
 
         events = []
@@ -673,7 +675,7 @@ class TodayService:
                     time_value = deadline.strftime("%H:%M")
                 except (TypeError, ValueError):
                     continue
-            elif target != date_type.today():
+            elif target != business_today():
                 continue
             events.append({
                 "id": t.id,
@@ -709,7 +711,7 @@ class TodayService:
     ):
         import calendar as cal_mod
         from datetime import date as date_type
-        today = date_type.today()
+        today = business_today()
         days_in_month = cal_mod.monthrange(year, month)[1]
         first_weekday = cal_mod.monthrange(year, month)[0]  # 0=Mon → we convert to 1=Mon
         first_weekday = (first_weekday + 6) % 7 + 1  # convert to 1=Mon...7=Sun

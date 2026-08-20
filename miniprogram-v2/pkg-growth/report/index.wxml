@@ -4,8 +4,8 @@
     <view class="report-art" aria-hidden="true"><view></view><view></view><text>⚑</text></view>
     <text class="report-kicker">{{report.agentLabel || '成长'}}规划报告 · 生成于 {{createdLabel}}</text>
     <text class="report-title">{{report.title}}</text>
-    <text class="report-summary">{{report.summary}}</text>
-    <view wx:if="{{report.goal}}" class="report-goal"><text>◎</text><text>目标：{{report.goal}}</text></view>
+    <view class="report-summary"><text wx:for="{{summaryParagraphs}}" wx:key="*this">{{item}}</text></view>
+    <view wx:if="{{report.goal}}" class="report-goal"><text>◎</text><view class="report-goal__copy"><text>目标：</text><text wx:for="{{goalParagraphs}}" wx:key="*this">{{item}}</text></view></view>
   </view>
   <view wx:if="{{loading}}" class="card loading-card"><skeleton rows="7"/></view>
   <state-view wx:elif="{{error}}" state="error" title="报告暂不可用" message="{{error}}" bind:action="retry"/>
@@ -13,8 +13,8 @@
     <view class="progress-card surface"><text class="progress-label">执行进度</text><view class="progress-row"><text class="progress-value">{{progress.percent}}<text>%</text></text><text class="progress-count"><text>{{progress.completed}}/{{progress.total}}</text> 个已同步任务完成</text><text class="progress-status">● 已同步</text></view><view class="progress-track"><view style="width: {{progress.percent}}%"></view></view></view>
     <view class="roadmap-card surface"><phase-roadmap phases="{{report.phases}}" current-key="{{progress.currentKey}}" synced-keys="{{syncedKeys}}" bind:select="selectPhase"/></view>
     <view class="report-bento">
-      <view class="phase-detail surface"><view class="phase-detail__head"><text>{{selectedPhase.label}}</text><text>{{selectedPhase.synced ? '已同步' : '未同步'}}</text></view><text class="phase-detail__title">{{selectedPhase.title}}</text><view class="phase-tasks"><text>阶段内报告任务（{{selectedPhase.tasks.length}}）</text><view wx:for="{{selectedPhase.tasks}}" wx:key="key"><text>✓</text><view><text>{{item.title}}</text><text>{{item.deadline || '尚未安排日期'}}</text></view></view></view><button class="sync-button" data-phase="{{selectedPhase}}" bindtap="openSync">{{selectedPhase.synced ? '✓ 该阶段已加入行动' : '将本阶段加入行动'}}</button></view>
-      <view class="report-insights surface"><view><text class="insight-icon insight-icon--blue">♧</text><text>优势</text><text>{{reportStrength}}</text></view><view class="insight-divider"></view><view><text class="insight-icon insight-icon--orange">!</text><text>需要留意</text><text>{{reportRisk}}</text></view></view>
+      <view class="phase-detail surface"><view class="phase-detail__head"><text>{{selectedPhase.label}}</text><text class="phase-sync {{selectedPhase.synced ? 'phase-sync--done' : 'phase-sync--pending'}}">{{selectedPhase.synced ? '已同步' : '未同步'}}</text></view><text class="phase-detail__title">{{selectedPhase.title}}</text><view class="phase-tasks"><text>阶段内报告任务（{{selectedPhase.tasks.length}}）</text><view wx:for="{{selectedPhase.tasks}}" wx:key="key"><text class="phase-task-state {{item.done ? 'phase-task-state--done' : ''}}">{{item.done ? '✓' : '○'}}</text><view><text>{{item.title}}</text><text>{{item.deadlineLabel || '尚未安排日期'}}</text></view></view></view><button class="sync-button" data-phase="{{selectedPhase}}" bindtap="openSync">{{selectedPhase.synced ? '✓ 该阶段已加入行动' : '将本阶段加入行动'}}</button></view>
+      <view class="report-insights surface"><view><text class="insight-icon insight-icon--blue">♧</text><text>优势</text><text wx:for="{{strengthParagraphs}}" wx:key="*this" class="insight-copy">{{item}}</text></view><view class="insight-divider"></view><view><text class="insight-icon insight-icon--orange">!</text><text>需要留意</text><text wx:for="{{riskParagraphs}}" wx:key="*this" class="insight-copy">{{item}}</text></view></view></view>
     </view>
     <view class="truth"><text>ⓘ</text><text>数字口径：完成率仅按已完成任务 / 已同步任务计算；报告文字不是成功概率</text></view>
     <button class="button button--primary action-button" bindtap="action">查看行动进度</button>

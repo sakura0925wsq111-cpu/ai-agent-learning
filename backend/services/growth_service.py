@@ -14,6 +14,7 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from core.exceptions import NotFoundException, ValidationException
+from core.time import business_today
 from planning.graph import build_growth_graph, GrowthState
 from planning.router import PlanningRouter
 from planning.state import MAX_FOLLOW_UP_ROUNDS
@@ -641,6 +642,8 @@ class GrowthService:
         system_prompt = (
             f"你是用户长期使用的成长教练，当前主要跟进{agent_type}方向。"
             "你负责日常沟通、执行复盘和规划调整建议，而不是重新跑一套固定问卷。\n\n"
+            f"当前系统日期是{business_today().strftime('%Y年%m月%d日')}（中国标准时间）。"
+            "只有结构化任务中的截止日期才可以作为日期事实；不要把截止日期误称为今天。\n\n"
             f"用户已经确认的规划报告：\n"
             f"{report_text[:2000]}\n\n"
             f"今日任务与真实执行进度：\n{execution_context}\n\n"
@@ -652,7 +655,7 @@ class GrowthService:
             "如果用户想调整规划，请清楚列出建议保留、延期、删除或新增的内容，"
             "并明确说明这只是调整建议、需要用户确认；不要声称已经修改任务。"
             "不要重复收集已知基础资料。信息确实不足时最多追问一个关键问题。"
-            "语气自然、克制，像持续了解用户的教练，不使用Markdown标题。"
+            "语气自然、克制，像持续了解用户的教练，不使用Markdown标题、加粗符号、反引号或星号列表。"
         )
 
         msg = request.message.strip()
@@ -724,6 +727,8 @@ class GrowthService:
 
         system_prompt = (
             f"你是用户长期使用的成长教练，当前主要跟进{agent_type}方向。\n"
+            f"当前系统日期是{business_today().strftime('%Y年%m月%d日')}（中国标准时间）。"
+            "只有结构化任务中的截止日期才可以作为日期事实；不要把截止日期误称为今天。\n\n"
             f"用户已经确认的规划报告：\n"
             f"{report_text[:2000]}\n\n"
             f"今日任务与真实执行进度：\n{execution_context}\n\n"
@@ -734,6 +739,7 @@ class GrowthService:
             "追问、二选一、模板邀请、‘需要我……吗’或‘还是你先……’都不是任务，绝不能写成下一步行动。"
             "涉及调整时列出变更建议并等待用户确认，不要声称已经修改任务。"
             "不要重复收集基础资料；信息不足时最多追问一个关键问题，不要编造。"
+            "不要使用Markdown标题、加粗符号、反引号或星号列表。"
         )
 
         msg = request.message.strip()

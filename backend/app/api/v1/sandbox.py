@@ -515,7 +515,23 @@ async def get_result(
     matches = []
     proj = session.projection_result or {}
     projections = proj.get("projections", [])
-    matrix = proj.get("comparison_matrix", {})
+    matrix = proj.get("comparison_matrix")
+    if isinstance(matrix, list):
+        row_dimensions = []
+        row_scores: dict[str, dict[str, Any]] = {}
+        for row in matrix:
+            if not isinstance(row, dict):
+                continue
+            dimension = str(row.get("dimension") or row.get("label") or "").strip()
+            scores = row.get("scores")
+            if not dimension or not isinstance(scores, dict):
+                continue
+            row_dimensions.append(dimension)
+            for path_type, value in scores.items():
+                row_scores.setdefault(str(path_type), {})[dimension] = value
+        matrix = {"dimensions": row_dimensions, "scores": row_scores}
+    elif not isinstance(matrix, dict):
+        matrix = {}
     matrix_scores = matrix.get("scores", {})
     
     # Try to find the user-fit dimension index.

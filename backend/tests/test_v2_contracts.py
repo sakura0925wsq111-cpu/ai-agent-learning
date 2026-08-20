@@ -13,6 +13,7 @@ from schemas.growth import GrowthDashboardResponse, GrowthReportResponse
 from schemas.response import APIResponse
 from schemas.today import SyncPlanRequest, TodayOverviewResponse, TodaySuggestionRequest
 from sandbox.schemas import SandboxResultResponse
+from sandbox.projection import ProjectionAgent, _build_fallback_result
 
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "contracts"
@@ -58,6 +59,25 @@ class V2ContractFixtureTests(unittest.TestCase):
             self.assertTrue(all(1 <= value <= 10 for value in scores))
         missing = SandboxResultResponse.model_validate(fixture("sandbox.json")["missing_matrix"])
         self.assertIsNone(missing.projection_result.comparison_matrix)
+
+    def test_projection_never_fakes_missing_scores_with_five(self) -> None:
+        fallback = _build_fallback_result({"career": {}, "graduate": {}})
+        self.assertIsNone(fallback["comparison_matrix"])
+
+        agent = ProjectionAgent(MagicMock())
+        normalized = agent._normalize_result({
+            "comparison_matrix": [
+                {"dimension": "时间投入", "scores": {"career": 7, "graduate": 9}},
+                {"dimension": "风险", "scores": {"career": 5, "graduate": 6}},
+            ],
+        }, {"career": {}, "graduate": {}})
+        self.assertEqual(normalized["comparison_matrix"]["scores"]["career"], [7, 5])
+        self.assertIsNone(agent._normalize_result({
+            "comparison_matrix": {
+                "dimensions": ["时间投入", "风险"],
+                "scores": {"career": [5, 5], "graduate": [5, 5]},
+            },
+        }, {"career": {}, "graduate": {}})["comparison_matrix"])
 
     def test_growth_reports_support_complete_legacy_and_missing_plan(self) -> None:
         payloads = fixture("report.json")

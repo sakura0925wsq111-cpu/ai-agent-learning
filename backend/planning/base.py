@@ -26,6 +26,7 @@ from typing import Any
 
 from loguru import logger
 
+from core.time import business_today
 from planning.state import (
     PlanningState,
     WorkflowStep,
@@ -1197,7 +1198,7 @@ class PlanningAgent(ABC):
                 )
 
         user_context = self.state.build_context_for_llm()
-        today = __import__("datetime").date.today().strftime("%Y年%m月%d日")
+        today = business_today().strftime("%Y年%m月%d日")
 
         # System prompt: answer first; question is optional and must be personal.
         system_prompt = f"""你是专业、耐心的{self.agent_label}顾问。用户来这里是为了获得分析和建议，不是接受知识测验。

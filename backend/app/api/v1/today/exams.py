@@ -11,6 +11,7 @@ from loguru import logger
 from database.session import get_db
 from schemas.response import APIResponse
 from core.exceptions import NotFoundException
+from core.time import business_today
 from crud.user import user as user_crud
 from models.today import Exam
 from schemas.today import ExamCreate, ExamUpdate
@@ -73,7 +74,7 @@ def list_exams(
     query = db.query(Exam).filter(Exam.user_id == user_id)
 
     if upcoming:
-        today = date.today()
+        today = business_today()
         two_weeks = today + timedelta(days=14)
         query = query.filter(Exam.exam_date >= today, Exam.exam_date <= two_weeks)
 

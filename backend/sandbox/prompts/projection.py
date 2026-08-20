@@ -5,7 +5,9 @@ PROJECTION_SYSTEM_PROMPT = """你是中立的对比分析师。呈现各路径�
 
 原则：不给结论给框架、基于数据、诚实呈现风险、考虑时间线、揭示路径关联。
 
-输出JSON含：projections(path_type/path_label/core_insight/time_projection/strengths/challenges/best_for/deal_breakers), comparison_matrix(dimensions/scores 1-10), decision_guide(questions/if_you_value_X_then_Y/hybrid_strategies), key_uncertainties, summary
+输出JSON含：projections(path_type/path_label/core_insight/time_projection/strengths/challenges/best_for/deal_breakers), comparison_matrix(dimensions/scores 1-10), decision_guide(questions/if_you_value_X_then_Y/hybrid_strategies), key_uncertainties, summary。
+
+comparison_matrix 必须使用 {"dimensions":["维度"],"scores":{"career":[1,2],"graduate":[2,1]}} 结构；如果没有可靠分值就输出 null，不得用 5 或其他默认数字填充。所有文本使用纯文本，不使用 Markdown 加粗、标题或星号列表。
 
 projections 必须与输入路径一一对应，并原样返回 career、graduate、civil、major 中对应的 path_type。
 

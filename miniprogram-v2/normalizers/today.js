@@ -40,6 +40,7 @@ function todo(raw) {
     title: raw.title || raw.description || "未命名任务",
     deadlineLabel: raw.deadline ? formatDate(raw.deadline, false) : "未安排日期",
     sourceLabel: raw.source_label || SOURCE_LABELS[raw.source] || "待办",
+    planTaskIndex: raw.plan_task_index === undefined ? -1 : Number(raw.plan_task_index),
     done: raw.status === "done" || raw.status === "archived",
     cancelled: raw.status === "cancelled"
   });

@@ -59,10 +59,8 @@ def _build_fallback_result(path_reports: dict[str, dict]) -> dict[str, Any]:
 
     return {
         "projections": projections,
-        "comparison_matrix": {
-            "dimensions": ["匹配度", "风险", "时间成本"],
-            "scores": {pt: [5, 5, 5] for pt in path_reports},
-        },
+        # A failed model call must not look like a valid 5/5 comparison.
+        "comparison_matrix": None,
         "relationship_analysis": {
             "note": "由于系统原因，关系分析暂未完成。请查看各路径报告自行判断。",
         },
@@ -80,6 +78,78 @@ def _build_fallback_result(path_reports: dict[str, dict]) -> dict[str, Any]:
         ],
         "summary": "对比分析因系统原因未能完整生成。请查看各路径的原始报告进行手动对比。建议重新触发分析。",
     }
+
+
+def _normalize_comparison_matrix(
+    raw_matrix: Any,
+    path_reports: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Normalize supported matrix shapes without fabricating scores.
+
+    The model has returned both the canonical ``dimensions/scores`` object
+    and a row-oriented list in the wild.  Invalid or incomplete data should be
+    hidden, not filled with an arbitrary 5.
+    """
+
+    if raw_matrix is None:
+        return None
+
+    dimensions: list[str] = []
+    score_map: dict[str, Any] = {}
+
+    def add_dimension(value: Any) -> str:
+        if isinstance(value, dict):
+            value = value.get("dimension") or value.get("label") or value.get("name")
+        label = str(value or "").strip()
+        if label and label not in dimensions:
+            dimensions.append(label)
+        return label
+
+    if isinstance(raw_matrix, list):
+        for row in raw_matrix:
+            if not isinstance(row, dict):
+                continue
+            label = add_dimension(row)
+            row_scores = row.get("scores")
+            if not label or not isinstance(row_scores, dict):
+                continue
+            for path_type, value in row_scores.items():
+                score_map.setdefault(str(path_type), {})[label] = value
+    elif isinstance(raw_matrix, dict):
+        for value in raw_matrix.get("dimensions", []):
+            add_dimension(value)
+        raw_scores = raw_matrix.get("scores")
+        if isinstance(raw_scores, dict):
+            score_map = {str(key): value for key, value in raw_scores.items()}
+        if str(raw_matrix.get("source") or raw_matrix.get("score_source") or "").lower() in {"fallback", "default"}:
+            return None
+
+    if not dimensions:
+        return None
+
+    normalized_scores: dict[str, list[int]] = {}
+    for path_type in path_reports:
+        values = score_map.get(path_type)
+        if isinstance(values, dict):
+            values = [values.get(label) for label in dimensions]
+        if not isinstance(values, list) or len(values) != len(dimensions):
+            return None
+        parsed: list[int] = []
+        for value in values:
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                return None
+            if not 1 <= numeric <= 10:
+                return None
+            parsed.append(round(numeric))
+        normalized_scores[path_type] = parsed
+
+    if len(normalized_scores) < 2:
+        return None
+    if all(value == 5 for values in normalized_scores.values() for value in values):
+        return None
+    return {"dimensions": dimensions, "scores": normalized_scores, "source": "llm"}
 
 
 # ── ProjectionAgent ──────────────────────────────────────────────
@@ -241,33 +311,10 @@ class ProjectionAgent:
             normalized_projections.append(fallback)
         raw["projections"] = normalized_projections
 
-        # Ensure comparison_matrix has aligned 1-10 scores for every path.
-        matrix = raw.get("comparison_matrix")
-        if not isinstance(matrix, dict):
-            matrix = {}
-            raw["comparison_matrix"] = matrix
-        dimensions = matrix.get("dimensions")
-        if not isinstance(dimensions, list) or not dimensions:
-            dimensions = ["匹配度", "风险", "时间成本"]
-        dimensions = [str(item) for item in dimensions]
-        matrix["dimensions"] = dimensions
-        scores = matrix.get("scores")
-        if not isinstance(scores, dict):
-            scores = {}
-            matrix["scores"] = scores
-        for pt in path_reports:
-            values = scores.get(pt)
-            if not isinstance(values, list):
-                values = []
-            normalized_values: list[float] = []
-            for value in values[:len(dimensions)]:
-                try:
-                    normalized_values.append(round(max(1.0, min(10.0, float(value)))))
-                except (TypeError, ValueError):
-                    normalized_values.append(5.0)
-            normalized_values.extend([5] * (len(dimensions) - len(normalized_values)))
-            scores[pt] = normalized_values
-
+        # Normalize only complete, verifiable scores. Never fabricate a 5.
+        raw["comparison_matrix"] = _normalize_comparison_matrix(
+            raw.get("comparison_matrix"), path_reports,
+        )
         # Ensure relationship_analysis
         if not isinstance(raw.get("relationship_analysis"), dict):
             raw["relationship_analysis"] = {"note": "路径关系分析暂未完成。"}
@@ -330,7 +377,7 @@ class ProjectionAgent:
         """Return an empty comparison result."""
         return {
             "projections": [],
-            "comparison_matrix": {"dimensions": [], "scores": {}},
+            "comparison_matrix": None,
             "relationship_analysis": {"note": "没有可对比的路径。"},
             "decision_guide": {
                 "questions_to_ask_yourself": [],

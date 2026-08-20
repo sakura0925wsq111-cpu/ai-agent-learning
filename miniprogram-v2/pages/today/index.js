@@ -16,7 +16,7 @@ function safe(promise, key) {
 
 Page({
   data: {
-    loading: true, fatalError: "", partialErrors: [], selectedDate: "", dateLabel: "", overview: { weather: {}, todos: [], courses: [], todosCount: 0 },
+    loading: true, fatalError: "", partialErrors: [], selectedDate: "", serverDate: "", dateLabel: "", overview: { weather: {}, todos: [], courses: [], todosCount: 0 },
     timeline: { events: [] }, calendar: { cells: [] }, todos: [], todayTodos: [], completion: { percent: 0, completed: 0, total: 0 }, dashboard: {},
     nextAction: { title: "正在整理今天", meta: "" }, nextEvent: null, sevenDayCount: 0, weekBars: [], suggestion: "", suggestionLoading: false,
     sheet: "", selectedEvent: {}, editingTodo: {}, submitting: false, confirmTask: null,
@@ -42,6 +42,23 @@ Page({
     const values = {}; const errors = [];
     results.forEach((item) => { if (item.ok) values[item.key] = item.value; else errors.push({ key: item.key, message: item.error.message }); });
     if (!values.overview && !this.data.overview.date) { this.setData({ loading: false, fatalError: (errors[0] && errors[0].message) || "今天的数据暂时无法加载" }); return; }
+    // The API owns the business date.  If the device and server cross a
+    // timezone boundary, replace the speculative timeline/calendar request
+    // made above with data for the canonical server date.
+    const followsServerDate = !this.data.serverDate || this.data.selectedDate === this.data.serverDate;
+    const shouldUseServerDate = Boolean(values.overview && values.overview.date && followsServerDate && values.overview.date !== this.data.selectedDate);
+    if (shouldUseServerDate) {
+      const serverDate = values.overview.date;
+      const serverMonth = monthRange(new Date(`${serverDate}T00:00:00`));
+      const [canonicalTimeline, canonicalCalendar] = await Promise.all([
+        safe(todayService.timeline(session.userId, serverDate), "timeline"),
+        safe(todayService.calendar(session.userId, serverMonth.year, serverMonth.month), "calendar")
+      ]);
+      if (canonicalTimeline.ok) values.timeline = canonicalTimeline.value;
+      else errors.push({ key: canonicalTimeline.key, message: canonicalTimeline.error.message });
+      if (canonicalCalendar.ok) values.calendar = canonicalCalendar.value;
+      else errors.push({ key: canonicalCalendar.key, message: canonicalCalendar.error.message });
+    }
     const overview = values.overview ? normalizeOverview(values.overview) : this.data.overview;
     if (overview && overview.weather && !overview.weather.location) {
       overview.weather.location = uiStore.state.city;
@@ -57,7 +74,9 @@ Page({
     const weekBars = this.makeWeekBars(calendar.days, overview.date);
     todayStore.set("overview", overview); todayStore.set("timeline", timeline); todayStore.set("calendar", calendar); todayStore.set("todos", todos);
     if (dashboard) growthStore.set("dashboard", dashboard);
-    this.setData({ loading: false, overview, timeline, calendar, todos, todayTodos, dashboard, completion, nextAction, nextEvent: timeline.events[0] || null, sevenDayCount, weekBars, partialErrors: errors, refreshedLabel: formatTime(new Date()) });
+    const canonicalDate = shouldUseServerDate ? overview.date : (this.data.selectedDate || overview.date);
+    const canonicalDay = new Date(`${canonicalDate}T00:00:00`);
+    this.setData({ loading: false, overview, timeline, calendar, todos, todayTodos, dashboard, completion, nextAction, nextEvent: timeline.events[0] || null, sevenDayCount, weekBars, serverDate: overview.date || this.data.serverDate, selectedDate: canonicalDate, dateLabel: `${canonicalDay.getMonth() + 1}月${canonicalDay.getDate()}日 · ${weekday(canonicalDay)}`, partialErrors: errors, refreshedLabel: formatTime(new Date()) });
     if (!this.data.suggestion && uiStore.state.suggestionEnabled) this.loadSuggestion();
   },
 

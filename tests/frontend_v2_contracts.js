@@ -8,6 +8,7 @@ const today = require("../miniprogram-v2/normalizers/today");
 const projection = require("../miniprogram-v2/normalizers/projection");
 const progress = require("../miniprogram-v2/normalizers/progress");
 const report = require("../miniprogram-v2/normalizers/report");
+const text = require("../miniprogram-v2/normalizers/text");
 const { parseSseBlock, createDecoder } = require("../miniprogram-v2/services/stream");
 const { taskFromCoachReply } = require("../miniprogram-v2/utils/coach-task");
 
@@ -53,6 +54,20 @@ function run() {
   assert.strictEqual(fullProjection.radar.available, true);
   assert.strictEqual(fullProjection.projections[0].milestones[0].text, "完成作品集与岗位访谈");
   assert.strictEqual(projection.normalizeProjection(sandbox.missing_matrix).radar.available, false);
+  const rowMatrix = projection.normalizeProjection({ projection_result: { projections: [
+    { path_type: "career", path_label: "就业" },
+    { path_type: "graduate", path_label: "考研" }
+  ], comparison_matrix: [
+    { dimension: "时间投入", scores: { career: 7, graduate: 9 } },
+    { dimension: "风险", scores: { career: 5, graduate: 6 } }
+  ] } });
+  assert.strictEqual(rowMatrix.radar.available, true);
+  assert.deepStrictEqual(rowMatrix.radar.series[0].values, [7, 5]);
+  const fakeMatrix = projection.normalizeProjection({ projection_result: { projections: [
+    { path_type: "career" }, { path_type: "graduate" }
+  ], comparison_matrix: { dimensions: ["时间投入"], scores: { career: [5], graduate: [5] } } } });
+  assert.strictEqual(fakeMatrix.radar.available, false);
+  assert.strictEqual(text.cleanText("**重点** 和 `代码`"), "重点 和 代码");
 
   const reports = backendFixture("report.json");
   assert.strictEqual(report.normalizeReport(reports.complete).phases.length, 2);
