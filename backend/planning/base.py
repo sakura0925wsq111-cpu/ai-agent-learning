@@ -873,11 +873,20 @@ class PlanningAgent(ABC):
             return ""
         if len(cleaned) > limit:
             candidate = cleaned[:limit]
-            cut = max(candidate.rfind(mark) for mark in "，；、。！？")
-            if cut >= max(8, limit // 2):
-                cleaned = candidate[:cut + 1]
-            else:
+            # An insight must end at a complete sentence.  Cutting at a comma
+            # and then appending "。" turns fragments such as "薪资还会受城市、"
+            # into misleading, unfinished statements.
+            sentence_cut = max(candidate.rfind(mark) for mark in "。！？")
+            if ending == "。" and sentence_cut >= max(12, limit // 3):
+                cleaned = candidate[:sentence_cut + 1]
+            elif ending == "。":
                 cleaned = candidate[: max(1, limit - 1)].rstrip("，；、。！？") + "…"
+            else:
+                cut = max(candidate.rfind(mark) for mark in "，；、。！？")
+                if cut >= max(8, limit // 2):
+                    cleaned = candidate[:cut + 1]
+                else:
+                    cleaned = candidate[: max(1, limit - 1)].rstrip("，；、。！？") + "…"
         if ending and not cleaned.endswith(("。", "！", "？", "…")):
             cleaned = cleaned.rstrip("，；、") + ending
         return cleaned
@@ -931,6 +940,12 @@ class PlanningAgent(ABC):
             return "这项暂时不确定也没关系。"
         if availability == "declined":
             return "这项可以先跳过。"
+        if "薪资" in answer or "工资" in answer or "收入" in answer:
+            if "考研" in answer and "就业" in answer:
+                return "你在比较考研和就业的薪资差异。"
+            return "你正在关注薪资差异。"
+        if "考研" in answer and "就业" in answer:
+            return "你正在比较考研和就业。"
         snippet = self._trim_advisory_part(answer, 12).rstrip("。！？?!…")
         return f"你提到“{snippet}”，我先接着这个重点说。"
 

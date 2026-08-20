@@ -1,15 +1,16 @@
 <view class="page--plain import-page">
   <view class="import-hero" style="padding-top: {{heroTop}}px">
+    <button class="import-back" bindtap="back" aria-label="返回">‹</button>
     <view class="import-art" aria-hidden="true"><view></view><view></view><text>◷</text></view>
     <text class="import-eyebrow">把真实安排带入今天</text>
     <text class="import-title">数据导入中心</text>
     <text class="import-subtitle">导入课表与考试安排，确认预览后再写入</text>
     <view class="hero-tabs"><view class="{{type === 'course' ? 'active' : ''}}" data-type="course" bindtap="type"><text>▤</text><text>课表导入</text></view><view class="{{type === 'exam' ? 'active' : ''}}" data-type="exam" bindtap="type"><text>□</text><text>考试安排</text></view></view>
   </view>
-  <view class="type-cards"><view class="type-card {{type === 'course' ? 'type-card--active' : ''}}" data-type="course" bindtap="type"><text class="type-card__check">{{type === 'course' ? '✓' : ''}}</text><text class="type-card__icon">▤</text><view><text>课程表</text><text>支持 PDF</text></view></view><view class="type-card {{type === 'exam' ? 'type-card--active' : ''}}" data-type="exam" bindtap="type"><text class="type-card__check">{{type === 'exam' ? '✓' : ''}}</text><text class="type-card__icon">▥</text><view><text>考试安排</text><text>支持 Excel / PDF</text></view></view></view>
+  <view class="type-cards"><view class="type-card {{type === 'course' ? 'type-card--active' : ''}}" data-type="course" bindtap="type"><text class="type-card__check">{{type === 'course' ? '✓' : ''}}</text><text class="type-card__icon">▤</text><view><text>课程表</text><text>支持 PDF</text></view></view><view class="type-card {{type === 'exam' ? 'type-card--active' : ''}}" data-type="exam" bindtap="type"><text class="type-card__check">{{type === 'exam' ? '✓' : ''}}</text><text class="type-card__icon">▥</text><view><text>考试安排</text><text>支持 XLSX / XLS / PDF</text></view></view></view>
   <view class="upload-card surface">
     <text class="upload-title">上传{{type === 'course' ? '课程表' : '考试安排'}}文件</text>
-    <view class="drop" bindtap="choose"><text class="drop__icon">{{type === 'course' ? 'PDF' : 'XLS'}}</text><text>{{file ? '重新选择文件' : (type === 'course' ? '点击选择 PDF 文件' : '点击选择 Excel / PDF 文件')}}</text></view>
+    <view class="drop" bindtap="choose"><text class="drop__icon">{{type === 'course' ? 'PDF' : 'XLS'}}</text><text>{{file ? '重新选择文件' : (type === 'course' ? '点击选择 PDF 文件' : '点击选择 XLSX / XLS / PDF 文件')}}</text></view>
     <view wx:if="{{file}}" class="file-row"><text class="file-icon">{{type === 'course' ? 'PDF' : 'XLS'}}</text><view><text>{{file.name}}</text><text>{{file.sizeLabel}}</text></view><text bindtap="clearFile">×</text></view>
     <view wx:if="{{stage !== 'idle'}}" class="upload-status"><block wx:if="{{stage === 'uploading'}}"><view><text>正在上传</text><text>{{progress}}%</text></view><view class="upload-progress"><view style="width: {{progress}}%"></view></view></block><block wx:elif="{{stage === 'parsing'}}"><text>正在解析文件，完成后将自动进入预览…</text></block><block wx:else><text>解析完成，正在打开预览…</text></block></view>
     <view class="file-note">ⓘ {{type === 'course' ? '仅支持 PDF，建议使用学校教务系统导出文件' : 'Excel 需包含科目、日期、时间和地点列'}}</view>

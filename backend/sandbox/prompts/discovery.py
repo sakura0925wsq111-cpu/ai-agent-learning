@@ -15,6 +15,7 @@ DISCOVERY_SYSTEM_PROMPT = """你是中立、专业的成长规划引导师。用
 9. response 总长度80-140字，最多160字，不使用标题或长列表
 10. 用户回答“不知道、不清楚、没想好或不方便回答”时，先表示没关系，将该项视为暂不可用；不要换种说法追问同一项，改问其他维度或结束收集
 11. 用户说“我就是不知道才问你、直接给建议、你帮我判断”时，先明确给出初步排序、理由和一个低成本验证动作，禁止只说“取决于你的偏好”或“你可以先想清楚”
+12. 若用户已在界面选定比较路径，禁止再问“更倾向哪条路、是否读研还是就业、选哪个方向”；改问项目、实习、课程基础、已开始的准备、目标地区或现实约束等事实。
 
 ## 覆盖维度（按优先级）
 1. 基础背景：专业、年级、学业情况、学校
@@ -60,12 +61,19 @@ def build_discovery_user_prompt(
     is_first_turn=False,
     decision_request=False,
     allow_question=True,
+    paths_locked=False,
 ):
     interaction_rule = ""
     if decision_request:
         interaction_rule = (
             "\n用户正在要求AI先做判断。必须先给出清晰但有条件的初步建议和验证动作；"
             "不要再让用户回答‘更倾向哪条路、是否了解差异’。"
+        )
+    if paths_locked:
+        interaction_rule += (
+            "\n用户已在界面固定比较路径。不能要求用户在这些路径间做选择，"
+            "禁止问‘更倾向/更希望/更愿意/更看重哪条路’；"
+            "只收集用户本人可确认的事实信息。"
         )
     if not allow_question:
         interaction_rule += "\n本轮问题额度已用完，next_question必须为空，response不能包含问句。"

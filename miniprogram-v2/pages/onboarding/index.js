@@ -10,7 +10,7 @@ Page({
   onLoad() { const user = sessionStore.state.user || {}; this.setData({ form: { nickname: user.nickname || user.name || "", major: user.major || "", grade: user.grade || "", enroll_year: user.enroll_year || "" } }); },
   input(event) { this.setData({ [`form.${event.currentTarget.dataset.key}`]: event.detail.value }); },
   next() { if (!this.data.form.major.trim() || !this.data.form.grade.trim()) { showError(null, "请先填写专业和年级"); return; } this.setData({ step: 2 }); },
-  togglePath(event) { const type = event.detail.type; const selected = this.data.selected.slice(); const index = selected.indexOf(type); if (index >= 0) selected.splice(index, 1); else if (selected.length < 3) selected.push(type); else showError(null, "最多选择三条路径"); this.setData({ selected }); },
+  togglePath(event) { const type = event.detail.type; const selected = this.data.selected.slice(); const index = selected.indexOf(type); if (index >= 0) selected.splice(index, 1); else if (selected.length < 2) selected.push(type); else showError(null, "本次先比较两条路径"); this.setData({ selected }); },
   importData() { wx.navigateTo({ url: "/pkg-today/import/index?from=onboarding" }); },
   async finish() {
     if (this.data.submitting) return;

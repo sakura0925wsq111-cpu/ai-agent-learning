@@ -201,6 +201,23 @@ class GrowthConversationTests(unittest.TestCase):
         self.assertTrue("985" in acknowledgement or "稳" in acknowledgement)
         self.assertIn("拿不准", acknowledgement)
 
+    def test_salary_acknowledgement_and_insight_trimming_keep_complete_meaning(self):
+        agent = GraduatePlanningAgent(_FakeLLM())
+        agent.init_state({"major": "计算机", "grade": "大三"})
+
+        acknowledgement = agent._fallback_acknowledgement(
+            "我想了解考研和就业的薪资差异。"
+        )
+        insight = agent._trim_advisory_part(
+            "研究型岗位更看重研究训练，而工程岗位更看重项目和实习。"
+            "薪资还会受城市、行业和个人能力影响。",
+            42,
+            "。",
+        )
+
+        self.assertEqual(acknowledgement, "你在比较考研和就业的薪资差异。")
+        self.assertEqual(insight, "研究型岗位更看重研究训练，而工程岗位更看重项目和实习。")
+
     def test_fifth_unavailable_answer_produces_conditional_advice_without_more_questions(self):
         llm = _FakeLLM(response=json.dumps({
             "acknowledgement": "这项暂时不确定也没关系。",
@@ -254,6 +271,7 @@ class GrowthConversationTests(unittest.TestCase):
         result = sandbox.chat(session, "我更看重长期发展")
 
         self.assertTrue(result["finished"])
+        self.assertTrue(session.finished)
         self.assertEqual(session.current_phase, SandboxPhase.COMPLETED)
         self.assertEqual([card["match_score"] for card in result["cards"]], [80, 70])
         self.assertTrue(all(card["icon"].startswith("/images/icon-") for card in result["cards"]))
@@ -459,6 +477,88 @@ class GrowthConversationTests(unittest.TestCase):
         self.assertNotIn("\\n", transition["message"])
         self.assertIn("\n", transition["message"])
 
+    def test_sandbox_parses_card_values_and_natural_language_path_names(self):
+        llm = _FakeLLM(response="")
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+
+        self.assertEqual(
+            sandbox._parse_path_selections("career graduate"),
+            ["career", "graduate"],
+        )
+        self.assertEqual(
+            sandbox._parse_path_selections("就业和考研"),
+            ["career", "graduate"],
+        )
+
+    def test_preselected_paths_remain_locked_during_discovery(self):
+        llm = _FakeLLM(response=json.dumps({
+            "response": "我会继续围绕已选路径补齐信息。你目前最受什么现实限制？",
+            "next_question": "你目前最受什么现实限制？",
+            "updated_profile": {},
+            "finish": False,
+        }, ensure_ascii=False))
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+        session = SandboxSession(
+            session_id="locked-paths",
+            user_id="u1",
+            path_selections=["career", "graduate"],
+            path_selection_source="preset",
+            path_selection_locked=True,
+        )
+
+        sandbox.chat(session, "我也想了解考公和转专业")
+
+        self.assertEqual(session.path_selections, ["career", "graduate"])
+        restored = SandboxSession.from_dict(session.to_dict())
+        self.assertTrue(restored.path_selection_locked)
+        self.assertEqual(restored.path_selection_source, "preset")
+
+    def test_locked_paths_replace_model_preference_question_with_a_fact_question(self):
+        llm = _FakeLLM(response=json.dumps({
+            "response": "你已有项目基础，可以继续补齐关键信息。你更倾向直接就业还是读研？",
+            "next_question": "你更倾向直接就业还是读研？",
+            "updated_profile": {},
+            "finish": False,
+        }, ensure_ascii=False))
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+        session = SandboxSession(
+            session_id="locked-choice",
+            user_id="u1",
+            path_selections=["career", "graduate"],
+            path_selection_source="preset",
+            path_selection_locked=True,
+        )
+
+        result = sandbox.chat(session, "我做过一个课程项目")
+
+        self.assertNotIn("更倾向", result["message"])
+        self.assertNotIn("直接就业还是读研", result["message"])
+        self.assertNotIn("你想对比哪些方向", result["message"])
+        self.assertIn("岗位", result["message"])
+
+    def test_unknown_discovery_answer_skips_that_dimension(self):
+        repeated_values_question = "你更看重薪资还是成长？"
+        llm = _FakeLLM(response=json.dumps({
+            "response": f"这项暂时不确定没关系。{repeated_values_question}",
+            "next_question": repeated_values_question,
+            "updated_profile": {},
+            "finish": False,
+        }, ensure_ascii=False))
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+        session = SandboxSession(
+            session_id="skip-dimension",
+            user_id="u1",
+            discovery_round=1,
+            last_discovery_question="你更看重薪资还是稳定？",
+            last_discovery_response="你更看重薪资还是稳定？",
+        )
+
+        result = sandbox.chat(session, "不知道")
+
+        self.assertIn("values", session.unavailable_discovery_dimensions)
+        self.assertNotIn("薪资", result["message"])
+        self.assertNotIn("更看重", result["message"])
+
     def test_structured_response_is_short_soft_and_single_question(self):
         llm = _FakeLLM(response=json.dumps({
             "acknowledgement": "明白了。",
@@ -567,6 +667,38 @@ class GrowthGraphRoundTests(unittest.IsolatedAsyncioTestCase):
             "你现在最纠结的选择是什么？",
         )
 
+    async def test_preselected_sandbox_starts_with_a_path_specific_question(self):
+        from app.api.v1.sandbox import start_session as start_sandbox_session
+        from sandbox.schemas import SandboxPathType, SandboxStartRequest
+
+        llm = _FakeLLM(response=json.dumps({
+            "question": "你最近完成的一项项目、实习或作品是什么？",
+        }, ensure_ascii=False))
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+        response = await start_sandbox_session(
+            SandboxStartRequest(
+                user_id="u1",
+                paths=[SandboxPathType.CAREER, SandboxPathType.GRADUATE],
+            ),
+            sandbox=sandbox,
+            db=None,
+            current_user_id="u1",
+        )
+
+        session = sandbox.get_session(response.session_id)
+        self.assertTrue(response.message.startswith("已记录你选择的就业规划、考研规划。"))
+        self.assertIn("第一轮：", response.message)
+        self.assertNotIn("纠结的点", response.message)
+        self.assertEqual(
+            session.last_discovery_question,
+            "你最近完成的一项项目、实习或作品是什么？",
+        )
+        self.assertNotIn("更希望", response.message)
+        self.assertNotIn("还是愿意", response.message)
+        self.assertEqual(session.questions_asked, 1)
+        self.assertEqual(session.discovery_round, 0)
+        self.assertEqual(len(llm.calls), 1)
+
     async def test_sandbox_stream_hides_internal_json(self):
         llm = _FakeLLM(response=json.dumps({
             "response": "考研方向要比较目标岗位、当前基础和时间成本。你更偏向研究还是工程实践？",
@@ -586,6 +718,130 @@ class GrowthGraphRoundTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(token_text.startswith("考研方向要比较"))
         self.assertNotIn('"reasoning"', token_text)
         self.assertNotIn('"updated_profile"', token_text)
+
+    async def test_sandbox_stream_preserves_preselected_paths_and_advances_probe(self):
+        class RoutingLLM:
+            def chat(self, **kwargs):
+                if "帮助用户比较成长路径" in kwargs.get("system_prompt", ""):
+                    return json.dumps({
+                        "insight": "就业方向要看能力证据和岗位匹配。",
+                        "questions": ["你目前有哪些项目或实习证据？"],
+                    }, ensure_ascii=False)
+                return json.dumps({
+                    "response": "我先按你的选择补齐必要信息。",
+                    "next_question": "你目前更看重什么？",
+                    "updated_profile": {},
+                    "finish": False,
+                }, ensure_ascii=False)
+
+        llm = RoutingLLM()
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+        session = SandboxSession(
+            session_id="stream-preselected",
+            user_id="u1",
+            discovery_round=2,
+            path_selections=["career", "graduate"],
+        )
+
+        events = []
+        async for event, data in sandbox.chat_stream(session, "我想继续了解"):
+            events.append((event, data))
+        result = json.loads([data for event, data in events if event == "done"][-1])
+
+        self.assertEqual(result["phase"], "path_probe")
+        self.assertEqual(result["path_selections"], ["career", "graduate"])
+        self.assertNotIn("你想重点比较哪些方向", result["message"])
+
+        events = []
+        async for event, data in sandbox.chat_stream(session, "我做过一个项目"):
+            events.append((event, data))
+        result = json.loads([data for event, data in events if event == "done"][-1])
+
+        self.assertEqual(session.path_probe_history["career"][0]["a"], "我做过一个项目")
+        self.assertIn("就业方向要看", session.path_probe_history["career"][0]["q"])
+        self.assertIn("career", session.path_probe_done)
+        self.assertEqual(result["phase"], "path_probe")
+        self.assertIn("graduate", result["path_selections"])
+        restored = SandboxSession.from_dict(session.to_dict())
+        self.assertEqual(
+            restored.path_probe_pending_questions["graduate"],
+            session.path_probe_pending_questions["graduate"],
+        )
+
+    async def test_sandbox_stream_replaces_knowledge_test_questions(self):
+        bad_question = "你知道你所在专业目前薪资吗？"
+
+        class BadQuestionLLM:
+            def chat(self, **kwargs):
+                if "帮助用户比较成长路径" in kwargs.get("system_prompt", ""):
+                    return json.dumps({
+                        "insight": "薪资会受城市和岗位影响。",
+                        "questions": [bad_question],
+                    }, ensure_ascii=False)
+                return json.dumps({
+                    "response": f"薪资会受城市和岗位影响。{bad_question}",
+                    "next_question": bad_question,
+                    "updated_profile": {},
+                    "finish": False,
+                }, ensure_ascii=False)
+
+        llm = BadQuestionLLM()
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm))
+        discovery = SandboxSession(session_id="safe-discovery", user_id="u1")
+        events = []
+        async for event, data in sandbox.chat_stream(discovery, "我想了解就业和考研的薪资差异"):
+            events.append((event, data))
+        discovery_result = json.loads([data for event, data in events if event == "done"][-1])
+
+        self.assertNotIn(bad_question, discovery_result["message"])
+        self.assertNotIn("你知道", discovery_result["message"])
+
+        probe = SandboxSession(
+            session_id="safe-probe",
+            user_id="u1",
+            current_phase=SandboxPhase.PATH_PROBE,
+            phase_index=1,
+            path_selections=["career", "graduate"],
+        )
+        events = []
+        async for event, data in sandbox.chat_stream(probe, "我有一些项目"):
+            events.append((event, data))
+        probe_result = json.loads([data for event, data in events if event == "done"][-1])
+
+        self.assertNotIn(bad_question, probe_result["message"])
+        self.assertNotIn("你知道", probe_result["message"])
+
+    async def test_sandbox_stream_persists_the_canonical_turn_state(self):
+        class MemorySpy:
+            def __init__(self):
+                self.contexts = []
+
+            def persist_sandbox_state(self, _db, **kwargs):
+                self.contexts.append(kwargs)
+
+            def extract_from_turn_async(self, **_kwargs):
+                return None
+
+        llm = _FakeLLM(response=json.dumps({
+            "response": "先比较目标、基础和时间成本。你目前更看重什么？",
+            "next_question": "你目前更看重什么？",
+            "updated_profile": {},
+            "finish": False,
+        }, ensure_ascii=False))
+        memory = MemorySpy()
+        sandbox = DecisionSandbox(llm, PlanningRouter(llm), memory_service=memory)
+        session = sandbox.start_session("stream-persist")
+
+        async for _event, _data in sandbox.chat_stream(
+            session, "我想了解考研", db_session=object(),
+        ):
+            pass
+
+        self.assertEqual(len(memory.contexts), 1)
+        self.assertEqual(
+            memory.contexts[0]["session_state"]["discovery_history"][0]["a"],
+            "我想了解考研",
+        )
 
     async def test_growth_restores_persisted_sandbox_context_when_live_session_is_missing(self):
         from sqlalchemy import create_engine

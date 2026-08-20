@@ -1,6 +1,7 @@
 <view class="page passport-page">
   <view class="passport-hero" style="padding-top: {{heroTop}}px">
     <view class="profile-art" aria-hidden="true"><view></view><view></view><text>⚑</text></view>
+    <button class="passport-settings" bindtap="settings" aria-label="设置">⚙</button>
     <text class="passport-eyebrow">数字成长档案</text>
     <view class="passport-name"><text>{{user.nickname || user.name || '同学'}}</text><text bindtap="edit">↗</text></view>
     <text class="passport-major">{{user.grade || '年级待完善'}} · {{user.major || '专业待完善'}}</text>

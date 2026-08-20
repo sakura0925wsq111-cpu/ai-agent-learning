@@ -7,7 +7,7 @@ const growthStore = require("../../stores/growth-store");
 const uiStore = require("../../stores/ui-store");
 const { normalizeOverview, normalizeTimeline, normalizeCalendar, todayCompletion, todo } = require("../../normalizers/today");
 const { normalizeDashboard } = require("../../normalizers/progress");
-const { toDateKey, weekday, monthRange } = require("../../utils/date");
+const { toDateKey, weekday, monthRange, formatTime } = require("../../utils/date");
 const { selectTab, showError, requireSession, getHeroTop } = require("../../utils/page");
 
 function safe(promise, key) {
@@ -17,10 +17,10 @@ function safe(promise, key) {
 Page({
   data: {
     loading: true, fatalError: "", partialErrors: [], selectedDate: "", dateLabel: "", overview: { weather: {}, todos: [], courses: [], todosCount: 0 },
-    timeline: { events: [] }, calendar: { cells: [] }, todos: [], completion: { percent: 0, completed: 0, total: 0 }, dashboard: {},
+    timeline: { events: [] }, calendar: { cells: [] }, todos: [], todayTodos: [], completion: { percent: 0, completed: 0, total: 0 }, dashboard: {},
     nextAction: { title: "正在整理今天", meta: "" }, nextEvent: null, sevenDayCount: 0, weekBars: [], suggestion: "", suggestionLoading: false,
     sheet: "", selectedEvent: {}, editingTodo: {}, submitting: false, confirmTask: null,
-    userName: "同学", greeting: "早上好", heroTop: 86
+    userName: "同学", greeting: "早上好", heroTop: 86, refreshedLabel: ""
   },
   onLoad() { const now = new Date(); const user = sessionStore.state.user || {}; const hour = now.getHours(); this.setData({ selectedDate: toDateKey(now), dateLabel: `${now.getMonth() + 1}月${now.getDate()}日 · ${weekday(now)}`, userName: user.nickname || user.name || "同学", greeting: hour < 11 ? "早上好" : hour < 14 ? "中午好" : hour < 19 ? "下午好" : "晚上好", heroTop: getHeroTop(12) }); },
   onShow() { selectTab(this, 0); if (requireSession()) this.load(false); },
@@ -50,12 +50,13 @@ Page({
     const todos = values.todos ? (values.todos.todos || []).map(todo) : this.data.todos;
     const dashboard = values.dashboard ? normalizeDashboard(values.dashboard) : this.data.dashboard;
     const completion = todayCompletion(values.todos ? values.todos.todos : todos, overview.date);
+    const todayTodos = todos.filter((item) => item.deadline && String(item.deadline).slice(0, 10) === overview.date && !item.cancelled);
     const nextAction = this.pickNext(timeline.events, overview.todos, overview.courses, overview.nearestExam);
     const sevenDayCount = this.countSevenDays(calendar.days, overview.date);
     const weekBars = this.makeWeekBars(calendar.days, overview.date);
     todayStore.set("overview", overview); todayStore.set("timeline", timeline); todayStore.set("calendar", calendar); todayStore.set("todos", todos);
     if (dashboard) growthStore.set("dashboard", dashboard);
-    this.setData({ loading: false, overview, timeline, calendar, todos, dashboard, completion, nextAction, nextEvent: timeline.events[0] || null, sevenDayCount, weekBars, partialErrors: errors });
+    this.setData({ loading: false, overview, timeline, calendar, todos, todayTodos, dashboard, completion, nextAction, nextEvent: timeline.events[0] || null, sevenDayCount, weekBars, partialErrors: errors, refreshedLabel: formatTime(new Date()) });
     if (!this.data.suggestion && uiStore.state.suggestionEnabled) this.loadSuggestion();
   },
 
@@ -108,7 +109,7 @@ Page({
   updateCity(event) { uiStore.setCity(event.detail.city); this.setData({ sheet: "", suggestion: "" }); this.load(true); },
   openAdd() {
     wx.showActionSheet({ itemList: ["新增待办", "新增课程", "新增考试", "导入课表/考试"], success: ({ tapIndex }) => {
-      if (tapIndex === 0) this.setData({ sheet: "todo", editingTodo: {} });
+      if (tapIndex === 0) this.setData({ sheet: "todo", editingTodo: { deadline: this.data.overview.date || this.data.selectedDate } });
       if (tapIndex === 1) this.setData({ sheet: "course" });
       if (tapIndex === 2) this.setData({ sheet: "exam" });
       if (tapIndex === 3) wx.navigateTo({ url: "/pkg-today/import/index" });
@@ -119,7 +120,12 @@ Page({
   async saveTodo(event) {
     if (!event.detail.title) { showError(null, "请输入任务内容"); return; }
     this.setData({ submitting: true });
-    try { await todoService.create(sessionStore.state.userId, Object.assign({ source: "manual" }, event.detail)); this.closeSheet(); todayStore.invalidate(); await this.load(true); }
+    try {
+      const payload = Object.assign({ source: "manual" }, event.detail);
+      if (this.data.editingTodo && this.data.editingTodo.id) await todoService.update(sessionStore.state.userId, this.data.editingTodo.id, payload);
+      else await todoService.create(sessionStore.state.userId, payload);
+      this.closeSheet(); todayStore.invalidate(); await this.load(true);
+    }
     catch (error) { showError(error, "待办保存失败"); }
     finally { this.setData({ submitting: false }); }
   },

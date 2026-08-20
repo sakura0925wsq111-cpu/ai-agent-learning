@@ -108,11 +108,20 @@ class SandboxSession:
     last_discovery_question: str = ""
     last_discovery_response: str = ""
     questions_asked: int = 0
+    # A skipped answer is a valid outcome.  Remember both the exact question
+    # and its coarse dimension so the next turn does not paraphrase it.
+    unavailable_discovery_questions: set[str] = field(default_factory=set)
+    unavailable_discovery_dimensions: set[str] = field(default_factory=set)
 
     # ── Phase 2: Path Probe ────────────────────────────────────
 
     path_selections: list[str] = field(default_factory=list)
+    path_selection_source: str = "conversation"
+    path_selection_locked: bool = False
     path_probe_history: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+    # The current question for each path is kept separately so the answer can
+    # be persisted with the exact prompt that the user saw.
+    path_probe_pending_questions: dict[str, str] = field(default_factory=dict)
     path_probe_done: set[str] = field(default_factory=set)
 
     # ── Phase 3: Parallel Simulation ───────────────────────────
@@ -135,8 +144,9 @@ class SandboxSession:
         "error_message", "discovery_round", "discovery_history", "discovery_answers",
         "ambiguous_count", "discovery_complete", "user_profile",
         "last_discovery_question", "last_discovery_response", "questions_asked",
-        "path_selections",
-        "path_probe_history", "path_probe_done", "path_reports",
+        "unavailable_discovery_questions", "unavailable_discovery_dimensions",
+        "path_selections", "path_selection_source", "path_selection_locked",
+        "path_probe_history", "path_probe_pending_questions", "path_probe_done", "path_reports",
         "parallel_sim_complete", "projection_result", "memory_snapshot",
     )
 
@@ -149,6 +159,8 @@ class SandboxSession:
         else:
             self.finished = True
         self.current_phase = PHASE_ORDER[min(self.phase_index, len(PHASE_ORDER) - 1)]
+        if self.current_phase == SandboxPhase.COMPLETED:
+            self.finished = True
         return self.current_phase
 
     def set_phase(self, phase: SandboxPhase) -> None:
@@ -197,6 +209,13 @@ class SandboxSession:
             return False
         self.questions_asked += 1
         return True
+
+    def mark_discovery_unavailable(self, question_key: str, dimension: str = "") -> None:
+        """Prevent a skipped personal variable from being asked again."""
+        if question_key:
+            self.unavailable_discovery_questions.add(question_key)
+        if dimension:
+            self.unavailable_discovery_dimensions.add(dimension)
 
     def record_path_probe(self, path_type: str, question: str, answer: str) -> None:
         """Record a path-specific probe Q&A pair."""
@@ -272,7 +291,10 @@ class SandboxSession:
         kw: dict[str, Any] = {}
         for field_name in cls._SERIALIZED_FIELDS:
             val = data.get(field_name)
-            if field_name == "path_probe_done":
+            if field_name in (
+                "path_probe_done", "unavailable_discovery_questions",
+                "unavailable_discovery_dimensions",
+            ):
                 kw[field_name] = set(val) if isinstance(val, list) else set()
             elif field_name == "current_phase":
                 try:
@@ -295,8 +317,10 @@ class SandboxSession:
             "discovery_history": [], "ambiguous_count": 0,
             "discovery_complete": False, "user_profile": {},
             "last_discovery_question": "", "last_discovery_response": "",
-            "questions_asked": 0,
-            "path_selections": [], "path_probe_history": {},
+            "questions_asked": 0, "unavailable_discovery_questions": set(),
+            "unavailable_discovery_dimensions": set(),
+            "path_selections": [], "path_selection_source": "conversation", "path_selection_locked": False,
+            "path_probe_history": {}, "path_probe_pending_questions": {},
             "path_reports": {}, "parallel_sim_complete": False,
             "projection_result": {}, "memory_snapshot": {},
         }

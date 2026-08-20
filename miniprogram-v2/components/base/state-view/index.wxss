@@ -2,4 +2,4 @@
 .state__mark { width: 82rpx; height: 82rpx; margin-bottom: 24rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary); font-size: 36rpx; }
 .state__title { color: var(--color-ink); font-size: 30rpx; font-weight: 650; }
 .state__message { max-width: 510rpx; margin-top: 12rpx; color: var(--color-secondary); font-size: 24rpx; line-height: 1.6; }
-.state__action { min-height: 76rpx; margin-top: 28rpx; padding: 0 34rpx; background: var(--color-primary); color: #FFFFFF; border-radius: 18rpx; font-size: 24rpx; font-weight: 600; }
+.state__action { min-width: 208rpx; min-height: 80rpx; margin-top: 28rpx; padding: 0 34rpx; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: var(--color-primary); color: #FFFFFF; border-radius: 18rpx; font-size: 25rpx; font-weight: 600; line-height: 1; text-align: center; white-space: nowrap; }

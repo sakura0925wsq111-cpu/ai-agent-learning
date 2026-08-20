@@ -3,14 +3,15 @@
     <view class="path-art" aria-hidden="true"><view></view><view></view><view></view></view>
     <text class="explore-title">发展方向探索</text>
     <text class="explore-subtitle">先比较大方向，再进入专项规划</text>
-    <view class="choose-tip"><view class="choose-tip__icon">▤</view><view><text>选择 2–3 条路径</text><text>AI 将通过对话补充你的真实条件</text></view></view>
+    <view class="choose-tip"><view class="choose-tip__icon">▤</view><view><text>选择 2 条路径</text><text>AI 将通过对话补充你的真实条件</text></view></view>
   </view>
 
   <view wx:if="{{loading}}" class="card loading-card"><skeleton rows="6"/></view>
   <state-view wx:elif="{{error}}" state="error" title="探索空间暂不可用" message="{{error}}" bind:action="retry"/>
   <block wx:else>
+    <view wx:if="{{resume}}" class="resume-card surface" bindtap="resume"><view class="resume-card__icon">↻</view><view><text>{{resume.title}}</text><text>{{resume.copy}}</text></view><text>›</text></view>
     <view class="selected-summary surface"><view class="selected-summary__check">✓</view><text>已选择 {{selected.length}} 条：</text><text class="selected-summary__names">{{selectedLabels}}</text><text class="selected-summary__arrow">›</text></view>
-    <path-coordinate-map paths="{{paths}}" selected="{{selected}}" max="3" bind:toggle="togglePath"/>
+    <path-coordinate-map paths="{{paths}}" selected="{{selected}}" max="2" bind:toggle="togglePath"/>
     <button class="button button--primary compare-button" loading="{{starting}}" disabled="{{starting || selected.length < 2}}" bindtap="startSandbox">开始路径对比 <text>›</text></button>
     <view class="process-card surface">
       <view class="process-step"><text class="process-step__num">1</text><text class="process-step__icon">?</text><text>回答关键问题</text></view>

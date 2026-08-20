@@ -7,9 +7,10 @@ const { normalizeDashboard, normalizeProgress } = require("../../normalizers/pro
 const { normalizeReport } = require("../../normalizers/report");
 const { todo } = require("../../normalizers/today");
 const { selectTab, showError, requireSession, getHeroTop } = require("../../utils/page");
+const { formatTime } = require("../../utils/date");
 
 Page({
-  data: { loading: true, error: "", dashboard: null, progress: null, report: null, currentPhase: null, weekCount: 0, weekBars: [], selectedPhase: null, syncedKeys: [], nextTask: null, confirmTask: null, submitting: false, heroTop: 86 },
+  data: { loading: true, error: "", dashboard: null, progress: null, report: null, currentPhase: null, weekCount: 0, weekBars: [], selectedPhase: null, syncedKeys: [], nextTask: null, confirmTask: null, submitting: false, heroTop: 86, refreshedLabel: "" },
   onLoad() { this.setData({ heroTop: getHeroTop(12) }); },
   onShow() { selectTab(this, 2); if (requireSession()) this.load(); },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()); },
@@ -32,7 +33,7 @@ Page({
       const weekCount = this.countWeek(progress.phases);
       const weekBars = this.makeWeekBars(progress.phases);
       const nextTask = progress.phases.reduce((all, phase) => all.concat(phase.tasks || []), []).find((task) => !task.done && !task.cancelled) || null;
-      this.setData({ loading: false, dashboard, progress, report, currentPhase, selectedPhase: currentPhase, syncedKeys: progress.phases.map((phase) => phase.key), weekCount, weekBars, nextTask });
+      this.setData({ loading: false, dashboard, progress, report, currentPhase, selectedPhase: currentPhase, syncedKeys: progress.phases.map((phase) => phase.key), weekCount, weekBars, nextTask, refreshedLabel: formatTime(new Date()) });
       growthStore.set("progress", progress); growthStore.set("report", report);
     } catch (error) { this.setData({ loading: false, error: error.message || "执行状态加载失败" }); }
   },

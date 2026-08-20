@@ -16,8 +16,8 @@ function updateExam(userId, id, payload) { return request({ method: "PUT", url: 
 function deleteExam(userId, id) { return request({ method: "DELETE", url: `/api/v1/today/exams/${q(id)}?user_id=${q(userId)}` }); }
 function syncPlan(payload) { return request({ method: "POST", url: "/api/v1/today/sync-plan", data: payload }); }
 function progress(userId, sessionId) { return request({ url: `/api/v1/today/progress?user_id=${q(userId)}&growth_session_id=${q(sessionId)}` }); }
-function importFile(userId, filePath, type, onProgress) {
-  const excel = type === "exam" && /\.xlsx$/i.test(filePath);
+function importFile(userId, filePath, type, onProgress, fileName) {
+  const excel = type === "exam" && /\.(xlsx|xls)$/i.test(fileName || filePath);
   const url = excel
     ? `/api/v1/today/import/excel?user_id=${q(userId)}`
     : `/api/v1/today/import?user_id=${q(userId)}&import_type=${q(type)}`;

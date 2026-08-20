@@ -3,7 +3,7 @@
     <view class="today-hero__orb"></view>
     <view class="today-hero__top">
       <view><text class="today-title">今天</text><text class="today-date">{{dateLabel}}</text></view>
-      <view class="weather" bindtap="openWeather"><text>{{overview.weather.location || '青岛'}}</text><text wx:if="{{overview.weather.available}}">{{overview.weather.temp}}°</text><text>{{overview.weather.condition || overview.weather.label || '天气'}}</text><text class="weather__symbol">☁</text></view>
+      <view class="today-hero__tools"><view class="weather" bindtap="openWeather"><text>{{overview.weather.location || '青岛'}}</text><text wx:if="{{overview.weather.available}}">{{overview.weather.temp}}°</text><text>{{overview.weather.condition || overview.weather.label || '天气'}}</text><text class="weather__symbol">☁</text></view><button class="today-import" bindtap="openImport">导入</button></view>
     </view>
     <text class="greeting">{{greeting}}，{{userName}} 👋</text>
     <view wx:if="{{loading}}" class="hero-loading"><skeleton rows="3"/></view>
@@ -40,12 +40,19 @@
       <view wx:else class="empty-copy">今天暂时没有课程、考试或截止任务</view>
     </view>
 
+    <view class="todo-card surface">
+      <view class="todo-card__head"><view class="card-title"><text class="card-title__icon">✓</text><text>今日待办</text></view><text>{{completion.completed}}/{{completion.total}} 已完成</text></view>
+      <task-row wx:for="{{todayTodos}}" wx:key="id" task="{{item}}" bind:toggle="toggleTodo" bind:remove="askRemove"/>
+      <view wx:if="{{!todayTodos.length}}" class="todo-card__empty" bindtap="openAdd">今天还没有到期的待办，点击新增安排</view>
+    </view>
+
     <view class="weekly surface">
       <view class="weekly__head"><view class="card-title"><text class="card-title__icon">▥</text><text>近7天活动</text></view><text>共 <text class="weekly__total">{{sevenDayCount}}</text> 项</text></view>
       <view class="weekly__plot"><view wx:for="{{weekBars}}" wx:key="key" class="weekly__column"><text class="weekly__value number">{{item.count}}</text><view class="weekly__track"><view class="weekly__bar {{item.isToday ? 'weekly__bar--today' : ''}}" style="height: {{item.height}}%"></view></view><text class="weekly__label">{{item.dateLabel}}({{item.label}})</text></view></view>
     </view>
-    <view class="data-source" bindtap="openImport">来源：课表导入、手动待办、成长计划 · 数据截至 09:30</view>
+    <view class="data-source">来源：课表导入、手动待办、成长计划 · 更新于 {{refreshedLabel || '刚刚'}}</view>
   </block>
+  <button class="fab today-fab" bindtap="openAdd" aria-label="新增安排">＋</button>
 </view>
 <weather-sheet visible="{{sheet === 'weather'}}" weather="{{overview.weather}}" city="{{overview.weather.location || '青岛'}}" bind:close="closeSheet" bind:submit="updateCity"/>
 <event-detail-sheet visible="{{sheet === 'event'}}" event="{{selectedEvent}}" bind:close="closeSheet"/>

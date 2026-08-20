@@ -13,6 +13,13 @@ page {
 }
 
 button::after { border: 0; }
-button { line-height: 1.2; }
+button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
+}
 input, textarea { color: var(--color-ink); font: inherit; }
 image { display: block; }

@@ -23,4 +23,10 @@ function monthRange(input) {
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
-module.exports = { toDateKey, formatDate, weekday, monthRange };
+function formatTime(input) {
+  const date = input instanceof Date ? input : new Date(input || Date.now());
+  if (Number.isNaN(date.getTime())) return "";
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+module.exports = { toDateKey, formatDate, weekday, monthRange, formatTime };

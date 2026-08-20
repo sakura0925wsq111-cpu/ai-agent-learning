@@ -40,7 +40,7 @@
     </view>
 
     <view class="action-links surface"><view bindtap="report"><text class="link-icon">▤</text><text>查看完整报告</text><text>›</text></view><view bindtap="coach"><text class="link-icon">◌</text><text>问 AI 教练</text><text>›</text></view></view>
-    <view class="data-source">来源：成长报告、已同步待办 · 数据截至 09:30</view>
+    <view class="data-source">来源：成长报告、已同步待办 · 更新于 {{refreshedLabel || '刚刚'}}</view>
   </block>
 </view>
 <confirm-sheet visible="{{confirmTask !== null}}" title="取消执行这项计划任务？" message="任务会保留在执行证据中，并标记为已取消，不会永久删除。" confirm-label="确认取消执行" destructive submitting="{{submitting}}" bind:close="closeConfirm" bind:confirm="confirmRemove"/>

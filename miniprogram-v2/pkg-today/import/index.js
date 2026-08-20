@@ -9,7 +9,7 @@ Page({
   back() { wx.navigateBack(); },
   type(event) { if (this.data.stage === "idle") this.setData({ type: event.currentTarget.dataset.type, file: null }); },
   choose() {
-    const extension = this.data.type === "course" ? ["pdf"] : ["xlsx", "pdf"];
+    const extension = this.data.type === "course" ? ["pdf"] : ["xlsx", "xls", "pdf"];
     wx.chooseMessageFile({ count: 1, type: "file", extension, success: ({ tempFiles }) => { const file = tempFiles[0]; if (file) this.setData({ file: { name: file.name, path: file.path, sizeLabel: `${Math.max(1, Math.round(file.size / 1024))} KB` } }); } });
   },
   clearFile() { if (this.data.stage === "idle") this.setData({ file: null }); },
@@ -17,7 +17,7 @@ Page({
     if (!this.data.file || this.data.stage !== "idle") return;
     this.setData({ stage: "uploading", progress: 0 });
     try {
-      this._upload = todayService.importFile(sessionStore.state.userId, this.data.file.path, this.data.type, (progress) => this.setData({ progress, stage: progress >= 100 ? "parsing" : "uploading" }));
+      this._upload = todayService.importFile(sessionStore.state.userId, this.data.file.path, this.data.type, (progress) => this.setData({ progress, stage: progress >= 100 ? "parsing" : "uploading" }), this.data.file.name);
       const result = await this._upload;
       this.setData({ stage: "done" });
       wx.navigateTo({ url: `/pkg-today/import-preview/index?importId=${result.import_id}&from=${this.data.from}` });

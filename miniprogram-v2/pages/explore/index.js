@@ -7,7 +7,7 @@ const { normalizeDashboard } = require("../../normalizers/progress");
 const { selectTab, showError, requireSession, getHeroTop } = require("../../utils/page");
 
 Page({
-  data: { loading: true, error: "", dashboard: null, displayState: "selecting", paths: [], selected: [], selectedLabels: "", starting: false, sandboxSession: null, heroTop: 86 },
+  data: { loading: true, error: "", dashboard: null, displayState: "selecting", paths: [], selected: [], selectedLabels: "", starting: false, sandboxSession: null, resume: null, heroTop: 86 },
   onLoad() { this.setData({ heroTop: getHeroTop(12) }); },
   onShow() { selectTab(this, 1); if (requireSession()) this.load(); },
   onPullDownRefresh() { this.load(true).finally(() => wx.stopPullDownRefresh()); },
@@ -24,18 +24,25 @@ Page({
       });
       const sandboxSession = growthStore.state.sandboxSession;
       const selected = this.data.selected.length ? this.data.selected : ["career", "graduate"].filter((type) => paths.some((item) => item.type === type));
-      this.setData({ loading: false, dashboard, paths, sandboxSession, displayState: "selecting", selected, selectedLabels: this.labels(paths, selected) });
+      const active = dashboard.activeSession;
+      const resume = active && !active.finished
+        ? { kind: "planning", title: `继续${this.labelFor(active.agent)}专项规划`, copy: "上次对话尚未完成，继续后会保留已有回答。" }
+        : sandboxSession && !sandboxSession.finished
+          ? { kind: "sandbox", title: "继续路径沙盘", copy: "继续回答关键问题，完成后再比较方向。" }
+          : null;
+      this.setData({ loading: false, dashboard, paths, sandboxSession, resume, displayState: "selecting", selected: selected.slice(0, 2), selectedLabels: this.labels(paths, selected.slice(0, 2)) });
       growthStore.set("dashboard", dashboard);
     } catch (error) { this.setData({ loading: false, error: error.message || "探索页加载失败" }); }
   },
   togglePath(event) {
     const type = event.detail.type; const selected = this.data.selected.slice(); const index = selected.indexOf(type);
     if (index >= 0) selected.splice(index, 1);
-    else if (selected.length < 3) selected.push(type);
-    else showError(null, "最多比较三条路径");
+    else if (selected.length < 2) selected.push(type);
+    else showError(null, "本次先比较两条路径");
     this.setData({ selected, selectedLabels: this.labels(this.data.paths, selected) });
   },
   labels(paths, selected) { return (selected || []).map((type) => { const item = (paths || []).find((path) => path.type === type); return (PATH_META[type] && PATH_META[type].label) || (item && item.label) || type; }).join("、"); },
+  labelFor(type) { return (PATH_META[type] && PATH_META[type].label) || "成长"; },
   beginSelection() { this.setData({ displayState: "selecting" }); },
   cancelSelection() { this.setData({ displayState: this.data.dashboard.pageState, selected: [] }); },
   async startSandbox() {
@@ -52,6 +59,7 @@ Page({
   },
   resumeSandbox() { const session = this.data.sandboxSession; if (session) wx.navigateTo({ url: `/pkg-growth/sandbox-chat/index?sessionId=${session.sessionId}` }); },
   resumePlanning() { const active = this.data.dashboard.activeSession; if (active) wx.navigateTo({ url: `/pkg-growth/planner-chat/index?sessionId=${active.session_id}&agent=${active.agent}` }); },
+  resume() { if (!this.data.resume) return; if (this.data.resume.kind === "planning") this.resumePlanning(); else this.resumeSandbox(); },
   openReport() { const report = this.data.dashboard.latestReport; if (report) wx.navigateTo({ url: `/pkg-growth/report/index?sessionId=${report.session_id}` }); },
   openAction() { wx.switchTab({ url: "/pages/action/index" }); },
   history() { wx.navigateTo({ url: "/pkg-growth/history/index" }); },

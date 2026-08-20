@@ -1,4 +1,5 @@
 const sessionStore = require("../stores/session-store");
+const uiStore = require("../stores/ui-store");
 const { unwrapResponse, normalizeError } = require("../normalizers/response");
 
 const pendingGets = new Map();
@@ -9,6 +10,11 @@ function baseUrl() {
 }
 
 function request(options) {
+  if (!uiStore.state.online) {
+    const offline = Promise.reject({ type: "offline", status: 0, code: "OFFLINE", message: "当前处于离线状态，请恢复网络后重试", retryable: true });
+    offline.cancel = () => {};
+    return offline;
+  }
   const method = String(options.method || "GET").toUpperCase();
   const url = options.url || "";
   const dedupeKey = method === "GET" ? `${method}:${url}` : "";

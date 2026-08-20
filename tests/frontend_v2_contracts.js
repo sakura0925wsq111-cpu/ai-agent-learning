@@ -72,6 +72,13 @@ function run() {
   assert.match(frontendFile("pages/today/index.wxml"), /weekBars/);
   assert.match(frontendFile("pages/action/index.wxml"), /phase-roadmap/);
   assert.match(frontendFile("pkg-growth/sandbox-result/index.wxml"), /comparisonRows/);
+  assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /sandboxService\.resume/);
+  assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /selectedLabels/);
+  assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /restoredMessages/);
+  assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /item\.value \|\| item\.name/);
+  assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /changePaths/);
+  assert.match(frontendFile("pkg-growth/sandbox-chat/index.wxml"), /pathSelectionLocked/);
+  assert.match(frontendFile("pkg-growth/sandbox-chat/index.wxml"), /本次对比/);
   assert.match(frontendFile("custom-tab-bar/index.wxml"), /activeIcon/);
   assert.match(frontendFile("utils/page.js"), /getHeroTop/);
   assert.doesNotMatch(frontendFile("custom-tab-bar/index.wxss"), /transition|transform/);
@@ -81,6 +88,14 @@ function run() {
   assert.doesNotMatch(frontendFile("pkg-growth/sandbox-result/index.js"), /vibrate/);
   assert.match(frontendFile("pages/today/index.wxss"), /transform-origin:\s*0 0/);
   assert.match(frontendFile("pages/today/index.wxml"), /completion-note-band/);
+  assert.match(frontendFile("pages/today/index.wxml"), /today-import/);
+  assert.match(frontendFile("pages/today/index.wxml"), /task-row wx:for="{{todayTodos}}"/);
+  assert.match(frontendFile("pages/today/index.wxss"), /-webkit-line-clamp:\s*3/);
+  assert.match(frontendFile("pkg-today/import/index.js"), /"xls"/);
+  assert.match(frontendFile("services/today-service.js"), /fileName/);
+  assert.doesNotMatch(frontendFile("pkg-growth/coach/index.wxml"), /预计 20 分钟/);
+  assert.match(frontendFile("components/base/state-view/index.wxss"), /justify-content:\s*center/);
+  assert.match(frontendFile("components/base/mini-tabbar/index.wxml"), /mini-tab__icon/);
   assert.doesNotMatch(frontendFile("styles/tokens.wxss"), /#0A84FF/);
 
   process.stdout.write("frontend-v2 contracts: ok\n");
