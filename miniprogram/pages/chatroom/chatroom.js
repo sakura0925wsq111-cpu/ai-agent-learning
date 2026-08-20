@@ -79,7 +79,7 @@ Page({
     }
 
     if (mode === "sandbox") {
-      this.addMessage("assistant", "你好，我是你的决策教练。你可以直接告诉我现在最纠结的选择，我会陪你梳理不同路径。");
+      this.addMessage("assistant", "你好，我是你的决策教练。你可以直接告诉我现在最纠结的选择，我会先给分析，再和你补齐关键信息。");
       return;
     }
 
