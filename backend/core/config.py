@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_DEV_SECRET = "campuspal-dev-secret-change-in-production"
+_DEV_SECRET = "icampus-dev-secret-change-in-production"
 
 
 class Settings(BaseSettings):
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
 
-    database_url: str = "sqlite:///./data/campuspal.db"
+    database_url: str = "sqlite:///./data/icampus.db"
     redis_url: str = ""
 
     jwt_secret_key: str = _DEV_SECRET

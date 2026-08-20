@@ -15,7 +15,7 @@ services:
       HOST: 0.0.0.0
       PORT: "8000"
       DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/icampus.db}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-campuspal-dev-secret-change-in-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-icampus-dev-secret-change-in-production}
       LOG_DIR: /app/logs
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}

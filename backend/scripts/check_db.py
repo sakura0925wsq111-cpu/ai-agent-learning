@@ -1,5 +1,5 @@
 ﻿import sqlite3
-conn = sqlite3.connect(r"D:\ai-agent-learning\backend\data\campuspal.db")
+conn = sqlite3.connect(r"D:\ai-agent-learning\backend\data\icampus.db")
 cur = conn.cursor()
 
 cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")

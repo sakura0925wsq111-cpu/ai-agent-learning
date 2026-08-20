@@ -105,7 +105,7 @@ cp backend/.env.example backend/.env
 | 变量 | 本地默认/示例 | 说明 |
 | --- | --- | --- |
 | `APP_ENV` | `dev` | `dev`、`test` 或 `prod` |
-| `DATABASE_URL` | `sqlite:///./data/campuspal.db` | 也支持 `postgresql+psycopg://...` |
+| `DATABASE_URL` | `sqlite:///./data/icampus.db` | 也支持 `postgresql+psycopg://...` |
 | `JWT_SECRET_KEY` | 仅本地开发默认值 | 生产环境必须换成至少 32 位的独立随机值 |
 | `DEEPSEEK_API_KEY` | 空 | AI 功能所需；非 AI 功能不需要 |
 | `LLM_BASE_URL` | `https://api.deepseek.com` | OpenAI 兼容服务地址 |

@@ -31,7 +31,7 @@ macOS / Linux 使用 `source venv/bin/activate`、`cp backend/.env.example backe
 ```env
 APP_NAME=iCampus
 APP_ENV=dev
-DATABASE_URL=sqlite:///./data/campuspal.db
+DATABASE_URL=sqlite:///./data/icampus.db
 JWT_SECRET_KEY=replace-with-at-least-32-random-characters
 DEEPSEEK_API_KEY=
 LLM_BASE_URL=https://api.deepseek.com
