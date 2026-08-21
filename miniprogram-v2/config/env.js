@@ -1,6 +1,6 @@
 const API_BASE_URLS = {
   // Temporary HTTPS tunnel for real-device development testing. Remove or replace when it expires.
-  develop: "https://dvd-amber-air-iso.trycloudflare.com",
+  develop: "https://virtue-investigators-stocks-prints.trycloudflare.com",
   trial: "https://test-api.example.com",
   release: "https://api.example.com"
 };

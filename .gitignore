@@ -68,6 +68,7 @@ Thumbs.db
 Desktop.ini
 
 # Local diagnostics and generated test artifacts
+/output/
 /backend/scripts/test_*.py
 /test_*.xlsx
 /test_*.pdf
