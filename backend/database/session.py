@@ -164,7 +164,7 @@ def init_db() -> None:
                     name="演示同学",
                     nickname="演示同学",
                     password_hash=hash_password(settings.demo_password),
-                    school="青岛理工大学",
+                    school="某理工大学",
                     college="信息与控制工程学院",
                     major="计算机科学与技术",
                     enroll_year="2023",

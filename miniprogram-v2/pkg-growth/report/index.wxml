@@ -15,7 +15,6 @@
     <view class="report-bento">
       <view class="phase-detail surface"><view class="phase-detail__head"><text>{{selectedPhase.label}}</text><text class="phase-sync {{selectedPhase.synced ? 'phase-sync--done' : 'phase-sync--pending'}}">{{selectedPhase.synced ? '已同步' : '未同步'}}</text></view><text class="phase-detail__title">{{selectedPhase.title}}</text><view class="phase-tasks"><text>阶段内报告任务（{{selectedPhase.tasks.length}}）</text><view wx:for="{{selectedPhase.tasks}}" wx:key="key"><text class="phase-task-state {{item.done ? 'phase-task-state--done' : ''}}">{{item.done ? '✓' : '○'}}</text><view><text>{{item.title}}</text><text>{{item.deadlineLabel || '尚未安排日期'}}</text></view></view></view><button class="sync-button" data-phase="{{selectedPhase}}" bindtap="openSync">{{selectedPhase.synced ? '✓ 该阶段已加入行动' : '将本阶段加入行动'}}</button></view>
       <view class="report-insights surface"><view><text class="insight-icon insight-icon--blue">♧</text><text>优势</text><text wx:for="{{strengthParagraphs}}" wx:key="*this" class="insight-copy">{{item}}</text></view><view class="insight-divider"></view><view><text class="insight-icon insight-icon--orange">!</text><text>需要留意</text><text wx:for="{{riskParagraphs}}" wx:key="*this" class="insight-copy">{{item}}</text></view></view></view>
-    </view>
     <view class="truth"><text>ⓘ</text><text>数字口径：完成率仅按已完成任务 / 已同步任务计算；报告文字不是成功概率</text></view>
     <button class="button button--primary action-button" bindtap="action">查看行动进度</button>
     <view class="source-line">来源：AI成长规划对话、已同步待办 · 更新于 {{refreshedLabel || '刚刚'}}</view>

@@ -108,10 +108,12 @@ Page({
     this.setData({ selectedPhase, nextTask });
   },
   openSync() {
-    if (this.data.selectedPhase && !this.data.selectedPhase.synced) this.setData({ syncVisible: true });
+    if (this.data.selectedPhase && !this.data.selectedPhase.synced) {
+      this.setData({ syncVisible: true }, () => setTabBarHidden(this, true));
+    }
   },
   closeSync() {
-    this.setData({ syncVisible: false });
+    this.setData({ syncVisible: false }, () => setTabBarHidden(this, false));
   },
   async sync(event) {
     const phaseKey = event.detail && event.detail.phase;
@@ -124,7 +126,7 @@ Page({
         phase: phaseKey,
         start_date: event.detail.start_date
       });
-      this.setData({ syncVisible: false });
+      this.setData({ syncVisible: false }, () => setTabBarHidden(this, false));
       wx.showToast({ title: result.already_synced ? "该阶段已加入" : `已加入 ${result.synced_count} 项`, icon: "success" });
       await this.load(phaseKey);
     } catch (error) {

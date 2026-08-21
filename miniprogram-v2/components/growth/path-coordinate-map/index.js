@@ -1,5 +1,5 @@
 Component({
-  properties: { paths: { type: Array, value: [] }, selected: { type: Array, value: [] }, max: { type: Number, value: 3 } },
+  properties: { paths: { type: Array, value: [] }, selected: { type: Array, value: [] }, max: { type: Number, value: 2 } },
   data: { viewPaths: [] },
   observers: {
     "paths,selected": function update(paths, selected) {

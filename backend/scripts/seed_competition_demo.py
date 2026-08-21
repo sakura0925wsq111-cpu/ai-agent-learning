@@ -98,7 +98,7 @@ def seed_user(db: Session) -> User:
     user.name = "林知远"
     user.nickname = "阿远"
     user.password_hash = hash_password(DEMO_PASSWORD)
-    user.school = "青岛理工大学"
+    user.school = "某理工大学"
     user.college = "信息与控制工程学院"
     user.major = "软件工程"
     user.grade = "大三"
@@ -145,7 +145,7 @@ def seed_memories(db: Session, user_id: str) -> None:
     """
 
     items = [
-        ("学校", "青岛理工大学", "profile", 4, "入学档案·学校字段"),
+        ("学校", "某理工大学", "profile", 4, "入学档案·学校字段"),
         ("学院", "信息与控制工程学院", "profile", 4, "入学档案·学院字段"),
         ("专业", "软件工程", "profile", 5, "入学档案·专业字段"),
         ("年级", "大三，计划参加今年秋招", "profile", 4, "入学档案·年级字段"),

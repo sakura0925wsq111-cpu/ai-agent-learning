@@ -23,7 +23,7 @@ Page({
         return Object.assign({}, path, { label: meta ? meta.label : path.label });
       });
       const sandboxSession = growthStore.state.sandboxSession;
-      const selected = this.data.selected.length ? this.data.selected : ["career", "graduate"].filter((type) => paths.some((item) => item.type === type));
+      const selected = this.data.selected.filter((type) => paths.some((item) => item.type === type));
       const active = dashboard.activeSession;
       const resume = active && !active.finished
         ? { kind: "planning", title: `继续${this.labelFor(active.agent)}专项规划`, copy: "上次对话尚未完成，继续后会保留已有回答。" }
@@ -45,8 +45,31 @@ Page({
   labelFor(type) { return (PATH_META[type] && PATH_META[type].label) || "成长"; },
   beginSelection() { this.setData({ displayState: "selecting" }); },
   cancelSelection() { this.setData({ displayState: this.data.dashboard.pageState, selected: [] }); },
+  async startSelected() {
+    if (this.data.selected.length === 1) return this.startPlanning();
+    if (this.data.selected.length === 2) return this.startSandbox();
+    showError(null, "请选择一条路径进入专项规划，或选择两条进行沙盘");
+  },
+  async startPlanning() {
+    const type = this.data.selected[0];
+    if (!type || this.data.starting) return;
+    this.setData({ starting: true });
+    const agent = (PATH_META[type] && PATH_META[type].agent) || type;
+    try {
+      const result = await growthService.start(sessionStore.state.userId, agent);
+      if (!result || !result.session_id) throw new Error("规划会话创建失败");
+      growthStore.set("planningSession", {
+        sessionId: result.session_id,
+        agent: result.agent || agent,
+        pathType: type,
+        lastResponse: result
+      });
+      wx.navigateTo({ url: `/pkg-growth/planner-chat/index?sessionId=${result.session_id}&agent=${result.agent || agent}&started=1` });
+    } catch (error) { showError(error, "无法进入专项规划"); }
+    finally { this.setData({ starting: false }); }
+  },
   async startSandbox() {
-    if (this.data.selected.length < 2) { showError(null, "请至少选择两条路径"); return; }
+    if (this.data.selected.length !== 2) { showError(null, "请选择两条路径进行沙盘"); return; }
     if (this.data.starting) return;
     this.setData({ starting: true });
     try {

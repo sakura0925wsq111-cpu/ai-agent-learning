@@ -140,7 +140,9 @@ function run() {
   assert.match(frontendFile("components/base/mini-tabbar/index.wxml"), /mini-tab__icon/);
   assert.match(frontendFile("custom-tab-bar/index.wxml"), /wx:if="{{!hidden}}"/);
   assert.match(frontendFile("utils/page.js"), /setTabBarHidden/);
+  assert.match(frontendFile("utils/page.js"), /data\.syncVisible/);
   assert.match(frontendFile("pages/today/index.js"), /setSheet\(sheet, extra\)/);
+  assert.match(frontendFile("pages/action/index.js"), /syncVisible: true[\s\S]*setTabBarHidden\(this, true\)/);
   assert.match(frontendFile("components/sheets/course-editor-sheet/index.js"), /observers:\s*\{\s*visible/);
   assert.match(frontendFile("components/sheets/exam-editor-sheet/index.js"), /observers:\s*\{\s*visible/);
   assert.doesNotMatch(frontendFile("styles/tokens.wxss"), /#0A84FF/);

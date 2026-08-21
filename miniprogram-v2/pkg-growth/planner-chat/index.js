@@ -10,8 +10,13 @@ function qcard(response) {
   return { id: question.id, title: question.title, options: question.options || [], required: question.required, index: question.index || response.current_step || 1, total: question.total || response.total_steps || 5 };
 }
 
+function duplicateQuestionMessageId(messages, question) {
+  const last = messages && messages.length ? messages[messages.length - 1] : null;
+  return question && last && last.role === "assistant" && last.content === question.title ? last.id : "";
+}
+
 Page({
-  data: { sessionId: "", agent: "career", agentLabel: "就业", messages: [], question: null, input: "", loading: true, error: "", sending: false, stage: "questioning", awaitingAnalysis: false, progress: 0, scrollId: "" },
+  data: { sessionId: "", agent: "career", agentLabel: "就业", messages: [], question: null, questionMessageId: "", input: "", loading: true, error: "", sending: false, stage: "questioning", awaitingAnalysis: false, progress: 0, scrollId: "" },
   onLoad(options) { if (!requireSession()) return; this.setData({ sessionId: options.sessionId || "", agent: options.agent || "career", agentLabel: AGENT_LABELS[options.agent] || "成长" }); this.restore(options.started === "1"); },
   onUnload() { if (this._stream && this._stream.cancel) this._stream.cancel(); },
   back() { wx.navigateBack(); },
@@ -32,7 +37,7 @@ Page({
       let question = !state.finished && !awaitingAnalysis && last && last.role === "assistant" ? { title: last.content, options: [], index: state.current_step || 1, total: state.total_steps || 5 } : null;
       const cachedStart = growthStore.state.planningSession && growthStore.state.planningSession.lastResponse;
       if (started && cachedStart && qcard(cachedStart)) question = qcard(cachedStart);
-      this.setData({ loading: false, messages, stage: state.stage || "questioning", awaitingAnalysis, progress: state.finished ? 100 : Math.round((state.current_step || 0) / (state.total_steps || 5) * 100), question });
+      this.setData({ loading: false, messages, questionMessageId: duplicateQuestionMessageId(messages, question), stage: state.stage || "questioning", awaitingAnalysis, progress: state.finished ? 100 : Math.round((state.current_step || 0) / (state.total_steps || 5) * 100), question });
       if (state.finished) this.openReportSoon();
     } catch (error) { this.setData({ loading: false, error: error.message || "规划会话恢复失败" }); }
   },
@@ -42,7 +47,7 @@ Page({
   async sendValue(value) {
     if (!value || this.data.sending) return;
     const userId = `u-${Date.now()}`, assistantId = `a-${Date.now()}`;
-    this.setData({ messages: this.data.messages.concat({ id: userId, role: "user", content: value }, { id: assistantId, role: "assistant", content: "", streaming: true }), input: "", question: null, sending: true, scrollId: assistantId });
+    this.setData({ messages: this.data.messages.concat({ id: userId, role: "user", content: value }, { id: assistantId, role: "assistant", content: "", streaming: true }), input: "", question: null, questionMessageId: "", sending: true, scrollId: assistantId });
     let sawEvent = false, done = null, text = "";
     try {
       this._stream = growthService.chatStream(sessionStore.state.userId, this.data.agent, this.data.sessionId, value, ({ event, data }) => {
@@ -56,11 +61,12 @@ Page({
       this.updateAssistant(assistantId, done.message || text, false);
       const progress = typeof done.progress === "number" ? Math.round(done.progress) : this.data.progress;
       const awaitingAnalysis = done.stage === "analyzing" || done.stage === "awaiting";
-      this.setData({ stage: done.stage || this.data.stage, awaitingAnalysis, progress, question: done.finished || awaitingAnalysis ? null : { title: done.message || text, options: [], index: Math.max(1, Math.round(progress / 20)), total: 5 } });
+      const nextQuestion = done.finished || awaitingAnalysis ? null : { title: done.message || text, options: [], index: Math.max(1, Math.round(progress / 20)), total: 5 };
+      this.setData({ stage: done.stage || this.data.stage, awaitingAnalysis, progress, question: nextQuestion, questionMessageId: duplicateQuestionMessageId(this.data.messages, nextQuestion) });
       if (done.finished || done.report) this.openReportSoon();
     } catch (error) {
       if (!sawEvent) {
-        try { const result = await growthService.chat(sessionStore.state.userId, this.data.agent, this.data.sessionId, value); this.updateAssistant(assistantId, result.message || "已收到", false); const awaitingAnalysis = result.stage === "analyzing" || result.stage === "awaiting"; this.setData({ question: awaitingAnalysis ? null : qcard(result), stage: result.stage, awaitingAnalysis, progress: Math.round(result.progress || result.current_step / result.total_steps * 100 || 0) }); if (result.finished || result.report) this.openReportSoon(); }
+        try { const result = await growthService.chat(sessionStore.state.userId, this.data.agent, this.data.sessionId, value); this.updateAssistant(assistantId, result.message || "已收到", false); const awaitingAnalysis = result.stage === "analyzing" || result.stage === "awaiting"; const nextQuestion = awaitingAnalysis ? null : qcard(result); this.setData({ question: nextQuestion, questionMessageId: duplicateQuestionMessageId(this.data.messages, nextQuestion), stage: result.stage, awaitingAnalysis, progress: Math.round(result.progress || result.current_step / result.total_steps * 100 || 0) }); if (result.finished || result.report) this.openReportSoon(); }
         catch (fallbackError) { this.removeAssistant(assistantId); showError(fallbackError, "回答发送失败"); }
       } else { this.updateAssistant(assistantId, text || "响应中断。回答已提交，请重新进入会话恢复状态。", false); showError(error, "流式连接中断"); }
     } finally { this.setData({ sending: false }); this._stream = null; }
@@ -73,7 +79,7 @@ Page({
     try {
       const result = await growthService.approve(sessionStore.state.userId, this.data.sessionId);
       const id = `a-${Date.now()}`;
-      this.setData({ messages: this.data.messages.concat({ id, role: "assistant", content: result.message || "分析已确认，正在生成完整路线。" }), awaitingAnalysis: false, stage: result.stage || "report", scrollId: id });
+      this.setData({ messages: this.data.messages.concat({ id, role: "assistant", content: result.message || "分析已确认，正在生成完整路线。" }), question: null, questionMessageId: "", awaitingAnalysis: false, stage: result.stage || "report", scrollId: id });
       if (result.finished || result.report) this.openReportSoon();
     } catch (error) { showError(error, "分析确认失败"); }
     finally { this.setData({ sending: false }); }

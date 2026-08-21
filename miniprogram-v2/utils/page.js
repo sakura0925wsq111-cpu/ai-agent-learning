@@ -1,7 +1,7 @@
 function selectTab(page, selected) {
   if (typeof page.getTabBar === "function" && page.getTabBar()) {
     const data = page.data || {};
-    const hidden = Boolean(data.sheet || data.editing || data.confirmTask);
+    const hidden = Boolean(data.sheet || data.editing || data.confirmTask || data.syncVisible);
     page.getTabBar().setData({ selected, hidden });
   }
 }
