@@ -1,110 +1,195 @@
-# iCampus：面向大学生的 AI 校园成长助手
+# iCampus：让 AI 规划进入真实执行闭环
 
 [![CI](https://github.com/sakura0925wsq111-cpu/ai-agent-learning/actions/workflows/ci.yml/badge.svg)](https://github.com/sakura0925wsq111-cpu/ai-agent-learning/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.6-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-iCampus 是一个前后端一体的微信小程序项目：前端采用微信原生小程序技术，后端采用 FastAPI。它把课程、考试、待办等日常校园事务，与成长规划、路径比较、行动计划和长期记忆连接在同一套体验中。
+> 路径比较 → 四阶段规划 → 报告持久化 → 同步为待办 → 用户完成任务 → 进度回写 → AI 教练读取真实执行状态
 
-当前 `master` 已包含完整的 V2 小程序 `miniprogram-v2/` 和后端 `backend/`，无需再切换前端分支即可进行本地联调。`competition-freeze-2026-08-21` 标签保留了当前竞赛演示版本的冻结快照；`frontend-v1` 仅用于查阅旧版前端历史。
+iCampus 是一个微信小程序 + FastAPI 的 AI 校园成长系统。项目重点不是堆叠“四种 Agent”，而是把一次模型建议变成可确认、可执行、可追踪、可反馈的行动闭环。
 
-## 功能概览
+**当前定位：可运行的 AI 全栈作品集 / 竞赛演示系统，不宣称已经达到多租户生产 SaaS 水平。**
 
-- **今天**：聚合课程、考试、待办、天气、日历热力图和当天时间线。
-- **课程与考试导入**：上传 PDF、XLS 或 XLSX，预览解析结果后再确认写入。
-- **探索与成长规划**：围绕就业、考研、考公考编、转专业四类方向进行对话式信息收集和建议生成。
-- **决策沙盘**：比较多条成长路径，支持继续追问、恢复会话并生成结构化对比结果。
-- **报告与行动闭环**：把成长报告中的阶段任务同步到待办，持续回看完成进度。
-- **成长教练与历史**：基于已有报告、任务进度和记忆继续提供阶段性反馈。
-- **长期记忆**：保存用户画像、目标、偏好和上下文，并提供可查看、修改、删除的记忆面板。
-- **账号与数据隔离**：注册、登录、Bearer Token 鉴权及按用户隔离的数据访问。
-- **可追溯职业数据**：独立维护升学、专业、薪资、公务员和校内转专业等官方数据的归档、解析、版本与来源链。
+[真实 LLM 全链路评估](docs/live-llm-e2e-evaluation-2026-08-20.md) · [后端运行说明](backend/README.md) · [API 对接文档](docs/frontend-api-reference.md) · [产品需求文档](docs/iCampus-PRD-v2.md)
 
-AI 功能是可选增强项。开发环境未配置模型密钥时，账号、课程、考试、待办、文件导入等非 AI 接口仍可使用；成长对话、沙盘推演和智能建议等功能需要可用的 OpenAI 兼容模型服务。
+## 已用真实模型跑通的黄金闭环
 
-## 技术栈
+2026-08-20 使用 `deepseek-chat`、隔离业务数据库和隔离 LangGraph checkpoint 完成了一次真实服务调用评估。它验证的不是单轮回答质量，而是跨模块状态能否连续传递。
 
-| 层级 | 主要技术 |
+```text
+选择「就业 + 考研」两条路径
+  → 沙盘收集约束并生成路径对比
+  → 用户选择「就业」方向
+  → 生成并持久化 phase_1 ~ phase_4 四阶段规划
+  → 用户确认同步第一阶段，创建 3 个 Todo
+  → 用户完成其中 1 项
+  → 聚合进度更新为 1 / 3 = 33%
+  → AI 教练读取报告、同步任务和最新完成状态后给出建议
+```
+
+| 验收点 | 真实评估结果 | 证据落点 |
+| --- | --- | --- |
+| 路径比较 | `career` 与 `graduate` 被锁定，对话未擅自改写选择 | Sandbox session / projection |
+| 四阶段规划 | 成功生成 `phase_1` 至 `phase_4` | `GrowthReport` |
+| 报告持久化 | 规划结果写入业务数据库，可从历史报告恢复 | Growth API + SQLAlchemy |
+| 同步待办 | 第一阶段同步 3 项，Today 再次读取到 3 项 | `PlanTask` + `Todo` |
+| 进度回写 | 完成 1 项后聚合为 `1 / 3`、`33%` | `get_plan_progress` |
+| 教练闭环 | 教练读取最新完成状态后给出下一步建议 | Growth Coach context |
+
+完整输入、隔离方式与结果见 [真实 LLM 全链路评估记录](docs/live-llm-e2e-evaluation-2026-08-20.md)。
+
+## 核心界面
+
+以下为 `deliverables/complete-design-v1-bento/` 中与黄金闭环对应的高保真 UI 设计稿，**用于说明信息架构和交互目标，不冒充实机运行截图**。
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="deliverables/complete-design-v1-bento/08-path-comparison.png" alt="路径模拟对比 UI 设计稿"><br><strong>路径比较</strong>：展示同轮相对评分、不确定性和用户最终选择</td>
+    <td width="50%" align="center"><img src="deliverables/complete-design-v1-bento/10-growth-report.png" alt="四阶段成长报告 UI 设计稿"><br><strong>四阶段报告</strong>：报告、同步状态与执行进度在同一页面汇合</td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="deliverables/complete-design-v1-bento/09-action-plan.png" alt="行动计划 UI 设计稿"><br><strong>行动计划</strong>：任务完成状态反向聚合为阶段进度</td>
+    <td width="50%" align="center"><img src="deliverables/complete-design-v1-bento/04-ai-coach.png" alt="AI 成长教练 UI 设计稿"><br><strong>AI 教练</strong>：读取执行事实，建议新增任务仍需用户确认</td>
+  </tr>
+</table>
+
+这组设计稿与真实接口的对应关系见 [后端能力矩阵](deliverables/complete-design-v1-bento/backend-capability-matrix.md)。
+
+## 为什么不是普通聊天机器人
+
+| 普通 LLM Chat Demo | iCampus |
 | --- | --- |
-| 微信小程序 | JavaScript、WXML、WXSS、原生组件与分包 |
-| Web API | Python 3.11、FastAPI、Uvicorn |
-| 数据与校验 | SQLAlchemy 2、Pydantic 2、SQLite；支持 PostgreSQL URL |
-| AI 能力 | OpenAI 兼容 SDK、LangGraph、SQLite Checkpoint |
-| 文件与数据处理 | pdfplumber、openpyxl、xlrd、jieba |
-| 测试与持续集成 | pytest、Node.js 语法检查、GitHub Actions |
-| 部署 | Docker、Docker Compose |
+| 输入一段文本，返回一段文本 | 读取用户画像、路径选择、历史报告、长期记忆和 Todo 状态 |
+| 模型自由决定流程何时结束 | 代码控制 LangGraph 状态、追问上限、退出条件和确认门 |
+| 输出仅存在聊天记录中 | 输出校验为结构化 `GrowthReport` 并持久化 |
+| 建议与真实行动脱节 | 用户确认后同步为 `PlanTask + Todo` |
+| 下一轮不知道用户是否执行 | Todo 状态回写为阶段进度，Coach 再读取最新事实 |
+| 很难解释模型做了什么 | Session、Checkpoint、Report、PlanTask、Todo 形成来源链 |
 
-## 系统组成
+模型负责理解用户和生成建议；代码负责状态机、结构校验、持久化、幂等同步、权限隔离与人工确认。这个边界让系统即使出现模型超时或格式错误，也不会静默修改用户计划。
+
+## 核心运行链路
 
 ```text
-微信小程序 miniprogram-v2
-        │  HTTP / SSE / 文件上传
-        ▼
+微信小程序
+  pages / services / stores / normalizers
+                │ HTTP / SSE / 文件上传
+                ▼
 FastAPI /api/v1
-        ├── Today：课程、考试、待办、天气、导入
-        ├── Growth：成长对话、报告、教练、行动计划
-        ├── Sandbox：路径探索与决策比较
-        └── Memory：用户长期记忆
+  ├─ Sandbox：多路径探索、比较、方向选择
+  ├─ Growth：LangGraph 规划、报告、历史、Coach
+  ├─ Today：课程、考试、Todo、计划同步、进度聚合
+  └─ Memory：长期记忆提取、冲突与过期治理
                 │
-                ├── SQLAlchemy → SQLite / PostgreSQL
-                └── OpenAI 兼容模型服务（可选）
-
-career_data 独立数据管道 → 官方原文、SQLite、来源链与质量记录
+                ├─ SQLAlchemy → SQLite / PostgreSQL URL
+                ├─ AsyncSqliteSaver → 对话 checkpoint
+                └─ OpenAI-compatible LLM（可选）
 ```
 
-`career_data` 当前是独立的数据采集与查询模块，没有注册为 Agent 工具，也没有接入 RAG；这条边界用于保证来源审计和业务编排彼此解耦。
-
-## 项目结构
+黄金闭环在数据层的主链路：
 
 ```text
-ai-agent-learning/
-├── miniprogram-v2/              # 当前微信小程序 V2
-│   ├── pages/                   # 今天、探索、行动、我的等主页面
-│   ├── pkg-growth/              # 沙盘、规划、报告、教练与历史分包
-│   ├── pkg-today/               # 课程/考试文件导入分包
-│   ├── pkg-profile/             # 记忆与能力页面分包
-│   ├── components/              # 基础、图表、成长、Today 与弹层组件
-│   ├── services/                # API、SSE、上传等请求封装
-│   ├── stores/                  # 会话、成长、Today 与 UI 状态
-│   ├── normalizers/             # 后端响应兼容与展示数据标准化
-│   ├── fixtures/                # 前端降级和契约测试数据
-│   └── config/env.js            # develop / trial / release API 地址
-├── backend/
-│   ├── app/                     # FastAPI 入口和 /api/v1 路由
-│   ├── core/                    # 配置、日志、异常、限流和时间工具
-│   ├── database/                # 数据库引擎、会话与初始化
-│   ├── models/                  # SQLAlchemy 模型
-│   ├── schemas/                 # Pydantic 请求/响应模型
-│   ├── crud/                    # 通用及领域数据访问
-│   ├── services/                # LLM、成长、记忆与 Today 服务
-│   ├── planning/                # 四类成长 Agent 与 LangGraph 编排
-│   ├── sandbox/                 # 决策沙盘状态、投影与编排
-│   ├── memory/                  # 记忆提取、归一化与整合
-│   ├── career_data/             # 独立职业数据适配、迁移与查询模块
-│   ├── scripts/                 # 数据检查、评估与演示数据脚本
-│   └── tests/                   # 后端单元、契约和离线回归测试
-├── tests/frontend_v2_contracts.js # 前后端共享 Fixture 的前端契约测试
-├── docs/                        # PRD、设计、接口、隐私和部署文档
-├── .github/workflows/ci.yml     # 持续集成
-├── project.config.json          # 从仓库根目录导入 V2 的微信项目配置
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt             # 后端运行、测试及仓库工具依赖
-└── pytest.ini
+SandboxResult
+  → GrowthSession
+  → GrowthReport
+  → TodayService.sync_growth_plan
+  → PlanTask（来源与阶段映射）
+  → Todo（用户实际执行）
+  → get_plan_progress
+  → Coach / Today suggestion
 ```
 
-数据库、日志、缓存、虚拟环境和本地输出目录均由 Git 忽略；只有经过审核、列入仓库的官方数据快照会被版本控制。
+`PlanTask` 是 Growth 与 Today 之间的桥接表：它保留 `report/session/phase/task` 来源，支持阶段级幂等同步和进度聚合。用户删除 AI 计划任务时记录为 `cancelled`，避免执行证据直接消失。
+
+## LangGraph 状态、退出条件与人工确认
+
+规划主分支：
+
+```text
+router
+  → planning_turn_analysis
+  → [planning_knowledge]
+  → planning_follow_up
+  → planning_await_trigger
+  → planning_analyze
+  → END（展示初步分析，等待明确批准）
+
+用户批准生成报告
+  → router
+  → planning_build_report
+  → END
+```
+
+路径沙盘分支：
+
+```text
+sandbox_discovery
+  → sandbox_projection
+  → 用户选择最终方向
+  → planning_follow_up
+```
+
+| 机制 | 当前实现 |
+| --- | --- |
+| 状态 | `GrowthState` 保存用户、会话、规划、沙盘、报告请求和错误状态 |
+| 追问退出 | turn analysis 判断信息是否足够；`MAX_FOLLOW_UP_ROUNDS = 5` 只是硬安全上限 |
+| 沙盘退出 | 沙盘到达 `completed`，生成 projection；用户选定方向后才 handoff |
+| 报告确认 | 初步分析后图先 `END`；只有显式 `approve` 才进入 `build_report` |
+| 会话持久化 | `AsyncSqliteSaver` 保存 LangGraph checkpoint，支持中断、恢复和服务重启 |
+| 业务持久化 | 最终报告进入 `GrowthReport`；执行映射进入 `PlanTask` 和 `Todo` |
+
+人工确认点包括：选择 2–4 条比较路径、选定最终方向、批准生成完整报告、选择阶段与开始日期后同步、接受 Coach 建议后创建 Todo。AI 不自动替用户改计划。
+
+## 模型成本、延迟与失败回退
+
+这里区分“代码已经具备的控制”与“真实评估已经记录的数字”，不把 timeout 当成真实延迟，也不猜测模型账单。
+
+| 维度 | 当前状态 |
+| --- | --- |
+| 模型 | 默认 `deepseek-chat`，通过 OpenAI-compatible SDK 接入，可替换兼容服务 |
+| 超时与重试 | 全局默认 timeout `30s`、SDK retry `1`；路径对比 `15s/0 retry`；单路径报告 `18s/0 retry`；Today 建议 `10s` |
+| Token 上限 | 不同调用按用途设置 `300 / 512 / 1024 / 2048` 等 `max_tokens`，限制最坏输出规模 |
+| 调用观测 | `LLMService` 采集功能名、模型、耗时、成功状态、错误类型和 token usage，不记录 prompt、响应正文或密钥 |
+| 本次真实 eval 延迟 | 2026-08-20 记录未汇总端到端耗时、P50/P95，不能把配置的 timeout 写成实测延迟 |
+| 本次真实 eval 成本 | 当次记录未保存可审计的 token 汇总，因此不公开猜测单次人民币成本 |
+| 下一轮基准要求 | 按 feature 汇总调用次数、input/output token、单调用 P50/P95、整条链路 wall time，并用评估当日供应商单价计算成本 |
+
+失败回退策略：
+
+- 流式 SSE 没有收到事件时，小程序回退普通非流式接口，不重复已经成功的 mutation。
+- 结构化 JSON 校验失败时，用 repair prompt 修复一次；仍失败则返回明确错误。
+- 单路径模拟或比较超时、解析失败时，返回标记清楚的最小结构化 fallback，不伪装成真实模型评分。
+- 未配置模型密钥时，课程、考试、Todo、导入等非 AI 能力仍可运行；AI 接口明确报错。
+- Today 单个模块失败不会让整页数据不可用；Todo 乐观更新失败会回滚。
+- Coach 只提出变更建议，创建新 Todo 必须由用户点击确认。
+
+## 测试与评估
+
+当前工作区验证（2026-08-25）：`132 passed, 1 warning, 4 subtests passed`；前端契约、Python 编译和全部 `miniprogram-v2` JavaScript 语法检查通过。
+
+```powershell
+# 后端单元、契约与回归测试
+.\venv\Scripts\python.exe -m pytest -q
+
+# Python 编译检查
+.\venv\Scripts\python.exe -m compileall -q backend
+
+# 前后端共享 Fixture 契约
+node .\tests\frontend_v2_contracts.js
+
+# 小程序 JavaScript 语法
+Get-ChildItem miniprogram-v2 -Recurse -Filter *.js | ForEach-Object {
+  node --check $_.FullName
+  if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax check failed: $($_.FullName)" }
+}
+```
+
+GitHub Actions 在 push 和 pull request 时运行 Python 3.11 测试、Python 编译检查及小程序 JavaScript 语法检查。CI 使用本地占位模型地址，不把“测试通过”伪装成真实模型验证；真实 LLM 评估单独记录。
 
 ## 快速开始
 
-### 1. 准备环境
-
-- Python 3.11
-- pip
-- 微信开发者工具
-- Node.js 20+（运行前端契约测试和 JavaScript 语法检查时需要）
-- 可选：Docker Desktop 或 Docker Engine + Compose
-
-### 2. 安装后端依赖
+### 1. 安装后端
 
 Windows PowerShell：
 
@@ -130,61 +215,43 @@ python -m pip install -r requirements.txt
 cp backend/.env.example backend/.env
 ```
 
-只运行 API 时可改为安装 `backend/requirements.txt`；根目录的 `requirements.txt` 额外包含 pytest 等仓库级工具。
+### 2. 配置模型（可选）
 
-### 3. 配置环境变量
+`backend/.env`：
 
-后端从进程环境变量和 `backend/.env` 读取配置。常用配置如下：
+```dotenv
+DEEPSEEK_API_KEY=
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+LLM_TIMEOUT=30
+LLM_MAX_RETRIES=1
+```
 
-| 变量 | 模板值 | 用途 |
-| --- | --- | --- |
-| `APP_ENV` | `dev` | 运行环境：`dev`、`test` 或 `prod` |
-| `DATABASE_URL` | `sqlite:///./data/icampus.db` | 本地数据库；相对路径解析到 `backend/` |
-| `JWT_SECRET_KEY` | 开发占位值 | Token 签名密钥，生产环境必须替换 |
-| `DEEPSEEK_API_KEY` | 空 | DeepSeek 或其他 OpenAI 兼容服务密钥 |
-| `LLM_BASE_URL` | `https://api.deepseek.com` | OpenAI 兼容 API 地址 |
-| `LLM_MODEL` | `deepseek-chat` | 模型名称 |
-| `CORS_ORIGINS` | 本地 Web 地址 | 逗号分隔的明确来源白名单 |
-| `DEMO_ACCOUNT_ENABLED` | `true` | 是否在开发环境创建演示账号 |
-| `LOG_DIR` | `logs` | 日志目录，相对路径解析到 `backend/` |
+不使用 AI 时保持 `DEEPSEEK_API_KEY=`。开发模板可创建演示账号 `demo2026` / `DemoPass123!`；生产环境必须关闭演示账号并替换 JWT 密钥。
 
-不使用 AI 时保持 `DEEPSEEK_API_KEY=` 即可。模板默认会创建开发演示账号 `demo2026` / `DemoPass123!`；不要在生产环境使用该账号或密码。
-
-### 4. 启动后端
-
-在仓库根目录、已激活虚拟环境的终端中运行：
+### 3. 启动 API
 
 ```powershell
 python -m uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
 ```
 
-服务启动后可访问：
-
 - Swagger UI：<http://127.0.0.1:8000/docs>
-- ReDoc：<http://127.0.0.1:8000/redoc>
 - 存活检查：<http://127.0.0.1:8000/health>
 - 就绪检查：<http://127.0.0.1:8000/ready>
-- 版本信息：<http://127.0.0.1:8000/version>
 
-本地 SQLite 和日志默认写入 `backend/data/`、`backend/logs/`。
+### 4. 运行微信小程序
 
-### 5. 运行微信小程序
-
-1. 打开微信开发者工具，导入仓库根目录；根目录 `project.config.json` 已把 `miniprogramRoot` 指向 `miniprogram-v2/`。
-2. 启动本地后端。
-3. 在开发者工具控制台临时覆盖开发 API 地址：
+1. 使用微信开发者工具导入仓库根目录；`project.config.json` 已指向 `miniprogram-v2/`。
+2. 启动本地 API。
+3. 开发环境默认请求 `http://127.0.0.1:8000`；如需临时覆盖，在控制台执行：
 
 ```javascript
 wx.setStorageSync("ICAMPUS_V2_API_BASE_URL", "http://127.0.0.1:8000")
 ```
 
-4. 重新编译小程序并登录。
+4. 重新编译并登录。模拟器可关闭合法域名校验；真机调试与发布必须使用设备可访问、已配置服务器域名的 HTTPS 地址。
 
-开发、体验和正式环境地址统一配置在 `miniprogram-v2/config/env.js`。仓库中的开发地址用于阶段性联调，不保证长期有效；提交代码前应换成团队当前使用的地址。模拟器访问本机服务时可在开发者工具中关闭合法域名校验，真机调试或发布则必须使用可访问的 HTTPS 地址，并在微信公众平台配置服务器域名。
-
-## Docker 运行
-
-从仓库根目录启动：
+### Docker
 
 ```powershell
 docker compose up --build -d
@@ -192,91 +259,58 @@ Invoke-RestMethod http://127.0.0.1:8000/ready
 docker compose logs -f api
 ```
 
-停止服务但保留数据：
+停止但保留数据：`docker compose down`。除非明确要删除本地数据，不要执行 `docker compose down -v`。
 
-```powershell
-docker compose down
+## 项目结构
+
+```text
+ai-agent-learning/
+├─ miniprogram-v2/          # 当前微信原生小程序
+│  ├─ pages/                # 今天、探索、行动、我的
+│  ├─ pkg-growth/           # 沙盘、规划、报告、教练、历史
+│  ├─ services/             # HTTP、SSE、上传封装
+│  ├─ stores/               # 会话和领域状态
+│  └─ normalizers/          # API → UI 数据契约适配
+├─ backend/
+│  ├─ app/api/v1/           # FastAPI 路由、鉴权、响应边界
+│  ├─ services/             # Growth、Today、Memory、LLM 编排
+│  ├─ planning/             # LangGraph 和四类规划策略
+│  ├─ sandbox/              # 路径发现、模拟、比较、handoff
+│  ├─ models/ + crud/       # SQLAlchemy 持久化
+│  └─ career_data/          # 独立官方数据归档/解析管道
+├─ tests/                   # 前端契约测试
+├─ docs/                    # PRD、接口、部署、评估记录
+└─ deliverables/            # UI 设计交付物
 ```
 
-容器以非 root 用户运行并监听 `0.0.0.0:8000`。SQLite 数据和日志分别由 `icampus-data`、`icampus-logs` 命名卷持久化。除非确定要删除本地数据，否则不要执行 `docker compose down -v`。
+## 诚实的工程边界
 
-Compose 默认以开发配置启动，不需要模型密钥即可验证非 AI 接口。启用 AI 功能时通过环境变量注入密钥：
+- `career_data` 具备官方原文归档、哈希去重、版本和来源审计，但目前没有注册为 Agent 工具，也没有接入 RAG；不能声称规划建议已经使用该数据。
+- `AsyncSqliteSaver` 适合当前单机演示；多实例部署需要共享 checkpoint 存储。
+- OpenAI-compatible 客户端主体仍是同步调用，部分异步链路需要进一步隔离阻塞。
+- 限流是进程内实现，不适合多实例全局配额。
+- 数据库迁移主要依赖启动期建表与增量 SQL，尚未形成完整 Alembic 流程。
+- 有后端测试、契约测试和 JavaScript 语法检查，但没有完整的小程序 UI/E2E 自动化套件。
+- 本 README 展示的是高保真设计稿；60 秒实机录屏尚未随仓库发布。
+- 当次真实 LLM eval 没有形成可审计的成本和延迟分位数，下一轮应先补测量再做性能宣称。
 
-```powershell
-$env:DEEPSEEK_API_KEY = "your-key"
-docker compose up --build -d
-```
+## 30 秒面试介绍
 
-## API 概览
+> iCampus 是一个微信小程序和 FastAPI 组成的 AI 成长执行系统。我没有把重点放在四种 Agent，而是用 LangGraph、业务数据库和 Todo 系统串起一条闭环：用户先比较路径，再生成四阶段报告，确认后把任务同步到待办；真实完成状态会聚合成进度，再交给 AI 教练读取。真实模型评估跑通过“同步 3 项、完成 1 项、进度 33%、教练读取最新状态”。模型负责理解与文案，代码负责状态、退出条件、结构校验、持久化和人工确认。
 
-| 路径 | 功能 |
-| --- | --- |
-| `/health`、`/ready`、`/version` | 存活、就绪和版本检查 |
-| `/api/v1/users` | 注册、登录和用户资料 |
-| `/api/v1/today` | 今日概览、时间线、日历、课程、考试、导入、建议和计划同步 |
-| `/api/v1/todos` | 待办增删改查及完成状态 |
-| `/api/v1/weather` | 城市解析与天气查询 |
-| `/api/v1/growth` | 成长对话、流式响应、报告、历史、教练和行动计划 |
-| `/api/v1/sandbox` | 路径选择、沙盘会话、恢复、流式推演与结果 |
-| `/api/v1/memory` | 长期记忆和记忆面板 |
+## 仓库维护约定
 
-完整参数和响应结构以运行后的 Swagger UI 为准。受保护接口需要请求头 `Authorization: Bearer <token>`。
-
-## 测试与质量检查
-
-在仓库根目录、已安装 `requirements.txt` 的环境中运行：
-
-```powershell
-# Python 测试（pytest.ini 已配置 backend/tests 和 Python 路径）
-python -m pytest -q
-
-# Python 语法检查
-python -m compileall -q backend
-
-# 前后端共享 Fixture 的 V2 契约测试
-node .\tests\frontend_v2_contracts.js
-
-# 小程序全部 JavaScript 文件语法检查
-Get-ChildItem miniprogram-v2 -Recurse -Filter *.js | ForEach-Object {
-  node --check $_.FullName
-  if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax check failed: $($_.FullName)" }
-}
-```
-
-GitHub Actions 会在每次 push 和 pull request 时使用 Python 3.11 与 Node.js 20 安装依赖、编译 Python、运行后端测试，并检查仓库中现有小程序目录的 JavaScript 语法。CI 使用本地占位模型地址，不访问真实大模型。
-
-## 职业数据模块
-
-`backend/career_data/` 提供独立 CLI，负责官方数据的原文归档、哈希去重、解析清洗、版本保留、来源链和质量问题记录。运行前需让 Python 找到后端模块；PowerShell 下初始化并查看数据源：
-
-```powershell
-$env:PYTHONPATH = (Resolve-Path backend).Path
-python -m career_data db init
-python -m career_data sources list
-python -m career_data runs list
-python -m career_data quality list
-```
-
-macOS / Linux 可在命令前设置 `PYTHONPATH=backend`。详细的导入、查询和来源约束见 [Career Data 说明](backend/career_data/README.md)。
-
-## 生产与安全边界
-
-- 不提交 `backend/.env`、API Key、数据库、日志或包含个人数据的临时文件。
-- `APP_ENV=prod` 会校验模型密钥、至少 32 位且非默认的 JWT 密钥、明确的 CORS 白名单、关闭调试以及关闭演示账号；不安全配置会拒绝启动。
-- 小程序正式环境必须使用已备案并在微信公众平台配置的 HTTPS API 域名。
-- AI 输出是辅助建议，不替代学校正式政策、职业、医疗或心理专业意见。
-- 官方政策和岗位数据具有时效性；使用前应检查来源链、数据年份和审核状态。
-- 当前仓库定位为可运行的竞赛演示与持续开发版本，不宣称未经验证的生产可用性、性能或覆盖率指标。
+现有 `master`、历史分支和 `backup-main-*` / `competition-freeze-*` 标签保留，不重写历史。完成默认分支迁移后只保留 `main`、`develop` 和语义化 Release（`vX.Y.Z`）；提交信息使用 `feat:`、`fix:`、`docs:`、`test:`、`refactor:` 等明确前缀，不再使用 `Backup updates` 一类不可追踪描述。
 
 ## 进一步阅读
 
-- [后端运行说明](backend/README.md)
-- [前端 API 对接文档](docs/frontend-api-reference.md)
-- [V2 产品需求文档](docs/iCampus-PRD-v2.md)
-- [前端设计规范](docs/frontend-design-spec.md)
+- [真实模型端到端评估](docs/live-llm-e2e-evaluation-2026-08-20.md)
+- [后端运行与 API](backend/README.md)
+- [前端 API 对接](docs/frontend-api-reference.md)
+- [V2 产品需求](docs/iCampus-PRD-v2.md)
 - [部署说明](docs/deployment-week1.md)
 - [隐私说明](docs/privacy.md)
-- [真实模型端到端评估记录](docs/live-llm-e2e-evaluation-2026-08-20.md)
+- [UI 与后端能力矩阵](deliverables/complete-design-v1-bento/backend-capability-matrix.md)
 
 ## License
 
