@@ -21,6 +21,29 @@ OFFICIAL_QUT_DIR = Path(__file__).parents[1] / "data" / "career_data" / "raw" / 
 OFFICIAL_CIVIL_XLS = Path(__file__).parents[1] / "data" / "career_data" / "raw" / "civil-service" / "2670bae1df1dd07a3a3c79b9db46a11e3bb15a6c9c249e6af98bfd0b61ce3aaf.xls"
 SHANDONG_ROOT = Path(__file__).parents[1] / "data" / "career_data" / "raw" / "shandong-civil-service" / "2026"
 SHANDONG_MANIFEST = SHANDONG_ROOT / "manifest.json"
+
+
+def _has_complete_shandong_snapshot() -> bool:
+    """Return whether the optional raw snapshot needed by integration tests exists."""
+    if not SHANDONG_MANIFEST.is_file():
+        return False
+    try:
+        manifest = json.loads(SHANDONG_MANIFEST.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    documents = manifest.get("documents", [])
+    return bool(documents) and all(
+        isinstance(entry, dict)
+        and entry.get("file")
+        and (SHANDONG_ROOT / entry["file"]).is_file()
+        for entry in documents
+    )
+
+
+requires_shandong_snapshot = pytest.mark.skipif(
+    not _has_complete_shandong_snapshot(),
+    reason="optional Shandong official-data snapshot is not included in a clean checkout",
+)
 URLS = {
     "postgraduate": "https://yz.chsi.com.cn/kyzx/fixture",
     "undergraduate-majors": "https://www.moe.gov.cn/fixture.pdf",
@@ -96,6 +119,7 @@ def test_official_2026_civil_service_xls_parses_every_sheet(store) -> None:
     assert all(not adapter.validate(row) for row in normalized)
 
 
+@requires_shandong_snapshot
 def test_shandong_manifest_dry_run_validates_all_supported_files(store) -> None:
     _, _, service = store
     result = service.import_directory(
@@ -109,6 +133,7 @@ def test_shandong_manifest_dry_run_validates_all_supported_files(store) -> None:
     assert result["excluded_regions"] == ["德州市"]
 
 
+@requires_shandong_snapshot
 def test_shandong_single_file_import_is_traceable_and_idempotent(store, tmp_path: Path) -> None:
     database, repository, service = store
     manifest = json.loads(SHANDONG_MANIFEST.read_text(encoding="utf-8"))

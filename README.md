@@ -166,7 +166,7 @@ sandbox_discovery
 
 ## 测试与评估
 
-当前工作区验证（2026-08-25）：`132 passed, 1 warning, 4 subtests passed`；前端契约、Python 编译和全部 `miniprogram-v2` JavaScript 语法检查通过。
+当前完整本地快照验证（2026-08-25）：`132 passed, 1 warning, 4 subtests passed`；前端契约、Python 编译和全部 `miniprogram-v2` JavaScript 语法检查通过。干净 CI checkout 不包含可选的山东公务员原始快照，对应 2 项数据集集成测试会明确标记为 skipped，其余 130 项照常执行。
 
 ```powershell
 # 后端单元、契约与回归测试
