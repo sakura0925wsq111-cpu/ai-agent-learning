@@ -1,6 +1,5 @@
 const API_BASE_URLS = {
-  // Temporary HTTPS tunnel for real-device development testing. Remove or replace when it expires.
-  develop: "https://virtue-investigators-stocks-prints.trycloudflare.com",
+  develop: "http://127.0.0.1:8000",
   trial: "https://test-api.example.com",
   release: "https://api.example.com"
 };
@@ -17,10 +16,13 @@ function getApiBaseUrl() {
   const env = getRuntimeEnv();
   const configured = API_BASE_URLS[env] || API_BASE_URLS.develop;
   const override = env === "develop" ? String(wx.getStorageSync("ICAMPUS_V2_API_BASE_URL") || "").trim() : "";
-  // Temporary tunnel URLs can remain in simulator/device storage after a restart.
+  // Ignore tunnel addresses left in storage from earlier real-device debugging.
   const staleTunnel = env === "develop"
     && /(?:loca\.lt|trycloudflare\.com)$/i.test(override)
     && override !== API_BASE_URLS.develop;
+  if (staleTunnel) {
+    wx.removeStorageSync("ICAMPUS_V2_API_BASE_URL");
+  }
   const selected = staleTunnel ? configured : (override || configured);
   return String(selected).replace(/\/$/, "");
 }
