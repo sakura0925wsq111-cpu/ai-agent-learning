@@ -1,0 +1,86 @@
+{
+  "blocks": [
+    {
+      "id": "p20:b0",
+      "type": "heading",
+      "provider_label": "paragraph_title",
+      "text": "1.1土的三相组成",
+      "reading_order": 1,
+      "provider_sequence": 0,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 20,
+          "bbox": [
+            0.26806327490380505,
+            0.07496977025392987,
+            0.6819153484395041,
+            0.14328899637243048
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p20:b1",
+      "type": "figure",
+      "provider_label": "image",
+      "text": "固相(土颗粒液相(水）\n气相（空气）",
+      "reading_order": null,
+      "provider_sequence": 1,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 20,
+          "bbox": [
+            0.18041898247114152,
+            0.309552599758162,
+            0.7297990594271055,
+            0.7636033857315598
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p20:b2",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "土中颗粒的大小、成分及三相之间的比例关系，表现出土的不同工程性质i ",
+      "reading_order": 2,
+      "provider_sequence": 2,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 20,
+          "bbox": [
+            0.11543394613082514,
+            0.8270858524788391,
+            0.8696023941855494,
+            0.939540507859734
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [],
+  "provider_status": "completed",
+  "missing_features": [
+    "explicit_hierarchy",
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "soil_text_diagram",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9"
+}

@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reviewer_type": "AI_visual_review",
+  "human_review_complete": false,
+  "ai_visual_review_complete": true,
+  "reviewed_on": "2026-09-04",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9",
+  "machine_pages_sha256": "ac4f4cb1daeae7ddd4f76d2919c5501e3ca5f085d8e945d1c7377e8d09e938f1",
+  "reviewed_page_count": 20,
+  "machine_accepted_blocks_reviewed": 74,
+  "transcription_verdict_counts": {
+    "match": 70,
+    "mismatch": 4
+  },
+  "observed_normalized_transcription_match_rate": 0.9459459459459459,
+  "evidence_status_counts": {
+    "heading_or_label_only": 26,
+    "not_usable": 15,
+    "requires_layout_reconstruction": 13,
+    "usable_in_group": 20
+  },
+  "page_review_decision_counts": {
+    "visible_text_missed": 1,
+    "heading_or_labels_only": 7,
+    "unsafe_retained_content": 8,
+    "usable_groups_only": 1,
+    "justified_rejection_under_scope": 3
+  },
+  "mismatched_blocks": [
+    {
+      "page_number": 40,
+      "block_index": 1,
+      "machine_text": "《岩程勘察规范》",
+      "reference_text": "《岩土工程勘察规范》"
+    },
+    {
+      "page_number": 200,
+      "block_index": 9,
+      "machine_text": "P1",
+      "reference_text": "p_{1}"
+    },
+    {
+      "page_number": 200,
+      "block_index": 14,
+      "machine_text": "低压缩性土的C。一般小于0.2，高",
+      "reference_text": "低压缩性土的C_{c}一般小于0.2，高"
+    },
+    {
+      "page_number": 200,
+      "block_index": 15,
+      "machine_text": "压缩性土的C值一般大于0.4。",
+      "reference_text": "压缩性土的C_{c}值一般大于0.4。"
+    }
+  ],
+  "unsupported_math_transcription_leak_count": 3,
+  "unsafe_retained_pages": [
+    40,
+    60,
+    120,
+    160,
+    180,
+    200,
+    360,
+    400
+  ],
+  "method_limits": [
+    "本结果由AI看原图复核，不是真人人工金标或领域专家审定。",
+    "复核者已知机器输出及前期问题，不是盲测；同一课件上的开发样本不能外推全量准确率。",
+    "match忽略正常换行、空白、全半角标点和装饰性列表前缀，但不忽略汉字、数字、单位、大小写及数学上下标错误。",
+    "94.59%是74个机器放行块的归一化转写匹配比例，不是字符准确率、整页准确率、召回率或可直接用于Card的比例。",
+    "全部74个机器放行块均已逐一标注；机器拒绝块只作页面级观察，未建立全页逐字参考，不能算完整覆盖率。",
+    "usable_in_group仍需同组文本完整、正确关联；不是按单个OCR行独立生成知识的许可。",
+    "标题/图示标签只表示字面识别正确，不表示能够独立支撑知识问答。",
+    "数学reference_text采用p_{1}、C_{c}记录原图大小写及下标，不是自动修复公式。",
+    "AI可能看漏或误判；正式报告应称AI视觉复核结果，关键错误和统计需要真人复核后才能升级为人工准确率。"
+  ],
+  "conclusion": "识别和筛选流程可运行，但存在高置信度共同漏字、数学记号错放、条件丢失及二维对应关系错序；不得作为无人审的安全事实池。"
+}

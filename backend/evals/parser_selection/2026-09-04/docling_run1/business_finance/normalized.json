@@ -1,0 +1,2213 @@
+{
+  "blocks": [
+    {
+      "id": "#/texts/0",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 5 ）文明生产战略",
+      "raw_text": "（ 5 ）文明生产战略",
+      "reading_order": 0,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.08780522565320659,
+            0.3721914893617021,
+            0.10061223277909732
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/1",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 6 ）企业员工共同信念战略（最核心的，主导作用）",
+      "raw_text": "（ 6 ）企业员工共同信念战略（最核心的，主导作用）",
+      "reading_order": 1,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.10653444180522556,
+            0.6373706606942887,
+            0.1193414489311163
+          ],
+          "character_span": [
+            0,
+            26
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/2",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 7 ）企业凝聚力战略",
+      "raw_text": "（ 7 ）企业凝聚力战略",
+      "reading_order": 2,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.12523990498812343,
+            0.3898701007838745,
+            0.13804691211401415
+          ],
+          "character_span": [
+            0,
+            12
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/3",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 8 ）企业形象战略（最根本的战略，是一个指导战略）",
+      "raw_text": "（ 8 ）企业形象战略（最根本的战略，是一个指导战略）",
+      "reading_order": 3,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.14307838479809964,
+            0.6550492721164611,
+            0.1558853919239904
+          ],
+          "character_span": [
+            0,
+            27
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/4",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（六）进行企业文化战略决策应考虑的因素",
+      "raw_text": "（六）进行企业文化战略决策应考虑的因素",
+      "reading_order": 4,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.16212054631828968,
+            0.559007838745801,
+            0.17459085510688827
+          ],
+          "character_span": [
+            0,
+            19
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/5",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）生产力发展水平，企业技术进步状况",
+      "raw_text": "（ 1 ）生产力发展水平，企业技术进步状况",
+      "reading_order": 5,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.18052494061757715,
+            0.5488342665173571,
+            0.19333194774346787
+          ],
+          "character_span": [
+            0,
+            21
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/6",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）企业职工行为规范和道德状况",
+      "raw_text": "（ 2 ）企业职工行为规范和道德状况",
+      "reading_order": 6,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.199230403800475,
+            0.4959417693169091,
+            0.21203741092636574
+          ],
+          "character_span": [
+            0,
+            18
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/7",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）企业生产经营水平和市场竞争中的地位",
+      "raw_text": "（ 3 ）企业生产经营水平和市场竞争中的地位",
+      "reading_order": 7,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.217959619952494,
+            0.5666562150055988,
+            0.23076662707838472
+          ],
+          "character_span": [
+            0,
+            22
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/8",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 4 ）企业家和员工队伍的素质状况",
+      "raw_text": "（ 4 ）企业家和员工队伍的素质状况",
+      "reading_order": 8,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.2357743467933491,
+            0.4959417693169091,
+            0.24858135391923983
+          ],
+          "character_span": [
+            0,
+            18
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/9",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 5 ）企业总体经营战略及其战略目标的要求",
+      "raw_text": "（ 5 ）企业总体经营战略及其战略目标的要求",
+      "reading_order": 9,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.2545154394299287,
+            0.5666562150055988,
+            0.26732244655581944
+          ],
+          "character_span": [
+            0,
+            22
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/10",
+      "type": "heading",
+      "provider_label": "section_header",
+      "text": "第十九章企业财务战略",
+      "raw_text": "第十九章企业财务战略",
+      "reading_order": 10,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.18670212765957447,
+            0.2735813539192399,
+            0.3646864501679732,
+            0.28605166270783844
+          ],
+          "character_span": [
+            0,
+            10
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/11",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（一）概念",
+      "raw_text": "（一）概念",
+      "reading_order": 11,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.2922868171021377,
+            0.3103784994400896,
+            0.3047571258907363
+          ],
+          "character_span": [
+            0,
+            5
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/12",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）企业财务战略：指企业对维持和扩大生产经营活动所需资金进行筹集，分配， 使用，并实现企业总体战略目标所作出的长远性谋划和方略",
+      "raw_text": "（ 1 ）企业财务战略：指企业对维持和扩大生产经营活动所需资金进行筹集，分配， 使用，并实现企业总体战略目标所作出的长远性谋划和方略",
+      "reading_order": 12,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.3106912114014252,
+            0.8580593505039192,
+            0.34131294536817103
+          ],
+          "character_span": [
+            0,
+            66
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/13",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）负债经营战略：指企业向商业银行等金融企业或向信托投资公司等非金融性 企业借款，或通过有关银行向社会发行企业债券，以筹集所需资金用于生产经营活动的一种 战略",
+      "raw_text": "（ 2 ）负债经营战略：指企业向商业银行等金融企业或向信托投资公司等非金融性 企业借款，或通过有关银行向社会发行企业债券，以筹集所需资金用于生产经营活动的一种 战略",
+      "reading_order": 13,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.3472470308788598,
+            0.8500291153415453,
+            0.39748871733966745
+          ],
+          "character_span": [
+            0,
+            82
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/14",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）内源型筹资战略：指依靠企业内部筹资解决生产经营活动所需资金的渠道战 略，通过内部筹资主要是指利用企业内部的留成利润（主要表现为盈余公积金和未分配利 润） ；应付税款（尚未到期的应交税款） ；折旧准备基金；企业内部集资；盘活企业内部存量 资产",
+      "raw_text": "（ 3 ）内源型筹资战略：指依靠企业内部筹资解决生产经营活动所需资金的渠道战 略，通过内部筹资主要是指利用企业内部的留成利润（主要表现为盈余公积金和未分配利 润） ；应付税款（尚未到期的应交税款） ；折旧准备基金；企业内部集资；盘活企业内部存量 资产",
+      "reading_order": 14,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.40338717339667457,
+            0.8517569988801799,
+            0.471479216152019
+          ],
+          "character_span": [
+            0,
+            125
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/15",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 4 ）直接融资战略：指企业直接进入证券市场，通过发行股票和债券等方式筹集 资金的渠道战略",
+      "raw_text": "（ 4 ）直接融资战略：指企业直接进入证券市场，通过发行股票和债券等方式筹集 资金的渠道战略",
+      "reading_order": 15,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.47740142517814727,
+            0.8495139977603586,
+            0.5089138954869359
+          ],
+          "character_span": [
+            0,
+            46
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/16",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 5 ）资本的经营风险：指企业在经营活动中由于企业外部环境诸多因素的变化， 特别是市场因素的变化，使经营成果出现向坏的方向转化的危险",
+      "raw_text": "（ 5 ）资本的经营风险：指企业在经营活动中由于企业外部环境诸多因素的变化， 特别是市场因素的变化，使经营成果出现向坏的方向转化的危险",
+      "reading_order": 16,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.513957244655582,
+            0.8495139977603586,
+            0.5454697149643706
+          ],
+          "character_span": [
+            0,
+            67
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/17",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 6 ）资本的财务风险：指因扩大经营规模或扩大经营领域的需要，企业举债筹集 资本而产生的失利的危险",
+      "raw_text": "（ 6 ）资本的财务风险：指因扩大经营规模或扩大经营领域的需要，企业举债筹集 资本而产生的失利的危险",
+      "reading_order": 17,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.5513919239904989,
+            0.8492553191489353,
+            0.5829043942992874
+          ],
+          "character_span": [
+            0,
+            50
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/18",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 7 ）终值评价法：指利用资本的时间价值计算将来值，用以对投资或筹资方案作 出评价的方法",
+      "raw_text": "（ 7 ）终值评价法：指利用资本的时间价值计算将来值，用以对投资或筹资方案作 出评价的方法",
+      "reading_order": 18,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.5888384798099763,
+            0.8495139977603586,
+            0.6194839667458432
+          ],
+          "character_span": [
+            0,
+            45
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/19",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 8 ）风险评价法：指通过对风险大小的测算与效益的估算，以及企业承受和分散 风险的能力的分析，对投资或筹资方案作出评价和选择的方法",
+      "raw_text": "（ 8 ）风险评价法：指通过对风险大小的测算与效益的估算，以及企业承受和分散 风险的能力的分析，对投资或筹资方案作出评价和选择的方法",
+      "reading_order": 19,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.6253824228028503,
+            0.8495139977603586,
+            0.6569305225653207
+          ],
+          "character_span": [
+            0,
+            66
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/20",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（二）企业财务战略决策的作用",
+      "raw_text": "（二）企业财务战略决策的作用",
+      "reading_order": 20,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.6631656769596199,
+            0.47062150055991053,
+            0.6756359857482186
+          ],
+          "character_span": [
+            0,
+            14
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/21",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）对各项经营决策起着综合平衡的作用",
+      "raw_text": "（ 1 ）对各项经营决策起着综合平衡的作用",
+      "reading_order": 21,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.6815700712589075,
+            0.5489776035834264,
+            0.6943770783847982
+          ],
+          "character_span": [
+            0,
+            21
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/22",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）对各种经营战略方案起着评价和选择的作用",
+      "raw_text": "（ 2 ）对各种经营战略方案起着评价和选择的作用",
+      "reading_order": 22,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.6993847980997625,
+            0.6020134378499437,
+            0.7121918052256533
+          ],
+          "character_span": [
+            0,
+            24
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/23",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）对经营资源的分配起着指导作用",
+      "raw_text": "（ 3 ）对经营资源的分配起着指导作用",
+      "reading_order": 23,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.7181140142517816,
+            0.5136203807390815,
+            0.7309210213776722
+          ],
+          "character_span": [
+            0,
+            19
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/24",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（三）企业筹资战略类型",
+      "raw_text": "（三）企业筹资战略类型",
+      "reading_order": 24,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.7371561757719716,
+            0.41763717805151157,
+            0.7496264845605701
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/25",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）按筹资的方式不同（资本积聚；负债经营；合资或合作经营；股份经营： ' 三 来一补 ' ）",
+      "raw_text": "（ 1 ）按筹资的方式不同（资本积聚；负债经营；合资或合作经营；股份经营： ' 三 来一补 ' ）",
+      "reading_order": 25,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.7554982185273159,
+            0.8489014557670772,
+            0.7880320665083135
+          ],
+          "character_span": [
+            0,
+            49
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/26",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）按筹资的渠道不同（内源型；外源型 < 间接融资和直接融资 > ）",
+      "raw_text": "（ 2 ）按筹资的渠道不同（内源型；外源型 < 间接融资和直接融资 > ）",
+      "reading_order": 26,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.7921045130641331,
+            0.745464725643897,
+            0.8049115201900239
+          ],
+          "character_span": [
+            0,
+            37
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/27",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（四）筹资战略决策应遵循的原则",
+      "raw_text": "（四）筹资战略决策应遵循的原则",
+      "reading_order": 27,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.8111704275534443,
+            0.4883247480403134,
+            0.8236407363420428
+          ],
+          "character_span": [
+            0,
+            15
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/28",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）尽可能挖掘企业潜力，实行内源型融资渠道战略",
+      "raw_text": "（ 1 ）尽可能挖掘企业潜力，实行内源型融资渠道战略",
+      "reading_order": 28,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.8295391923990499,
+            0.6373706606942887,
+            0.8423461995249407
+          ],
+          "character_span": [
+            0,
+            26
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/29",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）在企业自有资金不足，内部融资不能满足对发展资金的需求时，则努力开通 外源型融资渠道战略",
+      "raw_text": "（ 2 ）在企业自有资金不足，内部融资不能满足对发展资金的需求时，则努力开通 外源型融资渠道战略",
+      "reading_order": 29,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.1513852183650616,
+            0.8482802850356294,
+            0.8495139977603586,
+            0.879792755344418
+          ],
+          "character_span": [
+            0,
+            48
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/30",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）企业筹资来源的选择中要有利于优化企业资本结构（特别是长期负债与权益",
+      "raw_text": "（ 3 ）企业筹资来源的选择中要有利于优化企业资本结构（特别是长期负债与权益",
+      "reading_order": 30,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 18,
+          "bbox": [
+            0.22202687569988802,
+            0.8848305621536025,
+            0.8495139977603586,
+            0.8976375692794932
+          ],
+          "character_span": [
+            0,
+            38
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/31",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "资本之间的比例关系要合理）",
+      "raw_text": "资本之间的比例关系要合理）",
+      "reading_order": 31,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.1513852183650616,
+            0.08814192399049875,
+            0.38116573348264265,
+            0.10061223277909732
+          ],
+          "character_span": [
+            0,
+            13
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/32",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 4 ）创造良好的投资环境，是争取资金来源的前提条件",
+      "raw_text": "（ 4 ）创造良好的投资环境，是争取资金来源的前提条件",
+      "reading_order": 32,
+      "level": 2,
+      "parent_id": "#/groups/2",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.10653444180522556,
+            0.6550492721164611,
+            0.1193414489311163
+          ],
+          "character_span": [
+            0,
+            27
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/33",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（五）企业投资战略类型",
+      "raw_text": "（五）企业投资战略类型",
+      "reading_order": 33,
+      "level": 2,
+      "parent_id": "#/groups/2",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.1255766033254156,
+            0.41763717805151157,
+            0.13804691211401415
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/34",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）按投资方向划分",
+      "raw_text": "（ 1 ）按投资方向划分",
+      "reading_order": 34,
+      "level": 2,
+      "parent_id": "#/groups/2",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.14307838479809964,
+            0.3898622620380739,
+            0.1558853919239904
+          ],
+          "character_span": [
+            0,
+            12
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/35",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "A. 外延性投资战略（又叫数量型或速度型投资战略）",
+      "raw_text": "A. 外延性投资战略（又叫数量型或速度型投资战略）",
+      "reading_order": 35,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.1617838479809975,
+            0.627292273236282,
+            0.17459085510688827
+          ],
+          "character_span": [
+            0,
+            25
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/36",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "B. 内涵性投资战略（又叫质量型或效益型投资战略） -- 是我国大多数企业应加以 选择的投资战略",
+      "raw_text": "B. 内涵性投资战略（又叫质量型或效益型投资战略） -- 是我国大多数企业应加以 选择的投资战略",
+      "reading_order": 36,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.1513852183650616,
+            0.18046258907363422,
+            0.8490985442329231,
+            0.21203741092636574
+          ],
+          "character_span": [
+            0,
+            48
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/37",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "兼顾型投资战略",
+      "raw_text": "C. 兼顾型投资战略",
+      "reading_order": 37,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.217959619952494,
+            0.3621131019036954,
+            0.23076662707838472
+          ],
+          "character_span": [
+            0,
+            10
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/38",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）按投资项目来划分（产品；工艺；设备；节能降耗；生产环境改造）",
+      "raw_text": "（ 2 ）按投资项目来划分（产品；工艺；设备；节能降耗；生产环境改造）",
+      "reading_order": 38,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.2357743467933491,
+            0.7964781634938412,
+            0.24858135391923983
+          ],
+          "character_span": [
+            0,
+            35
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/39",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（六）企业投资战略决策应考虑的因素",
+      "raw_text": "（六）企业投资战略决策应考虑的因素",
+      "reading_order": 39,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.2548521377672209,
+            0.5236685330347144,
+            0.26732244655581944
+          ],
+          "character_span": [
+            0,
+            17
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/40",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）市场需求趋势",
+      "raw_text": "（ 1 ）市场需求趋势",
+      "reading_order": 40,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.2732446555819477,
+            0.3721914893617021,
+            0.28605166270783844
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/41",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）国家发展略和产业政策要求",
+      "raw_text": "（ 2 ）国家发展略和产业政策要求",
+      "reading_order": 41,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.29195011876484556,
+            0.47826315789473667,
+            0.3047571258907363
+          ],
+          "character_span": [
+            0,
+            17
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/42",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）企业当前和今后一定时期的主要矛盾",
+      "raw_text": "（ 3 ）企业当前和今后一定时期的主要矛盾",
+      "reading_order": 42,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.3106912114014252,
+            0.5489776035834264,
+            0.3234982185273159
+          ],
+          "character_span": [
+            0,
+            21
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/43",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 4 ）企业外部的资源环境和竞争态势",
+      "raw_text": "（ 4 ）企业外部的资源环境和竞争态势",
+      "reading_order": 43,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.3285059382422803,
+            0.5136203807390815,
+            0.34131294536817103
+          ],
+          "character_span": [
+            0,
+            19
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/44",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 5 ）企业自身的积累和投资能力",
+      "raw_text": "（ 5 ）企业自身的积累和投资能力",
+      "reading_order": 44,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.3472470308788598,
+            0.47826315789473667,
+            0.3600540380047505
+          ],
+          "character_span": [
+            0,
+            17
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/45",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 6 ）企业成长阶段",
+      "raw_text": "（ 6 ）企业成长阶段",
+      "reading_order": 45,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.3659524940617576,
+            0.3721914893617021,
+            0.37875950118764834
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/46",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（七）资产（资本）运营战略类型",
+      "raw_text": "（七）资产（资本）运营战略类型",
+      "reading_order": 46,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.38501840855106884,
+            0.48829339305711067,
+            0.39748871733966745
+          ],
+          "character_span": [
+            0,
+            15
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/47",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）资本（资产）重组战略（企业重组；资产重组；产权重组）",
+      "raw_text": "（ 1 ）资本（资产）重组战略（企业重组；资产重组；产权重组）",
+      "reading_order": 47,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.40338717339667457,
+            0.7257637178051511,
+            0.4161941805225653
+          ],
+          "character_span": [
+            0,
+            31
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/48",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）企业资本形态战略类型（有形资本；无形资本）",
+      "raw_text": "（ 2 ）企业资本形态战略类型（有形资本；无形资本）",
+      "reading_order": 48,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.4212375296912114,
+            0.6373706606942887,
+            0.43404453681710214
+          ],
+          "character_span": [
+            0,
+            26
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/49",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（八）资产（资本）运营战略决策应考虑的因素",
+      "raw_text": "（八）资产（资本）运营战略决策应考虑的因素",
+      "reading_order": 49,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.4403034441805226,
+            0.5943561030235159,
+            0.45277375296912115
+          ],
+          "character_span": [
+            0,
+            21
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/50",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）市场需求趋势",
+      "raw_text": "（ 1 ）市场需求趋势",
+      "reading_order": 50,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.45867220902612826,
+            0.3721914893617021,
+            0.471479216152019
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/51",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）国家发展战略和产业政策要求",
+      "raw_text": "（ 2 ）国家发展战略和产业政策要求",
+      "reading_order": 51,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.47740142517814727,
+            0.4959417693169091,
+            0.490208432304038
+          ],
+          "character_span": [
+            0,
+            18
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/52",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）要考虑企业的资源条件",
+      "raw_text": "（ 3 ）要考虑企业的资源条件",
+      "reading_order": 52,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.4961068883610451,
+            0.4429059350503918,
+            0.5089138954869359
+          ],
+          "character_span": [
+            0,
+            15
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/53",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 4 ）企业的成长阶段",
+      "raw_text": "（ 4 ）企业的成长阶段",
+      "reading_order": 53,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.513957244655582,
+            0.3898701007838745,
+            0.5267642517814727
+          ],
+          "character_span": [
+            0,
+            12
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/54",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 5 ）资本市场的发育状况",
+      "raw_text": "（ 5 ）资本市场的发育状况",
+      "reading_order": 54,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.5326627078384798,
+            0.42522732362821936,
+            0.5454697149643706
+          ],
+          "character_span": [
+            0,
+            14
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/55",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "第二十章企业经营战略管理过程",
+      "raw_text": "第二十章企业经营战略管理过程",
+      "reading_order": 55,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.551728622327791,
+            0.47062150055991053,
+            0.5641989311163895
+          ],
+          "character_span": [
+            0,
+            14
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/56",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（一）战略制定过程的特点",
+      "raw_text": "（一）战略制定过程的特点",
+      "reading_order": 56,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.5704340855106889,
+            0.43527435610302345,
+            0.5829043942992874
+          ],
+          "character_span": [
+            0,
+            12
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/57",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）战略决策的高层性",
+      "raw_text": "（ 1 ）战略决策的高层性",
+      "reading_order": 57,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.5888384798099763,
+            0.40754871220604694,
+            0.601645486935867
+          ],
+          "character_span": [
+            0,
+            13
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/58",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）战略决策的自主性",
+      "raw_text": "（ 2 ）战略决策的自主性",
+      "reading_order": 58,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.6066769596199525,
+            0.40754871220604694,
+            0.6194839667458432
+          ],
+          "character_span": [
+            0,
+            13
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/59",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）战略决策的创新性",
+      "raw_text": "（ 3 ）战略决策的创新性",
+      "reading_order": 59,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.6253824228028503,
+            0.40754871220604694,
+            0.6381894299287411
+          ],
+          "character_span": [
+            0,
+            13
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/60",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 4 ）战略决策过程的动态性和间歇性",
+      "raw_text": "（ 4 ）战略决策过程的动态性和间歇性",
+      "reading_order": 60,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.6441235154394299,
+            0.5135263157894737,
+            0.6569305225653207
+          ],
+          "character_span": [
+            0,
+            19
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/61",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 5 ）决策思维的理性化和决策结果的风险性",
+      "raw_text": "（ 5 ）决策思维的理性化和决策结果的风险性",
+      "reading_order": 61,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.6628289786223278,
+            0.5666562150055988,
+            0.6756359857482186
+          ],
+          "character_span": [
+            0,
+            22
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/62",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（二）战略实施的重点工作",
+      "raw_text": "（二）战略实施的重点工作",
+      "reading_order": 62,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.6819067695961996,
+            0.43527435610302345,
+            0.6943770783847982
+          ],
+          "character_span": [
+            0,
+            12
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/63",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）设计和选择实施战略所需要的组织机构",
+      "raw_text": "（ 1 ）设计和选择实施战略所需要的组织机构",
+      "reading_order": 63,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.6993847980997625,
+            0.5666562150055988,
+            0.7121918052256533
+          ],
+          "character_span": [
+            0,
+            22
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/64",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）将战略方案具体化，使之便于操作",
+      "raw_text": "（ 2 ）将战略方案具体化，使之便于操作",
+      "reading_order": 64,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.7181140142517816,
+            0.531298992161254,
+            0.7309210213776722
+          ],
+          "character_span": [
+            0,
+            20
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/65",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）合理配置企业资源，以支持战略方案的实现",
+      "raw_text": "（ 3 ）合理配置企业资源，以支持战略方案的实现",
+      "reading_order": 65,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.7368194774346793,
+            0.6020134378499437,
+            0.7496264845605701
+          ],
+          "character_span": [
+            0,
+            24
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/66",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（三）战略实施方式的选择（指令型；变革型；合作型；文化型；增长型）",
+      "raw_text": "（三）战略实施方式的选择（指令型；变革型；合作型；文化型；增长型）",
+      "reading_order": 66,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.7558972684085512,
+            0.8076539753639421,
+            0.7683675771971498
+          ],
+          "character_span": [
+            0,
+            33
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/67",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（四）制定战略规划的注意点",
+      "raw_text": "（四）制定战略规划的注意点",
+      "reading_order": 67,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.7746264845605701,
+            0.4529764837625982,
+            0.7870967933491687
+          ],
+          "character_span": [
+            0,
+            13
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/68",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 1 ）规划的严肃性和可行性",
+      "raw_text": "（ 1 ）规划的严肃性和可行性",
+      "reading_order": 68,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.7921045130641331,
+            0.4429059350503918,
+            0.8049115201900239
+          ],
+          "character_span": [
+            0,
+            15
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/69",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 2 ）规划的专业性和民主性",
+      "raw_text": "（ 2 ）规划的专业性和民主性",
+      "reading_order": 69,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.810833729216152,
+            0.4429059350503918,
+            0.8236407363420428
+          ],
+          "character_span": [
+            0,
+            15
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/70",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（ 3 ）规划的集中性与分散性",
+      "raw_text": "（ 3 ）规划的集中性与分散性",
+      "reading_order": 70,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.8295391923990499,
+            0.4429059350503918,
+            0.8423461995249407
+          ],
+          "character_span": [
+            0,
+            15
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/71",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（五）战略控制：指在战略实施过程中，将反馈的执行情况与战略目标进行比较，",
+      "raw_text": "（五）战略控制：指在战略实施过程中，将反馈的执行情况与战略目标进行比较，",
+      "reading_order": 71,
+      "level": 2,
+      "parent_id": "#/groups/3",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.8486169833729216,
+            0.8607547592385221,
+            0.8610872921615201
+          ],
+          "character_span": [
+            0,
+            36
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/72",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "从中发现偏差，并及时采取有效措施，努力加以纠正，以确保战略目标实现的活动",
+      "raw_text": "从中发现偏差，并及时采取有效措施，努力加以纠正，以确保战略目标实现的活动",
+      "reading_order": 72,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.1513852183650616,
+            0.8673224465558195,
+            0.7877346024636052,
+            0.879792755344418
+          ],
+          "character_span": [
+            0,
+            36
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/73",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "（六）战略控制的必要性",
+      "raw_text": "（六）战略控制的必要性",
+      "reading_order": 73,
+      "level": 2,
+      "parent_id": "#/groups/4",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 19,
+          "bbox": [
+            0.22202687569988802,
+            0.8851672604908947,
+            0.41763717805151157,
+            0.8976375692794932
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [
+    {
+      "id": "#/body",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": [
+        "#/groups/0",
+        "#/texts/10",
+        "#/groups/1",
+        "#/texts/31",
+        "#/groups/2",
+        "#/texts/35",
+        "#/texts/36",
+        "#/groups/3",
+        "#/texts/72",
+        "#/groups/4"
+      ]
+    },
+    {
+      "id": "#/furniture",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": []
+    },
+    {
+      "id": "#/groups/0",
+      "label": "list",
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/0",
+        "#/texts/1",
+        "#/texts/2",
+        "#/texts/3",
+        "#/texts/4",
+        "#/texts/5",
+        "#/texts/6",
+        "#/texts/7",
+        "#/texts/8",
+        "#/texts/9"
+      ]
+    },
+    {
+      "id": "#/groups/1",
+      "label": "list",
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/11",
+        "#/texts/12",
+        "#/texts/13",
+        "#/texts/14",
+        "#/texts/15",
+        "#/texts/16",
+        "#/texts/17",
+        "#/texts/18",
+        "#/texts/19",
+        "#/texts/20",
+        "#/texts/21",
+        "#/texts/22",
+        "#/texts/23",
+        "#/texts/24",
+        "#/texts/25",
+        "#/texts/26",
+        "#/texts/27",
+        "#/texts/28",
+        "#/texts/29",
+        "#/texts/30"
+      ]
+    },
+    {
+      "id": "#/groups/2",
+      "label": "list",
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/32",
+        "#/texts/33",
+        "#/texts/34"
+      ]
+    },
+    {
+      "id": "#/groups/3",
+      "label": "list",
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/37",
+        "#/texts/38",
+        "#/texts/39",
+        "#/texts/40",
+        "#/texts/41",
+        "#/texts/42",
+        "#/texts/43",
+        "#/texts/44",
+        "#/texts/45",
+        "#/texts/46",
+        "#/texts/47",
+        "#/texts/48",
+        "#/texts/49",
+        "#/texts/50",
+        "#/texts/51",
+        "#/texts/52",
+        "#/texts/53",
+        "#/texts/54",
+        "#/texts/55",
+        "#/texts/56",
+        "#/texts/57",
+        "#/texts/58",
+        "#/texts/59",
+        "#/texts/60",
+        "#/texts/61",
+        "#/texts/62",
+        "#/texts/63",
+        "#/texts/64",
+        "#/texts/65",
+        "#/texts/66",
+        "#/texts/67",
+        "#/texts/68",
+        "#/texts/69",
+        "#/texts/70",
+        "#/texts/71"
+      ]
+    },
+    {
+      "id": "#/groups/4",
+      "label": "list",
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/73"
+      ]
+    }
+  ],
+  "provider_status": "ConversionStatus.SUCCESS",
+  "missing_features": [
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "business_finance",
+  "source_sha256": "dca3544fa8d5e5d163d1e7e53073e5ad3905f795adf05b7f5b9bcf8928e7e6f0"
+}

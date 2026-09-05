@@ -1,0 +1,638 @@
+{
+  "docling": {
+    "completed_cases": 8,
+    "measured_conversion_seconds": 32.84693299999344,
+    "initialization_seconds": 72.0158298000024,
+    "cases": {
+      "business_definition": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": true,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "business_finance": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": true,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "soil_text_diagram": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [
+          {
+            "block": "#/texts/1",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/2",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/3",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          }
+        ],
+        "hierarchy_available": true,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "soil_photo": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": true,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "soil_formula": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [
+          {
+            "block": "#/texts/1",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/2",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/3",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/4",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/5",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/6",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/7",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          }
+        ],
+        "hierarchy_available": true,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "soil_inline_formula": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [
+          {
+            "block": "#/texts/2",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/3",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/4",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/5",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/6",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/7",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          }
+        ],
+        "hierarchy_available": true,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "holdout_columns": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": true,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "holdout_table_figures": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [
+          {
+            "block": "#/texts/0",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/1",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/2",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/3",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/4",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/5",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/6",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/7",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/8",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/9",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/10",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/11",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/12",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/13",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/14",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/15",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/16",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/17",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/18",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/19",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/20",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/21",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/22",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/23",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/24",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/25",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/26",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/27",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/28",
+            "ancestor": "#/tables/0",
+            "type": "table"
+          },
+          {
+            "block": "#/texts/29",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/30",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/31",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/32",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/33",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/34",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/35",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/36",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/37",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/38",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/39",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/40",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/41",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/42",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/43",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/44",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/45",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/46",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/47",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/48",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/49",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/50",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/51",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/52",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/53",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/54",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/55",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/56",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/57",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/58",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/59",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/60",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/61",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/62",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/63",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/64",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/65",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/66",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/67",
+            "ancestor": "#/pictures/0",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/75",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/76",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/77",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/78",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/79",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/80",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/81",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/82",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/83",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/84",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/85",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/86",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          },
+          {
+            "block": "#/texts/87",
+            "ancestor": "#/pictures/1",
+            "type": "figure"
+          }
+        ],
+        "hierarchy_available": true,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      }
+    }
+  },
+  "paddle": {
+    "completed_cases": 8,
+    "measured_conversion_seconds": 247.7494854999968,
+    "initialization_seconds": 71.87869350000256,
+    "cases": {
+      "business_definition": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": false,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "business_finance": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": false,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "soil_text_diagram": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": false,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "soil_photo": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": false,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "soil_formula": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": false,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "soil_inline_formula": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": false,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "holdout_columns": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": false,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      },
+      "holdout_table_figures": {
+        "duplicate_ids": 0,
+        "dangling_references": [],
+        "parent_cycles": [],
+        "unsupported_ancestor_relations": [],
+        "hierarchy_available": false,
+        "warning": "Valid references are not proof of correct semantic hierarchy or complete Units."
+      }
+    }
+  },
+  "preservation": {
+    "frozen_file_count": 39,
+    "changed_baseline_files": [],
+    "main_venv_packages_unchanged": true
+  }
+}

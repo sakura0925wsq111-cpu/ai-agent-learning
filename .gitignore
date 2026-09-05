@@ -51,6 +51,7 @@ pnpm-debug.log*
 logs/
 /data/sessions/
 /data/conversations.json
+/backend/data/study_uploads/
 
 # Temporary and editor files
 /tmp/
@@ -82,3 +83,5 @@ Desktop.ini
 /run-tunnel.ps1
 /start-tunnel.bat
 /cf_log.txt
+# Private derived lesson text from live knowledge evaluations.
+backend/evals/study_knowledge/*/

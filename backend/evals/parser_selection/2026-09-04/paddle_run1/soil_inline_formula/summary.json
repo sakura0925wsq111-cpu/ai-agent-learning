@@ -1,0 +1,23 @@
+{
+  "block_count": 4,
+  "type_counts": {
+    "heading": 1,
+    "paragraph": 1,
+    "formula": 1,
+    "caption": 1
+  },
+  "missing_provenance_ids": [],
+  "invalid_provenance_ids": [],
+  "blocks_with_parent": 0,
+  "container_count": 0,
+  "cross_page_block_count": 0,
+  "anchor_presence": {
+    "土的动强度与砂土的振动液化": true,
+    "土的动强度": true
+  },
+  "usable_unit_count": 0,
+  "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+  "case_id": "soil_inline_formula",
+  "status": "completed",
+  "seconds": 7.737390100002813
+}

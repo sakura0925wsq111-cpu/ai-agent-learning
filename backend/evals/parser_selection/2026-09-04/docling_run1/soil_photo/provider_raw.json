@@ -1,0 +1,198 @@
+{
+  "schema_name": "DoclingDocument",
+  "version": "1.10.0",
+  "name": "土质土力学2026st",
+  "origin": {
+    "mimetype": "application/pdf",
+    "binary_hash": 2942633575476473321,
+    "filename": "土质土力学2026st.pdf"
+  },
+  "furniture": {
+    "self_ref": "#/furniture",
+    "children": [],
+    "content_layer": "furniture",
+    "name": "_root_",
+    "label": "unspecified"
+  },
+  "body": {
+    "self_ref": "#/body",
+    "children": [
+      {
+        "$ref": "#/pictures/0"
+      },
+      {
+        "$ref": "#/texts/0"
+      },
+      {
+        "$ref": "#/texts/1"
+      },
+      {
+        "$ref": "#/pictures/1"
+      },
+      {
+        "$ref": "#/texts/2"
+      }
+    ],
+    "content_layer": "body",
+    "name": "_root_",
+    "label": "unspecified"
+  },
+  "groups": [],
+  "texts": [
+    {
+      "self_ref": "#/texts/0",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "section_header",
+      "prov": [
+        {
+          "page_no": 100,
+          "bbox": {
+            "l": 46.666666666666664,
+            "t": 209.94266666666664,
+            "r": 318.6666666666667,
+            "b": 108.94266666666664,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            27
+          ]
+        }
+      ],
+      "orig": "主动保护冻土方式： 遮阳棚 主动保护冻土方式： 遮阳棚",
+      "text": "主动保护冻土方式： 遮阳棚 主动保护冻土方式： 遮阳棚",
+      "level": 1
+    },
+    {
+      "self_ref": "#/texts/1",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "section_header",
+      "prov": [
+        {
+          "page_no": 100,
+          "bbox": {
+            "l": 517.0,
+            "t": 503.94266666666664,
+            "r": 791.3333333333333,
+            "b": 402.60933333333327,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            27
+          ]
+        }
+      ],
+      "orig": "主动保护冻土方式： 遮阳板 主动保护冻土方式： 遮阳板",
+      "text": "主动保护冻土方式： 遮阳板 主动保护冻土方式： 遮阳板",
+      "level": 1
+    },
+    {
+      "self_ref": "#/texts/2",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [],
+      "content_layer": "furniture",
+      "label": "page_footer",
+      "prov": [
+        {
+          "page_no": 100,
+          "bbox": {
+            "l": 54.0,
+            "t": 56.275999999999954,
+            "r": 118.0,
+            "b": 33.94266666666658,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            17
+          ]
+        }
+      ],
+      "orig": "2026-6-1 2026-6-1",
+      "text": "2026-6-1 2026-6-1"
+    }
+  ],
+  "pictures": [
+    {
+      "self_ref": "#/pictures/0",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "picture",
+      "prov": [
+        {
+          "page_no": 100,
+          "bbox": {
+            "l": 23.187205534774165,
+            "t": 595.276,
+            "r": 491.2751662417885,
+            "b": 305.87099815194557,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            0
+          ]
+        }
+      ],
+      "captions": [],
+      "references": [],
+      "footnotes": [],
+      "annotations": []
+    },
+    {
+      "self_ref": "#/pictures/1",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "picture",
+      "prov": [
+        {
+          "page_no": 100,
+          "bbox": {
+            "l": 336.8687965414813,
+            "t": 288.3050213317871,
+            "r": 816.0818486142555,
+            "b": 0.0,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            0
+          ]
+        }
+      ],
+      "captions": [],
+      "references": [],
+      "footnotes": [],
+      "annotations": []
+    }
+  ],
+  "tables": [],
+  "key_value_items": [],
+  "form_items": [],
+  "pages": {
+    "100": {
+      "size": {
+        "width": 841.89,
+        "height": 595.276
+      },
+      "page_no": 100
+    }
+  }
+}

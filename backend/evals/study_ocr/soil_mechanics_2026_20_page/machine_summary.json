@@ -1,0 +1,29 @@
+{
+  "selected_page_count": 20,
+  "successful_page_count": 19,
+  "error_page_count": 1,
+  "quality_status_counts": {
+    "partial": 16,
+    "rejected": 3
+  },
+  "block_decision_counts": {
+    "accepted": 74,
+    "rejected": 210
+  },
+  "quality_reason_counts": {
+    "context_fragment": 1,
+    "formula_context_dependency": 2,
+    "formula_detected": 10,
+    "formula_neighbor": 7,
+    "no_safe_text": 3,
+    "noise_detected": 17,
+    "ocr_low_confidence": 17,
+    "ocr_unstable": 18,
+    "unbalanced_delimiters": 5
+  },
+  "raw_character_count": 2072,
+  "safe_character_count": 792,
+  "safe_character_retention": 0.3822,
+  "total_elapsed_seconds": 251.86,
+  "manual_review_complete": false
+}

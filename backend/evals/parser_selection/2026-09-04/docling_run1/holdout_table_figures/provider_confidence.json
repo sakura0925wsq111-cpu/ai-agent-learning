@@ -1,0 +1,22 @@
+{
+  "parse_score": 1.0,
+  "layout_score": 0.9749687194824219,
+  "table_score": null,
+  "ocr_score": null,
+  "pages": {
+    "5": {
+      "parse_score": 1.0,
+      "layout_score": 0.9749687194824219,
+      "table_score": null,
+      "ocr_score": null,
+      "mean_grade": "excellent",
+      "low_grade": "excellent",
+      "mean_score": 0.987484359741211,
+      "low_score": 0.9762202835083008
+    }
+  },
+  "mean_grade": "excellent",
+  "low_grade": "excellent",
+  "mean_score": 0.987484359741211,
+  "low_score": 0.9762202835083008
+}

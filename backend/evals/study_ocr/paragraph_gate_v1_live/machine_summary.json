@@ -1,0 +1,26 @@
+{
+  "selected_page_count": 2,
+  "successful_page_count": 2,
+  "error_page_count": 0,
+  "quality_status_counts": {
+    "partial": 2
+  },
+  "block_decision_counts": {
+    "accepted": 6,
+    "rejected": 28
+  },
+  "quality_reason_counts": {
+    "formula_detected": 2,
+    "formula_neighbor": 2,
+    "noise_detected": 1,
+    "ocr_low_confidence": 2,
+    "ocr_missing_primary": 2,
+    "ocr_unstable": 2,
+    "paragraph_member_rejected": 2
+  },
+  "raw_character_count": 216,
+  "safe_character_count": 48,
+  "safe_character_retention": 0.2222,
+  "total_elapsed_seconds": 35.449,
+  "manual_review_complete": false
+}

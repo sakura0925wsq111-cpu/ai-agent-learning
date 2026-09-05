@@ -19,6 +19,7 @@ from app.api.v1.weather import router as weather_router_v1
 from app.api.v1.sandbox import router as sandbox_router
 from app.api.v1.todos import router as todos_router_v1
 from app.api.v1.today.router import router as today_router_v1
+from app.api.v1.study import router as study_router_v1
 from core.config import settings
 from core.exceptions import (
     AppException,
@@ -102,6 +103,7 @@ app.include_router(weather_router_v1, prefix="/api/v1")
 app.include_router(todos_router_v1, prefix="/api/v1")
 app.include_router(today_router_v1, prefix="/api/v1/today")
 app.include_router(sandbox_router, prefix="/api/v1/sandbox")
+app.include_router(study_router_v1, prefix="/api/v1")
 
 
 @app.get("/", response_model=APIResponse[dict], tags=["system"])

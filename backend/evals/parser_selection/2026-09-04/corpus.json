@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "registered_before_candidate_inference": true,
+  "reference_method": "Assistant visual inspection of source regions; preliminary engineering references, not independent expert gold labels",
+  "sources": {
+    "business": {"filename": "企业战略管理分章重点【21页】.pdf", "sha256": "dca3544fa8d5e5d163d1e7e53073e5ad3905f795adf05b7f5b9bcf8928e7e6f0", "split": "development", "page_count": 21},
+    "soil": {"filename": "土质土力学2026st.pdf", "sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9", "split": "development", "page_count": 429},
+    "public_paper": {"filename": "docling_2501.17887v1.pdf", "sha256": "f555f6260be1de6cd8f75addca4edc3c4456b2d5f3bf01a115942cb81396208a", "page_count": 8, "split": "engineering_holdout", "url": "https://arxiv.org/pdf/2501.17887v1", "license": "CC BY 4.0", "title": "Docling: An Efficient Open-Source Toolkit for AI-driven Document Conversion", "authors": "Nikolaos Livathinos et al.", "limitations": "New to this project's tuning only. Provider-authored English document may favour Docling and may be in model training; cannot substitute for independent Chinese customer holdout."}
+  },
+  "cases": [
+    {"id": "business_definition", "source": "business", "pages": [10,11], "category": "native_notes_cross_page", "anchors": ["整合营销", "网络营销", "市场战略决策的内容"], "checks": ["headings and list items have explicit types", "complete integration-marketing definition must have provenance on both pages or remain incomplete", "do not call page 11 opening a standalone paragraph"]},
+    {"id": "business_finance", "source": "business", "pages": [18,19], "category": "native_list_cross_page", "anchors": ["长期负债与权益", "资本之间的比例关系要合理"], "checks": ["parent/list relationship retained", "cross-page unmatched brackets not presented as a complete single-page unit"]},
+    {"id": "soil_text_diagram", "source": "soil", "pages": [20], "category": "scanned_chinese_diagram", "anchors": ["土的三相组成", "土中颗粒的大小", "固相（土颗粒）"], "checks": ["paragraph and illustration labels are not flattened into one sentence", "transcription errors recorded without correction"]},
+    {"id": "soil_photo", "source": "soil", "pages": [100], "category": "scanned_photo_text", "anchors": ["主动保护冻土方式", "遮阳板", "遮阳棚"], "checks": ["photo regions distinct from text", "date/footer not body knowledge"]},
+    {"id": "soil_formula", "source": "soil", "pages": [160], "category": "scanned_formula", "anchors": ["基底附加压力计算"], "checks": ["formula regions not labelled as standalone usable prose", "wrapped formula-dependent explanation remains structurally linked"], "unsupported_regions": [{"page": 160, "type": "formula", "bbox": [0.10,0.64,0.39,0.76]}, {"page": 160, "type": "formula", "bbox": [0.53,0.80,0.86,0.96]}]},
+    {"id": "soil_inline_formula", "source": "soil", "pages": [400], "category": "scanned_inline_formula", "anchors": ["土的动强度与砂土的振动液化", "土的动强度"], "checks": ["inline formula/prose region is not asserted safe based only on text label", "wrapped diagram label is retained together or unknown"]},
+    {"id": "holdout_columns", "source": "public_paper", "pages": [3], "category": "native_two_column", "anchors": ["Parser Backends", "Pipelines"], "checks": ["left column read before right column continuation", "headings and numbered list separate and sourced"]},
+    {"id": "holdout_table_figures", "source": "public_paper", "pages": [5], "category": "native_table_figures", "anchors": ["Table 1", "Benchmarking Methodology"], "checks": ["at least one table and one figure block with coordinates", "table and chart labels not mixed into ordinary body paragraphs"]}
+  ]
+}

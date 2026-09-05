@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-03T15:13:52.850468+00:00",
+  "source": {
+    "filename": "土质土力学2026st.pdf",
+    "sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9",
+    "size_bytes": 162131977,
+    "page_count": 429
+  },
+  "selected_pages": [
+    1,
+    20,
+    40,
+    60,
+    80,
+    100,
+    120,
+    140,
+    160,
+    180,
+    200,
+    215,
+    240,
+    260,
+    280,
+    300,
+    320,
+    360,
+    400,
+    429
+  ],
+  "selection_method": "fixed stratified coverage across the full document",
+  "pipeline": {
+    "pymupdf": "1.28.2",
+    "paddleocr": "3.7.0",
+    "paddlepaddle": "3.3.1",
+    "primary_dpi": 200,
+    "verification_dpi": 240,
+    "minimum_confidence": 0.95,
+    "device": "cpu",
+    "detection_model": "PP-OCRv5_mobile_det",
+    "recognition_model": "PP-OCRv5_mobile_rec",
+    "llm_used": false
+  },
+  "code": {
+    "git_head": "1d5936b97fcfb4e25d600dd4e41aa4d50479f20d",
+    "note": "Study OCR changes may be uncommitted; preserve this dataset with its code diff."
+  }
+}

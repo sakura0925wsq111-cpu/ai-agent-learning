@@ -1,0 +1,93 @@
+{
+  "blocks": [
+    {
+      "id": "#/texts/0",
+      "type": "heading",
+      "provider_label": "section_header",
+      "text": "基底附加压力计算",
+      "raw_text": "基底附加压力计算",
+      "reading_order": 0,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 160,
+          "bbox": [
+            0.08410416139076154,
+            0.08547907771894225,
+            0.391824934927539,
+            0.1566511352955482
+          ],
+          "character_span": [
+            0,
+            8
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/pictures/0",
+      "type": "figure",
+      "provider_label": "picture",
+      "text": "",
+      "raw_text": "",
+      "reading_order": 1,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/1",
+        "#/texts/2",
+        "#/texts/3",
+        "#/texts/4",
+        "#/texts/5",
+        "#/texts/6",
+        "#/texts/7"
+      ],
+      "source_spans": [
+        {
+          "page_number": 160,
+          "bbox": [
+            0.06730127221331744,
+            0.10023048580092865,
+            0.8849756236314208,
+            0.95431344461121
+          ],
+          "character_span": [
+            0,
+            0
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [
+    {
+      "id": "#/body",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": [
+        "#/texts/0",
+        "#/pictures/0"
+      ]
+    },
+    {
+      "id": "#/furniture",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": []
+    }
+  ],
+  "provider_status": "ConversionStatus.SUCCESS",
+  "missing_features": [
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "soil_formula",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9"
+}

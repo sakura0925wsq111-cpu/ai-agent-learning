@@ -1,0 +1,24 @@
+{
+  "block_count": 5,
+  "type_counts": {
+    "heading": 1,
+    "paragraph": 1,
+    "figure": 2,
+    "furniture": 1
+  },
+  "missing_provenance_ids": [],
+  "invalid_provenance_ids": [],
+  "blocks_with_parent": 0,
+  "container_count": 0,
+  "cross_page_block_count": 0,
+  "anchor_presence": {
+    "主动保护冻土方式": true,
+    "遮阳板": true,
+    "遮阳棚": true
+  },
+  "usable_unit_count": 0,
+  "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+  "case_id": "soil_photo",
+  "status": "completed",
+  "seconds": 6.267472999999882
+}

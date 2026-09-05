@@ -1,0 +1,463 @@
+[
+  {
+    "original_page_number": 100,
+    "result": {
+      "input_path": null,
+      "page_index": null,
+      "page_count": null,
+      "width": 2339,
+      "height": 1654,
+      "model_settings": {
+        "use_doc_preprocessor": true,
+        "use_seal_recognition": false,
+        "use_table_recognition": false,
+        "use_formula_recognition": false,
+        "use_chart_recognition": false,
+        "use_region_detection": false,
+        "format_block_content": false,
+        "markdown_ignore_labels": [
+          "number",
+          "footnote",
+          "header",
+          "header_image",
+          "footer",
+          "footer_image",
+          "aside_text"
+        ]
+      },
+      "parsing_res_list": [
+        {
+          "block_label": "doc_title",
+          "block_content": "主动保护冻土方式: 遮阳板\n",
+          "block_bbox": [
+            1458,
+            266,
+            2178,
+            515
+          ],
+          "block_id": 0,
+          "block_order": 1
+        },
+        {
+          "block_label": "text",
+          "block_content": "主动保护冻土方式:遮阳棚\n",
+          "block_bbox": [
+            144,
+            1082,
+            868,
+            1333
+          ],
+          "block_id": 1,
+          "block_order": 2
+        },
+        {
+          "block_label": "image",
+          "block_content": "",
+          "block_bbox": [
+            67,
+            0,
+            1353,
+            799
+          ],
+          "block_id": 2,
+          "block_order": null
+        },
+        {
+          "block_label": "image",
+          "block_content": "Lm \n",
+          "block_bbox": [
+            940,
+            853,
+            2267,
+            1653
+          ],
+          "block_id": 3,
+          "block_order": null
+        },
+        {
+          "block_label": "footer",
+          "block_content": "2026-6-1",
+          "block_bbox": [
+            156,
+            1506,
+            314,
+            1545
+          ],
+          "block_id": 4,
+          "block_order": null
+        }
+      ],
+      "doc_preprocessor_res": {
+        "input_path": null,
+        "page_index": null,
+        "model_settings": {
+          "use_doc_orientation_classify": false,
+          "use_doc_unwarping": false
+        },
+        "angle": -1
+      },
+      "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+          {
+            "cls_id": 1,
+            "label": "image",
+            "score": 0.9120449423789978,
+            "coordinate": [
+              67.83056640625,
+              0,
+              1353.15234375,
+              799.8088989257812
+            ]
+          },
+          {
+            "cls_id": 1,
+            "label": "image",
+            "score": 0.9051966071128845,
+            "coordinate": [
+              940.2410278320312,
+              853.3819580078125,
+              2267.949462890625,
+              1653.3555908203125
+            ]
+          },
+          {
+            "cls_id": 14,
+            "label": "footer",
+            "score": 0.5515705347061157,
+            "coordinate": [
+              156.08425903320312,
+              1506.584228515625,
+              314.5290222167969,
+              1545.430908203125
+            ]
+          },
+          {
+            "cls_id": 10,
+            "label": "doc_title",
+            "score": 0.5277597904205322,
+            "coordinate": [
+              1458.433349609375,
+              266.63446044921875,
+              2178.340576171875,
+              515.6880493164062
+            ]
+          },
+          {
+            "cls_id": 2,
+            "label": "text",
+            "score": 0.4613361358642578,
+            "coordinate": [
+              144.43606567382812,
+              1082.756103515625,
+              868.16748046875,
+              1333.1708984375
+            ]
+          }
+        ]
+      },
+      "overall_ocr_res": {
+        "input_path": null,
+        "page_index": null,
+        "model_settings": {
+          "use_doc_preprocessor": false,
+          "use_textline_orientation": false
+        },
+        "dt_polys": [
+          [
+            [
+              1448,
+              261
+            ],
+            [
+              2182,
+              261
+            ],
+            [
+              2182,
+              374
+            ],
+            [
+              1448,
+              374
+            ]
+          ],
+          [
+            [
+              1620,
+              417
+            ],
+            [
+              1897,
+              422
+            ],
+            [
+              1895,
+              527
+            ],
+            [
+              1619,
+              522
+            ]
+          ],
+          [
+            [
+              139,
+              1079
+            ],
+            [
+              870,
+              1079
+            ],
+            [
+              870,
+              1189
+            ],
+            [
+              139,
+              1189
+            ]
+          ],
+          [
+            [
+              1668,
+              1092
+            ],
+            [
+              1711,
+              1087
+            ],
+            [
+              1715,
+              1110
+            ],
+            [
+              1671,
+              1116
+            ]
+          ],
+          [
+            [
+              309,
+              1233
+            ],
+            [
+              586,
+              1236
+            ],
+            [
+              585,
+              1345
+            ],
+            [
+              308,
+              1343
+            ]
+          ],
+          [
+            [
+              154,
+              1503
+            ],
+            [
+              318,
+              1503
+            ],
+            [
+              318,
+              1552
+            ],
+            [
+              154,
+              1552
+            ]
+          ]
+        ],
+        "text_det_params": {
+          "limit_side_len": 736,
+          "limit_type": "min",
+          "thresh": 0.3,
+          "max_side_limit": 4000,
+          "box_thresh": 0.6,
+          "unclip_ratio": 1.5
+        },
+        "text_type": "general",
+        "textline_orientation_angles": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        "text_rec_score_thresh": 0.0,
+        "return_word_box": false,
+        "rec_texts": [
+          "主动保护冻土方式:",
+          "遮阳板",
+          "主动保护冻土方式:",
+          "Lm",
+          "遮阳棚",
+          "2026-6-1"
+        ],
+        "rec_scores": [
+          0.9665192365646362,
+          0.9998381733894348,
+          0.9745056629180908,
+          0.1961083710193634,
+          0.9999127388000488,
+          0.9987529516220093
+        ],
+        "rec_polys": [
+          [
+            [
+              1448,
+              261
+            ],
+            [
+              2182,
+              261
+            ],
+            [
+              2182,
+              374
+            ],
+            [
+              1448,
+              374
+            ]
+          ],
+          [
+            [
+              1620,
+              417
+            ],
+            [
+              1897,
+              422
+            ],
+            [
+              1895,
+              527
+            ],
+            [
+              1619,
+              522
+            ]
+          ],
+          [
+            [
+              139,
+              1079
+            ],
+            [
+              870,
+              1079
+            ],
+            [
+              870,
+              1189
+            ],
+            [
+              139,
+              1189
+            ]
+          ],
+          [
+            [
+              1668,
+              1092
+            ],
+            [
+              1711,
+              1087
+            ],
+            [
+              1715,
+              1110
+            ],
+            [
+              1671,
+              1116
+            ]
+          ],
+          [
+            [
+              309,
+              1233
+            ],
+            [
+              586,
+              1236
+            ],
+            [
+              585,
+              1345
+            ],
+            [
+              308,
+              1343
+            ]
+          ],
+          [
+            [
+              154,
+              1503
+            ],
+            [
+              318,
+              1503
+            ],
+            [
+              318,
+              1552
+            ],
+            [
+              154,
+              1552
+            ]
+          ]
+        ],
+        "rec_boxes": [
+          [
+            1448,
+            261,
+            2182,
+            374
+          ],
+          [
+            1619,
+            417,
+            1897,
+            527
+          ],
+          [
+            139,
+            1079,
+            870,
+            1189
+          ],
+          [
+            1668,
+            1087,
+            1715,
+            1116
+          ],
+          [
+            308,
+            1233,
+            586,
+            1345
+          ],
+          [
+            154,
+            1503,
+            318,
+            1552
+          ]
+        ]
+      }
+    }
+  }
+]

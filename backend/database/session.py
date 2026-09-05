@@ -130,6 +130,49 @@ def init_db() -> None:
                 conn.commit()
                 logger.info("Migration complete for column: semester_start")
 
+    # ── Study OCR metadata migrations ──
+    if "study_document_units" in inspector.get_table_names():
+        existing_cols = {
+            c["name"] for c in inspector.get_columns("study_document_units")
+        }
+        study_unit_migrations = {
+            "extraction_method": (
+                "ALTER TABLE study_document_units ADD COLUMN "
+                "extraction_method VARCHAR(20) NOT NULL DEFAULT 'native'"
+            ),
+            "ocr_confidence": (
+                "ALTER TABLE study_document_units ADD COLUMN ocr_confidence FLOAT"
+            ),
+            "ocr_blocks": (
+                "ALTER TABLE study_document_units ADD COLUMN "
+                "ocr_blocks JSON NOT NULL DEFAULT '[]'"
+            ),
+            "safe_text": (
+                "ALTER TABLE study_document_units ADD COLUMN "
+                "safe_text TEXT NOT NULL DEFAULT ''"
+            ),
+            "quality_status": (
+                "ALTER TABLE study_document_units ADD COLUMN "
+                "quality_status VARCHAR(20) NOT NULL DEFAULT 'accepted'"
+            ),
+            "quality_reasons": (
+                "ALTER TABLE study_document_units ADD COLUMN "
+                "quality_reasons JSON NOT NULL DEFAULT '[]'"
+            ),
+        }
+        with engine.connect() as conn:
+            for col_name, sql in study_unit_migrations.items():
+                if col_name not in existing_cols:
+                    logger.info("Running migration: {}", sql)
+                    conn.execute(text(sql))
+                    conn.commit()
+                    logger.info("Migration complete for column: {}", col_name)
+            conn.execute(text(
+                "UPDATE study_document_units SET safe_text = normalized_text "
+                "WHERE extraction_method = 'native' AND safe_text = ''"
+            ))
+            conn.commit()
+
     # ── Growth → Today bridge indexes ──
     # New databases receive this constraint from SQLAlchemy metadata.  Existing
     # SQLite databases need an explicit index because create_all never mutates

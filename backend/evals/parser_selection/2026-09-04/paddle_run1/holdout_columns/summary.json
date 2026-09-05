@@ -1,0 +1,21 @@
+{
+  "block_count": 19,
+  "type_counts": {
+    "paragraph": 16,
+    "heading": 3
+  },
+  "missing_provenance_ids": [],
+  "invalid_provenance_ids": [],
+  "blocks_with_parent": 0,
+  "container_count": 0,
+  "cross_page_block_count": 0,
+  "anchor_presence": {
+    "Parser Backends": true,
+    "Pipelines": true
+  },
+  "usable_unit_count": 0,
+  "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+  "case_id": "holdout_columns",
+  "status": "completed",
+  "seconds": 53.696605299999646
+}

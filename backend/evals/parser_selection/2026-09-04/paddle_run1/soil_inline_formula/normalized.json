@@ -1,0 +1,110 @@
+{
+  "blocks": [
+    {
+      "id": "p400:b0",
+      "type": "heading",
+      "provider_label": "paragraph_title",
+      "text": "10.1土的动强度与砂土的振动液化",
+      "reading_order": 1,
+      "provider_sequence": 0,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 400,
+          "bbox": [
+            0.03890551517742625,
+            0.015114873035066506,
+            0.42112013681060284,
+            0.04897218863361548
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p400:b1",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "动强度曲线：试件45°面上的动剪应力d（即动应力幅do的一半)或动应力比do/2 ₃与破坏振次Nf间的曲线\n",
+      "reading_order": 2,
+      "provider_sequence": 1,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 400,
+          "bbox": [
+            0.12270200940572894,
+            0.09492140266021766,
+            0.8601966652415562,
+            0.1825876662636034
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p400:b2",
+      "type": "formula",
+      "provider_label": "formula",
+      "text": "K=3",
+      "reading_order": 3,
+      "provider_sequence": 2,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 400,
+          "bbox": [
+            0.5690466011115861,
+            0.4873035066505441,
+            0.6207781103035486,
+            0.524788391777509
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p400:b3",
+      "type": "caption",
+      "provider_label": "figure_title",
+      "text": "土的动强度",
+      "reading_order": null,
+      "provider_sequence": 3,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 400,
+          "bbox": [
+            0.4108593415989739,
+            0.8688029020556227,
+            0.6729371526293287,
+            0.941354292623942
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [],
+  "provider_status": "completed",
+  "missing_features": [
+    "explicit_hierarchy",
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "soil_inline_formula",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9"
+}

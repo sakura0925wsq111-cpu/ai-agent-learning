@@ -1,0 +1,134 @@
+{
+  "blocks": [
+    {
+      "id": "p160:b0",
+      "type": "heading",
+      "provider_label": "doc_title",
+      "text": "基底附加压力计算",
+      "reading_order": 1,
+      "provider_sequence": 0,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 160,
+          "bbox": [
+            0.0880718255664814,
+            0.0912938331318017,
+            0.3847798204360838,
+            0.14691656590084642
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p160:b1",
+      "type": "formula",
+      "provider_label": "formula",
+      "text": "P-Q \nP0 == p − γ0D \nA \n\n",
+      "reading_order": 2,
+      "provider_sequence": 1,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 160,
+          "bbox": [
+            0.11030354852501069,
+            0.6444981862152358,
+            0.3834972210346302,
+            0.7424425634824667
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p160:b2",
+      "type": "formula",
+      "provider_label": "formula",
+      "text": "压力p0max, P0min为",
+      "reading_order": 3,
+      "provider_sequence": 2,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 160,
+          "bbox": [
+            0.15647712697734073,
+            0.8373639661426844,
+            0.28858486532706284,
+            0.8760580411124547
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p160:b3",
+      "type": "formula",
+      "provider_label": "formula",
+      "text": "Q = YoAD ",
+      "reading_order": 4,
+      "provider_sequence": 3,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 160,
+          "bbox": [
+            0.7960666951688756,
+            0.31499395405078595,
+            0.8781530568619068,
+            0.35066505441354295
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p160:b4",
+      "type": "formula",
+      "provider_label": "formula",
+      "text": "Po max P max \n−Yod \nPomin P min \n",
+      "reading_order": 5,
+      "provider_sequence": 4,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 160,
+          "bbox": [
+            0.5292860196665241,
+            0.8137847642079806,
+            0.8490808037622916,
+            0.9474002418379686
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [],
+  "provider_status": "completed",
+  "missing_features": [
+    "explicit_hierarchy",
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "soil_formula",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9"
+}

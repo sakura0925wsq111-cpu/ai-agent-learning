@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-04T09:47:31.932549+00:00",
+  "source": {
+    "filename": "企业战略管理分章重点【21页】.pdf",
+    "sha256": "dca3544fa8d5e5d163d1e7e53073e5ad3905f795adf05b7f5b9bcf8928e7e6f0",
+    "size_bytes": 1056437,
+    "page_count": 21
+  },
+  "selected_pages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21
+  ],
+  "selection_method": "explicit fixed page list",
+  "pipeline": {
+    "pymupdf": "1.28.2",
+    "paddleocr": "3.7.0",
+    "paddlepaddle": "3.3.1",
+    "primary_dpi": 200,
+    "verification_dpi": 240,
+    "minimum_confidence": 0.95,
+    "device": "cpu",
+    "detection_model": "PP-OCRv5_mobile_det",
+    "recognition_model": "PP-OCRv5_mobile_rec",
+    "llm_used": false,
+    "paragraph_gate_version": "paragraph-v1"
+  },
+  "code": {
+    "git_head": "1d5936b97fcfb4e25d600dd4e41aa4d50479f20d",
+    "note": "Study OCR changes may be uncommitted; preserve this dataset with its code diff.",
+    "source_sha256": {
+      "study_parser.py": "ec2ee03ccb1948a6c78c38e8ce786df6787bbbcf04ec91a82becc5ce9ead9944",
+      "study_ocr.py": "82b880ab3a09eb41c2e2c72e4bfd509552c49845b34ffb1fcf3eb3ff19afed64",
+      "study_extraction_quality.py": "5775a8288146343159cdd7504feb51a9953b1860477ec51f6a8ab3cfaccdf625",
+      "study_paragraphs.py": "041e3e46240c917abe9a7ab24508f1e11a53db59066131e03a390854500c27a7"
+    }
+  }
+}

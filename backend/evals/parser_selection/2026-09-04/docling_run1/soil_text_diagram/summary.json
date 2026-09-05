@@ -1,0 +1,23 @@
+{
+  "block_count": 3,
+  "type_counts": {
+    "heading": 1,
+    "figure": 1,
+    "paragraph": 1
+  },
+  "missing_provenance_ids": [],
+  "invalid_provenance_ids": [],
+  "blocks_with_parent": 3,
+  "container_count": 2,
+  "cross_page_block_count": 0,
+  "anchor_presence": {
+    "土的三相组成": true,
+    "土中颗粒的大小": true,
+    "固相（土颗粒）": false
+  },
+  "usable_unit_count": 0,
+  "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+  "case_id": "soil_text_diagram",
+  "status": "completed",
+  "seconds": 6.078168000000005
+}

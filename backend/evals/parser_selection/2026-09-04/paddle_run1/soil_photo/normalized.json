@@ -1,0 +1,134 @@
+{
+  "blocks": [
+    {
+      "id": "p100:b0",
+      "type": "heading",
+      "provider_label": "doc_title",
+      "text": "主动保护冻土方式: 遮阳板\n",
+      "reading_order": 1,
+      "provider_sequence": 0,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.6233433091064557,
+            0.1608222490931076,
+            0.9311671654553227,
+            0.31136638452237003
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p100:b1",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "主动保护冻土方式:遮阳棚\n",
+      "reading_order": 2,
+      "provider_sequence": 1,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.06156477126977341,
+            0.6541717049576784,
+            0.3710987601539119,
+            0.805925030229746
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p100:b2",
+      "type": "figure",
+      "provider_label": "image",
+      "text": "",
+      "reading_order": null,
+      "provider_sequence": 2,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.02864471996579735,
+            0.0,
+            0.5784523300555793,
+            0.4830713422007255
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p100:b3",
+      "type": "figure",
+      "provider_label": "image",
+      "text": "Lm \n",
+      "reading_order": null,
+      "provider_sequence": 3,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.40188114578879863,
+            0.5157194679564692,
+            0.9692176143651133,
+            0.9993954050785974
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p100:b4",
+      "type": "furniture",
+      "provider_label": "footer",
+      "text": "2026-6-1",
+      "reading_order": null,
+      "provider_sequence": 4,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.06669516887558785,
+            0.9105199516324063,
+            0.13424540401881147,
+            0.93409915356711
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [],
+  "provider_status": "completed",
+  "missing_features": [
+    "explicit_hierarchy",
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "soil_photo",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9"
+}

@@ -1,0 +1,364 @@
+{
+  "schema_name": "DoclingDocument",
+  "version": "1.10.0",
+  "name": "土质土力学2026st",
+  "origin": {
+    "mimetype": "application/pdf",
+    "binary_hash": 2942633575476473321,
+    "filename": "土质土力学2026st.pdf"
+  },
+  "furniture": {
+    "self_ref": "#/furniture",
+    "children": [],
+    "content_layer": "furniture",
+    "name": "_root_",
+    "label": "unspecified"
+  },
+  "body": {
+    "self_ref": "#/body",
+    "children": [
+      {
+        "$ref": "#/texts/0"
+      },
+      {
+        "$ref": "#/groups/0"
+      },
+      {
+        "$ref": "#/pictures/0"
+      },
+      {
+        "$ref": "#/texts/8"
+      }
+    ],
+    "content_layer": "body",
+    "name": "_root_",
+    "label": "unspecified"
+  },
+  "groups": [
+    {
+      "self_ref": "#/groups/0",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [
+        {
+          "$ref": "#/texts/1"
+        }
+      ],
+      "content_layer": "body",
+      "name": "list",
+      "label": "list"
+    }
+  ],
+  "texts": [
+    {
+      "self_ref": "#/texts/0",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "section_header",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 34.666666666666664,
+            "t": 587.6093333333333,
+            "r": 356.6666666666667,
+            "b": 560.9426666666666,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            19
+          ]
+        }
+      ],
+      "orig": "§10.1 土的动强度与砂土的振动液化",
+      "text": "§10.1 土的动强度与砂土的振动液化",
+      "level": 1
+    },
+    {
+      "self_ref": "#/texts/1",
+      "parent": {
+        "$ref": "#/groups/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "list_item",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 150.33333333333334,
+            "t": 538.6093333333333,
+            "r": 726.0,
+            "b": 482.9426666666666,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            56
+          ]
+        }
+      ],
+      "orig": "动强度曲线：试件45°面上的动剪应力 （即动应力幅 do的一半） 或动应力比 do/2 3与破坏振次Nf间的曲线",
+      "text": "动强度曲线：试件45°面上的动剪应力 （即动应力幅 do的一半） 或动应力比 do/2 3与破坏振次Nf间的曲线",
+      "enumerated": false,
+      "marker": ""
+    },
+    {
+      "self_ref": "#/texts/2",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 161.0,
+            "t": 314.94266666666664,
+            "r": 186.66666666666666,
+            "b": 230.27599999999995,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            4
+          ]
+        }
+      ],
+      "orig": "动剪应力",
+      "text": "动剪应力"
+    },
+    {
+      "self_ref": "#/texts/3",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 478.0,
+            "t": 305.60933333333327,
+            "r": 525.3333333333333,
+            "b": 280.60933333333327,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            4
+          ]
+        }
+      ],
+      "orig": "Kc=3",
+      "text": "Kc=3"
+    },
+    {
+      "self_ref": "#/texts/4",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 478.0,
+            "t": 249.94266666666658,
+            "r": 526.3333333333333,
+            "b": 223.94266666666658,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            4
+          ]
+        }
+      ],
+      "orig": "Kc=2",
+      "text": "Kc=2"
+    },
+    {
+      "self_ref": "#/texts/5",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 623.3333333333333,
+            "t": 192.60933333333332,
+            "r": 688.3333333333334,
+            "b": 167.27599999999995,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            3
+          ]
+        }
+      ],
+      "orig": "破坏振",
+      "text": "破坏振"
+    },
+    {
+      "self_ref": "#/texts/6",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 483.0,
+            "t": 187.94266666666658,
+            "r": 529.3333333333333,
+            "b": 161.94266666666658,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            4
+          ]
+        }
+      ],
+      "orig": "Kc=1",
+      "text": "Kc=1"
+    },
+    {
+      "self_ref": "#/texts/7",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 623.0,
+            "t": 169.94266666666658,
+            "r": 693.3333333333334,
+            "b": 139.60933333333332,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            6
+          ]
+        }
+      ],
+      "orig": "次 1gNf",
+      "text": "次 1gNf"
+    },
+    {
+      "self_ref": "#/texts/8",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "section_header",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 340.0,
+            "t": 84.27599999999995,
+            "r": 576.6666666666666,
+            "b": 23.609333333333325,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            5
+          ]
+        }
+      ],
+      "orig": "土的动强度",
+      "text": "土的动强度",
+      "level": 1
+    }
+  ],
+  "pictures": [
+    {
+      "self_ref": "#/pictures/0",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [
+        {
+          "$ref": "#/texts/2"
+        },
+        {
+          "$ref": "#/texts/3"
+        },
+        {
+          "$ref": "#/texts/4"
+        },
+        {
+          "$ref": "#/texts/5"
+        },
+        {
+          "$ref": "#/texts/6"
+        },
+        {
+          "$ref": "#/texts/7"
+        }
+      ],
+      "content_layer": "body",
+      "label": "picture",
+      "prov": [
+        {
+          "page_no": 400,
+          "bbox": {
+            "l": 164.39696192852392,
+            "t": 383.4046128993706,
+            "r": 693.4196528041957,
+            "b": 141.13227348440284,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            0
+          ]
+        }
+      ],
+      "captions": [],
+      "references": [],
+      "footnotes": [],
+      "annotations": []
+    }
+  ],
+  "tables": [],
+  "key_value_items": [],
+  "form_items": [],
+  "pages": {
+    "400": {
+      "size": {
+        "width": 841.89,
+        "height": 595.276
+      },
+      "page_no": 400
+    }
+  }
+}

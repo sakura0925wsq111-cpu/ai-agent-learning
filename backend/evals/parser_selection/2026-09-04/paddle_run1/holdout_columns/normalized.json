@@ -1,0 +1,470 @@
+{
+  "blocks": [
+    {
+      "id": "p3:b0",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "With this data model, Docling enables representing document content in a unified manner, i.e., regardless of the source document format.\n",
+      "reading_order": 1,
+      "provider_sequence": 0,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08352941176470588,
+            0.07,
+            0.47705882352941176,
+            0.10909090909090909
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b1",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Besides specifying the data model,the DoclingDocument class defines APIs encompassing document construction, inspection, and export. Using the respective methods, users can incrementally build a DoclingDocument, traverse its contents in reading order, or export to commonly used formats. Docling supports lossless serialization to (and deserialization from)JSON, and lossy export formats such as Markdown and HTML, which, unlike JSON, cannot retain all available meta information.\n",
+      "reading_order": 2,
+      "provider_sequence": 1,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08294117647058824,
+            0.11272727272727273,
+            0.47705882352941176,
+            0.24863636363636363
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b2",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "A DoclingDocument can additionally be passed to a chunker class, an abstraction that returns a stream of chunks,each of which captures some part of the document as a string accompanied by respective metadata. To enable both flexibility for downstream applications and out-of-the-box utility, Docling defines a chunker class hierarchy, providing a base type as well as specific subclasses. By using the base chunker type, downstream applications can leverage popular frameworks like LangChain or LlamaIndex, which provide a high degree of flexibility in the chunking approach. Users can therefore plug in any built-in, self-defined, or third-party chunker implementation.\n",
+      "reading_order": 3,
+      "provider_sequence": 2,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08294117647058824,
+            0.25227272727272726,
+            0.47705882352941176,
+            0.4159090909090909
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b3",
+      "type": "heading",
+      "provider_label": "paragraph_title",
+      "text": "3.2 Parser Backends ",
+      "reading_order": 4,
+      "provider_sequence": 3,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08411764705882353,
+            0.4340909090909091,
+            0.25588235294117645,
+            0.44545454545454544
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b4",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Document formats can be broadly categorized into two types:",
+      "reading_order": 5,
+      "provider_sequence": 4,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08352941176470588,
+            0.45590909090909093,
+            0.47705882352941176,
+            0.4822727272727273
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b5",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "1. Low-level formats, like PDF fi les or scanned images.These formats primarily encode the visual representation of the document, containing instructions for rendering text cells and lines or defi ning image pixels. Most semantics of the represented content are typically lost and need to be recovered through specialized AI methods, such as OCR, layout analysis, or table structure recognition.",
+      "reading_order": 6,
+      "provider_sequence": 5,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08647058823529412,
+            0.4904545454545455,
+            0.47705882352941176,
+            0.5863636363636363
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b6",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "2.Markup-based formats, including MS Office, HTML,Markdown, and others. These formats preserve the semantics of the content (e.g., sections, lists, tables, and figures) and are comparatively inexpensive to parse.",
+      "reading_order": 7,
+      "provider_sequence": 6,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08529411764705883,
+            0.5931818181818181,
+            0.47705882352941176,
+            0.6477272727272727
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b7",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Docling implements several parser backends to read and interpret different formats and it routes their output to a fi tting processing pipeline. For PDFs Docling provides backends which: a) retrieve all text content and their geometric properties, b) render the visual representation of each page as it would appear in a PDF viewer. For markup-based formats, the respective backends carry the responsibility of creating a Doc l ingDocume nt representation directly. For some formats, such as PowerPoint slides, element locations and page provenance are available, whereas in other formats (for example, MS Word or HTML), this information is unknown unless rendered in a Word viewer or a browser. The DoclingDocument data model handles both cases.",
+      "reading_order": 8,
+      "provider_sequence": 7,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08294117647058824,
+            0.6563636363636364,
+            0.47705882352941176,
+            0.8345454545454546
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b8",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "PDF Backends While several open-source PDF parsing Python libraries are available, in practice we ran into various limitations, among which are restrictive licensing (e.g.,",
+      "reading_order": 9,
+      "provider_sequence": 8,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.08294117647058824,
+            0.8472727272727273,
+            0.47705882352941176,
+            0.8877272727272727
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b9",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "pymupdf (pym 2024)), poor speed, or unrecoverable quality issues, such as merged text cells across far-apart text tokens or table columns (pypdfium, PyPDF) (PyPDFium Team 2024; pypdf Maintainers 2024).\n",
+      "reading_order": 10,
+      "provider_sequence": 9,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5164705882352941,
+            0.06954545454545455,
+            0.9105882352941177,
+            0.12318181818181818
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b10",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "We therefore developed a custom-built PDF parser, which is based on the low-level library qpdf (Berkenbilt 2024). Our PDF parser is made available in a separate package named docling-parse and acts as the default PDF backend in Docling. As an alternative, we provide a PDF backend relying on pypdfium (PyPDFium Team 2024).\n",
+      "reading_order": 11,
+      "provider_sequence": 10,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5164705882352941,
+            0.125,
+            0.9105882352941177,
+            0.20681818181818182
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b11",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Other Backends Markup-based formats like HTML,Markdown, or Microsoft Office (Word, PowerPoint, Excel) as well as plain formats like AsciiDoc can be transformed directly to a DoclingDocument representation with the help of several third-party format parsing libraries.For HTML documents we utilize BeautifulSoup (Richardson 2004–2024), for Markdown we use the Marko library (Ming 2019–2024), and for Office XML-based formats (Word, PowerPoint, Excel) we implement custom extensions on top of the python-docx (Canny and contributors 2013–2024a), python-pptx (Canny and contributors 2013–2024b), and openpyxl (Eric Gazoni 2010–2024) libraries, respectively. During parsing, we identify and extract common document elements (e.g., title, headings, paragraphs, tables,lists, fi gures, and code) and reflect the correct hierarchy level if possible.\n",
+      "reading_order": 12,
+      "provider_sequence": 11,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5158823529411765,
+            0.21545454545454545,
+            0.9105882352941177,
+            0.4354545454545454
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b12",
+      "type": "heading",
+      "provider_label": "paragraph_title",
+      "text": "3.3 Pipelines ",
+      "reading_order": 13,
+      "provider_sequence": 12,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.518235294117647,
+            0.4490909090909091,
+            0.6305882352941177,
+            0.46136363636363636
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b13",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Pipelines in Docling serve as an orchestration layer which iterates through documents, gathers the extracted data from a parser backend, and applies a chain of models to: a) build up the Doc l ingDocument representation and b) enrich this representation further (e.g., classify images).",
+      "reading_order": 14,
+      "provider_sequence": 13,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5170588235294118,
+            0.4677272727272727,
+            0.9105882352941177,
+            0.5359090909090909
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b14",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Docling provides two standard pipelines. The StandardPdfPipeline leverages several state-of-the-art AI models to reconstruct a high-quality DoclingDocument representation from PDF or image input, as described in section 4. The Simple Pipeline handles all markup-based formats (Office,HTML, AsciiDoc) and may apply further enrichment models as well.\n",
+      "reading_order": 15,
+      "provider_sequence": 14,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5164705882352941,
+            0.5377272727272727,
+            0.9105882352941177,
+            0.6313636363636363
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b15",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Pipelines can be fully customized by sub-classing from an abstract base class or cloning the default model pipeline.This effectively allows to fully customize the chain of models, add or replace models, and introduce additional pipeline confi guration parameters. To create and use a custom model pipeline, you can provide a custom pipeline class as an argument to the main document conversion API.",
+      "reading_order": 16,
+      "provider_sequence": 15,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5164705882352941,
+            0.6345454545454545,
+            0.9105882352941177,
+            0.7295454545454545
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b16",
+      "type": "heading",
+      "provider_label": "paragraph_title",
+      "text": "4 PDF Conversion Pipeline ",
+      "reading_order": 17,
+      "provider_sequence": 16,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5923529411764706,
+            0.745,
+            0.8358823529411765,
+            0.7581818181818182
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b17",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "The capability to recover detailed structure and content from PDF and image fi les is one of Docling's defining features. In this section, we outline the underlying methods and models that drive the system.\n",
+      "reading_order": 18,
+      "provider_sequence": 17,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5164705882352941,
+            0.7645454545454545,
+            0.91,
+            0.8177272727272727
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "p3:b18",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Each document is first parsed by a PDF backend, which retrieves the programmatic text tokens, consisting of string content and its coordinates on the page, and also renders a bitmap image of each page to support downstream operations. Any image format input is wrapped in a PDF container ",
+      "reading_order": 19,
+      "provider_sequence": 18,
+      "parent_id": null,
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 3,
+          "bbox": [
+            0.5164705882352941,
+            0.82,
+            0.9105882352941177,
+            0.8877272727272727
+          ],
+          "character_span": null
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [],
+  "provider_status": "completed",
+  "missing_features": [
+    "explicit_hierarchy",
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "holdout_columns",
+  "source_sha256": "f555f6260be1de6cd8f75addca4edc3c4456b2d5f3bf01a115942cb81396208a"
+}

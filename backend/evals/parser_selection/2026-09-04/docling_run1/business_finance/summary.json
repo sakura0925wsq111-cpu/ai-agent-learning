@@ -1,0 +1,22 @@
+{
+  "block_count": 74,
+  "type_counts": {
+    "list_item": 69,
+    "heading": 1,
+    "paragraph": 4
+  },
+  "missing_provenance_ids": [],
+  "invalid_provenance_ids": [],
+  "blocks_with_parent": 74,
+  "container_count": 7,
+  "cross_page_block_count": 0,
+  "anchor_presence": {
+    "长期负债与权益": true,
+    "资本之间的比例关系要合理": true
+  },
+  "usable_unit_count": 0,
+  "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+  "case_id": "business_finance",
+  "status": "completed",
+  "seconds": 2.6135281000024406
+}

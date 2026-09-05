@@ -1,0 +1,25 @@
+{
+  "block_count": 43,
+  "type_counts": {
+    "table": 1,
+    "caption": 3,
+    "paragraph": 32,
+    "figure": 2,
+    "heading": 2,
+    "list_item": 3
+  },
+  "missing_provenance_ids": [],
+  "invalid_provenance_ids": [],
+  "blocks_with_parent": 43,
+  "container_count": 4,
+  "cross_page_block_count": 0,
+  "anchor_presence": {
+    "Table 1": true,
+    "Benchmarking Methodology": true
+  },
+  "usable_unit_count": 0,
+  "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+  "case_id": "holdout_table_figures",
+  "status": "completed",
+  "seconds": 5.2086089000003994
+}

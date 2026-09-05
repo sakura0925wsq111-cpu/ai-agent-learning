@@ -1,0 +1,158 @@
+{
+  "blocks": [
+    {
+      "id": "#/texts/0",
+      "type": "heading",
+      "provider_label": "section_header",
+      "text": "§10.1 土的动强度与砂土的振动液化",
+      "raw_text": "§10.1 土的动强度与砂土的振动液化",
+      "reading_order": 0,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 400,
+          "bbox": [
+            0.041177192586521597,
+            0.012879179853826845,
+            0.4236499621882511,
+            0.05767632717148579
+          ],
+          "character_span": [
+            0,
+            19
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/1",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "动强度曲线：试件45°面上的动剪应力 （即动应力幅 do的一半） 或动应力比 do/2 3与破坏振次Nf间的曲线",
+      "raw_text": "动强度曲线：试件45°面上的动剪应力 （即动应力幅 do的一半） 或动应力比 do/2 3与破坏振次Nf间的曲线",
+      "reading_order": 1,
+      "level": 2,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 400,
+          "bbox": [
+            0.17856647938962733,
+            0.09519393805002492,
+            0.8623454370523466,
+            0.18870798307563783
+          ],
+          "character_span": [
+            0,
+            56
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/pictures/0",
+      "type": "figure",
+      "provider_label": "picture",
+      "text": "",
+      "raw_text": "",
+      "reading_order": 2,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/2",
+        "#/texts/3",
+        "#/texts/4",
+        "#/texts/5",
+        "#/texts/6",
+        "#/texts/7"
+      ],
+      "source_spans": [
+        {
+          "page_number": 400,
+          "bbox": [
+            0.19527130851836216,
+            0.3559212652628854,
+            0.8236463823114608,
+            0.762912878254116
+          ],
+          "character_span": [
+            0,
+            0
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/8",
+      "type": "heading",
+      "provider_label": "section_header",
+      "text": "土的动强度",
+      "raw_text": "土的动强度",
+      "reading_order": 3,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 400,
+          "bbox": [
+            0.4038532349831926,
+            0.8584253354746371,
+            0.6849667612950227,
+            0.9603388456223108
+          ],
+          "character_span": [
+            0,
+            5
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [
+    {
+      "id": "#/body",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": [
+        "#/texts/0",
+        "#/groups/0",
+        "#/pictures/0",
+        "#/texts/8"
+      ]
+    },
+    {
+      "id": "#/furniture",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": []
+    },
+    {
+      "id": "#/groups/0",
+      "label": "list",
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/1"
+      ]
+    }
+  ],
+  "provider_status": "ConversionStatus.SUCCESS",
+  "missing_features": [
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "soil_inline_formula",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9"
+}

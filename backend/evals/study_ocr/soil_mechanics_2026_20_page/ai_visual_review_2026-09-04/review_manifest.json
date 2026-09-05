@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": {
+    "type": "AI_visual_review",
+    "identity": "Codex assistant",
+    "human": false,
+    "domain_expert_review": false,
+    "blinded": false
+  },
+  "created_on": "2026-09-04",
+  "source_filename": "土质土力学2026st.pdf",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9",
+  "machine_artifacts": {
+    "machine_pages_jsonl_sha256": "ac4f4cb1daeae7ddd4f76d2919c5501e3ca5f085d8e945d1c7377e8d09e938f1",
+    "machine_summary_json_sha256": "6f99e316b28af012582cb012b6bbe1cb64cb418dedec3be7d7828f960ce7d0fa",
+    "manifest_json_sha256": "05ebc5b1c3fa794491249847a812133c26f7f31cf712a1b1e1e38a8b798fdfe0"
+  },
+  "review_scope": {
+    "page_numbers": [
+      1,
+      20,
+      40,
+      60,
+      80,
+      100,
+      120,
+      140,
+      160,
+      180,
+      200,
+      215,
+      240,
+      260,
+      280,
+      300,
+      320,
+      360,
+      400,
+      429
+    ],
+    "machine_accepted_block_count": 74,
+    "full_source_transcription": false,
+    "all_rejected_blocks_individually_labeled": false
+  },
+  "visual_method": {
+    "renderer": "pdftoppm (Poppler)",
+    "long_edge_pixels": 2000,
+    "pages_rendered_and_viewed": 20,
+    "pdf_page_numbering": "one-based physical PDF page number",
+    "temporary_images_not_part_of_final_dataset": true
+  },
+  "indexing": {
+    "block_index": "zero-based index in each original machine_pages.jsonl ocr_blocks array"
+  },
+  "output_files": [
+    "page_reviews.jsonl",
+    "summary.json",
+    "review_manifest.json",
+    "README.md"
+  ],
+  "original_machine_artifacts_modified": false,
+  "temporary_preview_cleanup": "Environment policy blocked deletion; 20 page PNGs remain outside this dataset in tmp/pdfs/ai-review-20-20260904-side. The source PDF is unchanged."
+}

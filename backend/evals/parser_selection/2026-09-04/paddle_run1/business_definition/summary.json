@@ -1,0 +1,22 @@
+{
+  "block_count": 58,
+  "type_counts": {
+    "paragraph": 55,
+    "heading": 3
+  },
+  "missing_provenance_ids": [],
+  "invalid_provenance_ids": [],
+  "blocks_with_parent": 0,
+  "container_count": 0,
+  "cross_page_block_count": 0,
+  "anchor_presence": {
+    "整合营销": true,
+    "网络营销": true,
+    "市场战略决策的内容": true
+  },
+  "usable_unit_count": 0,
+  "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+  "case_id": "business_definition",
+  "status": "completed",
+  "seconds": 64.88503059999493
+}

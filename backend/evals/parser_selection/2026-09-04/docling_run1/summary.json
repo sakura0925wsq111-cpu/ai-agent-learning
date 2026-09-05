@@ -1,0 +1,181 @@
+[
+  {
+    "block_count": 75,
+    "type_counts": {
+      "paragraph": 15,
+      "list_item": 58,
+      "heading": 2
+    },
+    "missing_provenance_ids": [],
+    "invalid_provenance_ids": [],
+    "blocks_with_parent": 75,
+    "container_count": 4,
+    "cross_page_block_count": 0,
+    "anchor_presence": {
+      "整合营销": true,
+      "网络营销": true,
+      "市场战略决策的内容": true
+    },
+    "usable_unit_count": 0,
+    "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+    "case_id": "business_definition",
+    "status": "completed",
+    "seconds": 3.6345220000002882
+  },
+  {
+    "block_count": 74,
+    "type_counts": {
+      "list_item": 69,
+      "heading": 1,
+      "paragraph": 4
+    },
+    "missing_provenance_ids": [],
+    "invalid_provenance_ids": [],
+    "blocks_with_parent": 74,
+    "container_count": 7,
+    "cross_page_block_count": 0,
+    "anchor_presence": {
+      "长期负债与权益": true,
+      "资本之间的比例关系要合理": true
+    },
+    "usable_unit_count": 0,
+    "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+    "case_id": "business_finance",
+    "status": "completed",
+    "seconds": 2.6135281000024406
+  },
+  {
+    "block_count": 3,
+    "type_counts": {
+      "heading": 1,
+      "figure": 1,
+      "paragraph": 1
+    },
+    "missing_provenance_ids": [],
+    "invalid_provenance_ids": [],
+    "blocks_with_parent": 3,
+    "container_count": 2,
+    "cross_page_block_count": 0,
+    "anchor_presence": {
+      "土的三相组成": true,
+      "土中颗粒的大小": true,
+      "固相（土颗粒）": false
+    },
+    "usable_unit_count": 0,
+    "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+    "case_id": "soil_text_diagram",
+    "status": "completed",
+    "seconds": 6.078168000000005
+  },
+  {
+    "block_count": 4,
+    "type_counts": {
+      "figure": 2,
+      "heading": 2
+    },
+    "missing_provenance_ids": [],
+    "invalid_provenance_ids": [],
+    "blocks_with_parent": 4,
+    "container_count": 2,
+    "cross_page_block_count": 0,
+    "anchor_presence": {
+      "主动保护冻土方式": true,
+      "遮阳板": true,
+      "遮阳棚": true
+    },
+    "usable_unit_count": 0,
+    "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+    "case_id": "soil_photo",
+    "status": "completed",
+    "seconds": 5.0823825999978
+  },
+  {
+    "block_count": 2,
+    "type_counts": {
+      "heading": 1,
+      "figure": 1
+    },
+    "missing_provenance_ids": [],
+    "invalid_provenance_ids": [],
+    "blocks_with_parent": 2,
+    "container_count": 2,
+    "cross_page_block_count": 0,
+    "anchor_presence": {
+      "基底附加压力计算": true
+    },
+    "usable_unit_count": 0,
+    "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+    "case_id": "soil_formula",
+    "status": "completed",
+    "seconds": 3.42792489999556
+  },
+  {
+    "block_count": 4,
+    "type_counts": {
+      "heading": 2,
+      "list_item": 1,
+      "figure": 1
+    },
+    "missing_provenance_ids": [],
+    "invalid_provenance_ids": [],
+    "blocks_with_parent": 4,
+    "container_count": 3,
+    "cross_page_block_count": 0,
+    "anchor_presence": {
+      "土的动强度与砂土的振动液化": true,
+      "土的动强度": true
+    },
+    "usable_unit_count": 0,
+    "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+    "case_id": "soil_inline_formula",
+    "status": "completed",
+    "seconds": 5.059085000000778
+  },
+  {
+    "block_count": 18,
+    "type_counts": {
+      "paragraph": 13,
+      "heading": 3,
+      "list_item": 2
+    },
+    "missing_provenance_ids": [],
+    "invalid_provenance_ids": [],
+    "blocks_with_parent": 18,
+    "container_count": 3,
+    "cross_page_block_count": 0,
+    "anchor_presence": {
+      "Parser Backends": true,
+      "Pipelines": true
+    },
+    "usable_unit_count": 0,
+    "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+    "case_id": "holdout_columns",
+    "status": "completed",
+    "seconds": 1.7427134999961709
+  },
+  {
+    "block_count": 43,
+    "type_counts": {
+      "table": 1,
+      "caption": 3,
+      "paragraph": 32,
+      "figure": 2,
+      "heading": 2,
+      "list_item": 3
+    },
+    "missing_provenance_ids": [],
+    "invalid_provenance_ids": [],
+    "blocks_with_parent": 43,
+    "container_count": 4,
+    "cross_page_block_count": 0,
+    "anchor_presence": {
+      "Table 1": true,
+      "Benchmarking Methodology": true
+    },
+    "usable_unit_count": 0,
+    "note": "Anchor presence and provider labels are structural smoke checks, not accepted-content accuracy.",
+    "case_id": "holdout_table_figures",
+    "status": "completed",
+    "seconds": 5.2086089000003994
+  }
+]

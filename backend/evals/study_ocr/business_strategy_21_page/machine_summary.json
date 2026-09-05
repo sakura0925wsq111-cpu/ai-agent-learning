@@ -1,0 +1,15 @@
+{
+  "selected_page_count": 21,
+  "successful_page_count": 21,
+  "error_page_count": 0,
+  "quality_status_counts": {
+    "accepted": 21
+  },
+  "block_decision_counts": {},
+  "quality_reason_counts": {},
+  "raw_character_count": 20777,
+  "safe_character_count": 20777,
+  "safe_character_retention": 1.0,
+  "total_elapsed_seconds": 0.087,
+  "manual_review_complete": false
+}

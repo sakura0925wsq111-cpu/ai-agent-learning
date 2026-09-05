@@ -1,0 +1,172 @@
+{
+  "blocks": [
+    {
+      "id": "#/pictures/0",
+      "type": "figure",
+      "provider_label": "picture",
+      "text": "",
+      "raw_text": "",
+      "reading_order": 0,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.02754184695717275,
+            0.0,
+            0.5835384269225059,
+            0.486169443834548
+          ],
+          "character_span": [
+            0,
+            0
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/0",
+      "type": "heading",
+      "provider_label": "section_header",
+      "text": "主动保护冻土方式： 遮阳棚 主动保护冻土方式： 遮阳棚",
+      "raw_text": "主动保护冻土方式： 遮阳棚 主动保护冻土方式： 遮阳棚",
+      "reading_order": 1,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.05543083617416369,
+            0.6473187787401699,
+            0.37851342416071776,
+            0.8169879742058026
+          ],
+          "character_span": [
+            0,
+            27
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/1",
+      "type": "heading",
+      "provider_label": "section_header",
+      "text": "主动保护冻土方式： 遮阳板 主动保护冻土方式： 遮阳板",
+      "raw_text": "主动保护冻土方式： 遮阳板 主动保护冻土方式： 遮阳板",
+      "reading_order": 2,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.6140944779009134,
+            0.1534302295629814,
+            0.9399486076961756,
+            0.323659389370085
+          ],
+          "character_span": [
+            0,
+            27
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/pictures/1",
+      "type": "figure",
+      "provider_label": "picture",
+      "text": "",
+      "raw_text": "",
+      "reading_order": 3,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.4001339801416828,
+            0.5156784057617188,
+            0.9693449840409739,
+            1.0
+          ],
+          "character_span": [
+            0,
+            0
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/2",
+      "type": "furniture",
+      "provider_label": "page_footer",
+      "text": "2026-6-1 2026-6-1",
+      "raw_text": "2026-6-1 2026-6-1",
+      "reading_order": null,
+      "level": null,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 100,
+          "bbox": [
+            0.0641413961443894,
+            0.9054623401581788,
+            0.1401608286118139,
+            0.9429799510367182
+          ],
+          "character_span": [
+            0,
+            17
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [
+    {
+      "id": "#/body",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": [
+        "#/pictures/0",
+        "#/texts/0",
+        "#/texts/1",
+        "#/pictures/1",
+        "#/texts/2"
+      ]
+    },
+    {
+      "id": "#/furniture",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": []
+    }
+  ],
+  "adapter_version": "docling-full-tree-v2",
+  "missing_features": [
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "case_id": "soil_photo",
+  "provider_raw_sha256": "ed90cdbe0b6102f420fc3acfc56d857db0d6a4059627ad4beade3ca84dc25485",
+  "source_sha256": "e5d7c7dcb4b291be5cb279760b9907062bbf0247cdcea99428d655a56a69ade9"
+}

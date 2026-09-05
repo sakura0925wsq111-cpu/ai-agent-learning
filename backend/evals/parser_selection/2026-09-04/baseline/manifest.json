@@ -1,0 +1,211 @@
+{
+  "created_at": "2026-09-04T14:23:02.568276+00:00",
+  "git_head": "1d5936b97fcfb4e25d600dd4e41aa4d50479f20d",
+  "working_tree_is_dirty": true,
+  "archive_sha256": "d81ca03d4dc179d4af82d2bdb940d83193a7937de4aa50dce181e79099d506c7",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 1256,
+      "sha256": "8cac4562a0ffe28f0ededca130ebf679f48d2a75b7b37ae281c815af3f753f00"
+    },
+    {
+      "path": "backend/.env.example",
+      "bytes": 1475,
+      "sha256": "a7848a12ca3bf99939ae55284df88339e50a2e9404e8549ad899ec9e842a6c6b"
+    },
+    {
+      "path": "backend/app/api/v1/study.py",
+      "bytes": 5467,
+      "sha256": "a50232e82a08355d9ac0565735321a31e2eee1a420a47c4c3d9484ea0c7e24d2"
+    },
+    {
+      "path": "backend/app/main.py",
+      "bytes": 4182,
+      "sha256": "28e8aeefb536638b25cb4078dfc7910cdc66a83d3751cee7bc3d842a089148c3"
+    },
+    {
+      "path": "backend/core/config.py",
+      "bytes": 3442,
+      "sha256": "e42252387d2262e4a900120d7514db7ce9cbee4760ca3e437c9b6a1d7b3a5970"
+    },
+    {
+      "path": "backend/database/session.py",
+      "bytes": 9135,
+      "sha256": "01baf1822d1a844fd36125da8d4e86215248eebcca1988fc90ce11b769f259e6"
+    },
+    {
+      "path": "backend/evals/study_ocr/business_strategy_21_page/README.md",
+      "bytes": 3000,
+      "sha256": "37fa0f337923bff382b7266a32c3404763f1f981abb52983a10629079e3c063e"
+    },
+    {
+      "path": "backend/evals/study_ocr/business_strategy_21_page/api_smoke.py",
+      "bytes": 6511,
+      "sha256": "922061d3fc0bf7fd7c043f80e17e4db1a5514af0968c468def019ba09982ea6a"
+    },
+    {
+      "path": "backend/evals/study_ocr/business_strategy_21_page/api_summary.json",
+      "bytes": 979,
+      "sha256": "fd16937f1c555744606d2e7c7eece69c9b8d481e7b6c2ddc5e165d7db2c5f272"
+    },
+    {
+      "path": "backend/evals/study_ocr/business_strategy_21_page/machine_pages.jsonl",
+      "bytes": 114810,
+      "sha256": "0cf8107184dd6f370a8984a0a7864a6e8ce616a7df29b6a161af7566095f869e"
+    },
+    {
+      "path": "backend/evals/study_ocr/business_strategy_21_page/machine_summary.json",
+      "bytes": 387,
+      "sha256": "5fbc70523be7354d29859744e6c39a028125a4d9d2f063a1d709da3dd51cd0f1"
+    },
+    {
+      "path": "backend/evals/study_ocr/business_strategy_21_page/manifest.json",
+      "bytes": 1538,
+      "sha256": "793f76bb39c6c3a51e2f741c88e5c14253cf013af93440b5ae53a08b46ffbad6"
+    },
+    {
+      "path": "backend/evals/study_ocr/paragraph_gate_v1_live/machine_pages.jsonl",
+      "bytes": 21611,
+      "sha256": "43a5abdab583057e3a5c8f41ddffb8ca24a7bb9b67df3060b5509c9835def53a"
+    },
+    {
+      "path": "backend/evals/study_ocr/paragraph_gate_v1_live/machine_summary.json",
+      "bytes": 633,
+      "sha256": "08d63a568206fbafe7c989531ea79b95d273ada1295c32b89141a096a41a496d"
+    },
+    {
+      "path": "backend/evals/study_ocr/paragraph_gate_v1_live/manifest.json",
+      "bytes": 1361,
+      "sha256": "9e4b617d27e724977f5be686ea23a2f7d33f602d04af703615e962149dc94fde"
+    },
+    {
+      "path": "backend/evals/study_ocr/paragraph_gate_v1_replay/README.md",
+      "bytes": 3718,
+      "sha256": "7282542f497a6faeb510ef1c517f4efe078655e11683c6cdf8fa63cbaa856d8f"
+    },
+    {
+      "path": "backend/evals/study_ocr/paragraph_gate_v1_replay/comparison.jsonl",
+      "bytes": 170798,
+      "sha256": "0699e505d2ae967dc52a5acfd6414e08858dd5452a5ffd352e5d6cced0d61ebd"
+    },
+    {
+      "path": "backend/evals/study_ocr/paragraph_gate_v1_replay/summary.json",
+      "bytes": 916,
+      "sha256": "b1ebc02b7f0f606099e7847d214d344e0babd2b2f50fae72ba6de911b5acd456"
+    },
+    {
+      "path": "backend/evals/study_ocr/soil_mechanics_2026_20_page/ai_visual_review_2026-09-04/README.md",
+      "bytes": 8039,
+      "sha256": "4c75a808baac8c154bf60bb0006610b34167ceb9c83c5b0dce02b8f012398da6"
+    },
+    {
+      "path": "backend/evals/study_ocr/soil_mechanics_2026_20_page/ai_visual_review_2026-09-04/page_reviews.jsonl",
+      "bytes": 40022,
+      "sha256": "0e17b82669a63c4456fb925647837e0d09d63e1e0582777824a9225b90a4641b"
+    },
+    {
+      "path": "backend/evals/study_ocr/soil_mechanics_2026_20_page/ai_visual_review_2026-09-04/review_manifest.json",
+      "bytes": 1795,
+      "sha256": "de903dd1f9fb046cf415426e678908bfaeebbc0e6ad09876e0489e6ef1e6f9ce"
+    },
+    {
+      "path": "backend/evals/study_ocr/soil_mechanics_2026_20_page/ai_visual_review_2026-09-04/summary.json",
+      "bytes": 3176,
+      "sha256": "7c202a9de50d9f675bd4fc8fd232d9952521cf5bdfc33c5d3941f946e4907f00"
+    },
+    {
+      "path": "backend/evals/study_ocr/soil_mechanics_2026_20_page/machine_pages.jsonl",
+      "bytes": 93726,
+      "sha256": "ac4f4cb1daeae7ddd4f76d2919c5501e3ca5f085d8e945d1c7377e8d09e938f1"
+    },
+    {
+      "path": "backend/evals/study_ocr/soil_mechanics_2026_20_page/machine_summary.json",
+      "bytes": 719,
+      "sha256": "6f99e316b28af012582cb012b6bbe1cb64cb418dedec3be7d7828f960ce7d0fa"
+    },
+    {
+      "path": "backend/evals/study_ocr/soil_mechanics_2026_20_page/manifest.json",
+      "bytes": 1094,
+      "sha256": "05ebc5b1c3fa794491249847a812133c26f7f31cf712a1b1e1e38a8b798fdfe0"
+    },
+    {
+      "path": "backend/evals/study_ocr_evaluation.py",
+      "bytes": 7042,
+      "sha256": "554003ee50b952df08bca6ab717c1b2ca72580f530531bc074cff1983090c0ba"
+    },
+    {
+      "path": "backend/evals/study_paragraph_replay.py",
+      "bytes": 4062,
+      "sha256": "a49e337115c745b581ca93a5e300c359bcd785cb3a4869237ac231f6fc4a51a4"
+    },
+    {
+      "path": "backend/models/__init__.py",
+      "bytes": 743,
+      "sha256": "796bf1f00e56d115e5e17800e104f4023cb7688c4adc326505bc528bfeb27ffe"
+    },
+    {
+      "path": "backend/models/study.py",
+      "bytes": 8188,
+      "sha256": "7072c57c9ef83068d00c30d1c59b8ff16de8f26b243193f924c679879618ddb1"
+    },
+    {
+      "path": "backend/requirements.txt",
+      "bytes": 565,
+      "sha256": "ece856c6bc79fecb0889f8782856eaf24bf5c54ff4f203405bb280d6571676e9"
+    },
+    {
+      "path": "backend/schemas/study.py",
+      "bytes": 1340,
+      "sha256": "b0ceb41885244dac865d353440f2f8ffed12b1596c7cb54fe4e0c9bee56f270d"
+    },
+    {
+      "path": "backend/services/study_extraction_quality.py",
+      "bytes": 11109,
+      "sha256": "5775a8288146343159cdd7504feb51a9953b1860477ec51f6a8ab3cfaccdf625"
+    },
+    {
+      "path": "backend/services/study_files.py",
+      "bytes": 5473,
+      "sha256": "9ab4e2fc88b8073d36b70f4c9ea581e0f0a36af704e7f41ac13e2c892a8b6591"
+    },
+    {
+      "path": "backend/services/study_ocr.py",
+      "bytes": 4071,
+      "sha256": "82b880ab3a09eb41c2e2c72e4bfd509552c49845b34ffb1fcf3eb3ff19afed64"
+    },
+    {
+      "path": "backend/services/study_paragraphs.py",
+      "bytes": 5028,
+      "sha256": "041e3e46240c917abe9a7ab24508f1e11a53db59066131e03a390854500c27a7"
+    },
+    {
+      "path": "backend/services/study_parser.py",
+      "bytes": 11613,
+      "sha256": "ec2ee03ccb1948a6c78c38e8ce786df6787bbbcf04ec91a82becc5ce9ead9944"
+    },
+    {
+      "path": "backend/tests/test_study_extraction_quality.py",
+      "bytes": 10661,
+      "sha256": "256a8d38af5366d9b6a3c704a44bb9a80ef33a9efd439dfa15bca0e816678e4e"
+    },
+    {
+      "path": "backend/tests/test_study_foundation.py",
+      "bytes": 18706,
+      "sha256": "a9308fbaa494a279500ba7b8117dc9b23d61951026545c0066bc010ea7c937b3"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 208,
+      "sha256": "7b44742ed374714c69f1b9d976281ba489d2dd869d8bd7d53dc8067663f9d494"
+    }
+  ],
+  "exclusions": [
+    ".env",
+    "databases",
+    "tokens",
+    "original PDFs",
+    "venv",
+    "model weights"
+  ]
+}

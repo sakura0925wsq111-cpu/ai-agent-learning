@@ -54,6 +54,17 @@ class Settings(BaseSettings):
     login_rate_window_seconds: int = 300
     ai_daily_limit: int = 50
     upload_max_bytes: int = 10 * 1024 * 1024
+    study_upload_dir: str = "data/study_uploads"
+    study_upload_max_bytes: int = 200 * 1024 * 1024
+    study_ocr_enabled: bool = True
+    study_ocr_dpi: int = 200
+    study_ocr_verify_dpi: int = 240
+    study_ocr_min_confidence: float = 0.95
+    study_ocr_device: str = "cpu"
+    study_knowledge_pipeline_version: str = "knowledge-v1"
+    study_knowledge_max_block_chars: int = 12000
+    study_knowledge_max_candidates: int = 40
+    study_knowledge_max_model_calls: int = 48
     import_preview_ttl_seconds: int = 30 * 60
     demo_account_enabled: bool = True
     demo_student_id: str = "demo2026"

@@ -1,0 +1,1343 @@
+{
+  "blocks": [
+    {
+      "id": "#/tables/0",
+      "type": "table",
+      "provider_label": "table",
+      "text": "",
+      "raw_text": "",
+      "reading_order": 0,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/0",
+        "#/groups/0"
+      ],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.254169115054062,
+            0.09412948531333847,
+            0.7455629834941789,
+            0.19528057599308515
+          ],
+          "character_span": [
+            0,
+            0
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/0",
+      "type": "caption",
+      "provider_label": "caption",
+      "text": "Table 1: Versions and configuration options considered for each tested asset. * denotes the default setting.",
+      "raw_text": "Table 1: Versions and configuration options considered for each tested asset. * denotes the default setting.",
+      "reading_order": 1,
+      "level": 2,
+      "parent_id": "#/tables/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.15726143790849673,
+            0.06845461641414145,
+            0.8427408637254896,
+            0.0813601333422723
+          ],
+          "character_span": [
+            0,
+            108
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/1",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Asset",
+      "raw_text": "Asset",
+      "reading_order": 2,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.3078169934640523,
+            0.10100275757575759,
+            0.3411772758169935,
+            0.11118052727272731
+          ],
+          "character_span": [
+            0,
+            5
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/2",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Version",
+      "raw_text": "Version",
+      "reading_order": 3,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.3607070326797385,
+            0.10100275757575759,
+            0.40807365228758175,
+            0.11118052727272731
+          ],
+          "character_span": [
+            0,
+            7
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/3",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "OCR",
+      "raw_text": "OCR",
+      "reading_order": 4,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.42761806013071907,
+            0.10100275757575759,
+            0.4601725385620915,
+            0.11118052727272731
+          ],
+          "character_span": [
+            0,
+            3
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/4",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Layout",
+      "raw_text": "Layout",
+      "reading_order": 5,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5114509699346406,
+            0.10100275757575759,
+            0.5558580915032681,
+            0.11118052727272731
+          ],
+          "character_span": [
+            0,
+            6
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/5",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Tables",
+      "raw_text": "Tables",
+      "reading_order": 6,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.6200879895424838,
+            0.10100275757575759,
+            0.6602609777777778,
+            0.11118052727272731
+          ],
+          "character_span": [
+            0,
+            6
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/6",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Docling",
+      "raw_text": "Docling",
+      "reading_order": 7,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.29397222222222225,
+            0.12148973939393944,
+            0.3411776810457517,
+            0.1312078478412443
+          ],
+          "character_span": [
+            0,
+            7
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/7",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "2.5.2",
+      "raw_text": "2.5.2",
+      "reading_order": 8,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.36070743790849674,
+            0.12148973939393944,
+            0.39000939869281054,
+            0.1312078478412443
+          ],
+          "character_span": [
+            0,
+            5
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/8",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "EasyOCR *",
+      "raw_text": "EasyOCR *",
+      "reading_order": 9,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.42761846535947723,
+            0.1191370989898991,
+            0.49109934640522884,
+            0.1312078478412443
+          ],
+          "character_span": [
+            0,
+            9
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/9",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "default",
+      "raw_text": "default",
+      "reading_order": 10,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5114477124183007,
+            0.12148973939393944,
+            0.5519869751633987,
+            0.1312078478412443
+          ],
+          "character_span": [
+            0,
+            7
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/10",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "TableFormer (fast)",
+      "raw_text": "TableFormer (fast)",
+      "reading_order": 11,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.6200847320261438,
+            0.12148973939393944,
+            0.7296154614379082,
+            0.1312078478412443
+          ],
+          "character_span": [
+            0,
+            18
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/11",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "*",
+      "raw_text": "*",
+      "reading_order": 12,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.7296176470588236,
+            0.1191370989898991,
+            0.7345013071895427,
+            0.12561583795476894
+          ],
+          "character_span": [
+            0,
+            1
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/12",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Marker",
+      "raw_text": "Marker",
+      "reading_order": 13,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.2982058823529412,
+            0.14153645656565655,
+            0.3411772078431373,
+            0.15125456501296142
+          ],
+          "character_span": [
+            0,
+            6
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/13",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "0.3.10",
+      "raw_text": "0.3.10",
+      "reading_order": 14,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.3607069647058824,
+            0.14153645656565655,
+            0.3973344156862747,
+            0.15125456501296142
+          ],
+          "character_span": [
+            0,
+            6
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/14",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Surya",
+      "raw_text": "Surya",
+      "reading_order": 15,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.42761799215686286,
+            0.14153645656565655,
+            0.4617987294117648,
+            0.15125456501296142
+          ],
+          "character_span": [
+            0,
+            5
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/15",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "*",
+      "raw_text": "*",
+      "reading_order": 16,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.46179248366013076,
+            0.1391838161616162,
+            0.46667614379084976,
+            0.14566255512648604
+          ],
+          "character_span": [
+            0,
+            1
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/16",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "default",
+      "raw_text": "default",
+      "reading_order": 17,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5114477124183007,
+            0.14153645656565655,
+            0.5519869751633987,
+            0.15125456501296142
+          ],
+          "character_span": [
+            0,
+            7
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/17",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "default",
+      "raw_text": "default",
+      "reading_order": 18,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.6200847320261438,
+            0.14153645656565655,
+            0.6606239947712417,
+            0.15125456501296142
+          ],
+          "character_span": [
+            0,
+            7
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/18",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "MinerU",
+      "raw_text": "MinerU",
+      "reading_order": 19,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.2947924836601307,
+            0.16158191111111106,
+            0.3411774875816994,
+            0.17130001955841592
+          ],
+          "character_span": [
+            0,
+            6
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/19",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "0.9.3",
+      "raw_text": "0.9.3",
+      "reading_order": 20,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.3607072444444445,
+            0.16158191111111106,
+            0.3900092052287583,
+            0.17130001955841592
+          ],
+          "character_span": [
+            0,
+            5
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/20",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "auto",
+      "raw_text": "auto",
+      "reading_order": 21,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.427618271895425,
+            0.16158191111111106,
+            0.4528472601307191,
+            0.17130001955841592
+          ],
+          "character_span": [
+            0,
+            4
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/21",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "*",
+      "raw_text": "*",
+      "reading_order": 22,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.4528398692810458,
+            0.15922927070707074,
+            0.4577235294117648,
+            0.16570800967194055
+          ],
+          "character_span": [
+            0,
+            1
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/22",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "doclayout yolo",
+      "raw_text": "doclayout yolo",
+      "reading_order": 23,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5114477124183007,
+            0.16158191111111106,
+            0.6005543450980392,
+            0.17130001955841592
+          ],
+          "character_span": [
+            0,
+            14
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/23",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "rapid table",
+      "raw_text": "rapid table",
+      "reading_order": 24,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.6200841019607843,
+            0.16158191111111106,
+            0.683952094117647,
+            0.17130001955841592
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/24",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "*",
+      "raw_text": "*",
+      "reading_order": 25,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.683950980392157,
+            0.15922927070707074,
+            0.6888346405228759,
+            0.16570800967194055
+          ],
+          "character_span": [
+            0,
+            1
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/25",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Unstructured",
+      "raw_text": "Unstructured",
+      "reading_order": 26,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.2646846405228758,
+            0.18047711313131312,
+            0.34117740915032685,
+            0.19019522157861798
+          ],
+          "character_span": [
+            0,
+            12
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/26",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "0.16.5",
+      "raw_text": "0.16.5",
+      "reading_order": 27,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.36070716601307196,
+            0.18047711313131312,
+            0.39733461699346423,
+            0.19019522157861798
+          ],
+          "character_span": [
+            0,
+            6
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/27",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "hi res",
+      "raw_text": "hi res",
+      "reading_order": 28,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.49845915032679744,
+            0.18154130707070712,
+            0.5476871241830066,
+            0.18933037346585857
+          ],
+          "character_span": [
+            0,
+            6
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/28",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "with table structure",
+      "raw_text": "with table structure",
+      "reading_order": 29,
+      "level": 3,
+      "parent_id": "#/groups/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5513496732026144,
+            0.18047711313131312,
+            0.6644698928104574,
+            0.19019522157861798
+          ],
+          "character_span": [
+            0,
+            20
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/pictures/0",
+      "type": "figure",
+      "provider_label": "picture",
+      "text": "",
+      "raw_text": "",
+      "reading_order": 30,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/29",
+        "#/texts/30",
+        "#/texts/31",
+        "#/texts/32",
+        "#/texts/33",
+        "#/texts/34",
+        "#/texts/35",
+        "#/texts/36",
+        "#/texts/37",
+        "#/texts/38",
+        "#/texts/39",
+        "#/texts/40",
+        "#/texts/41",
+        "#/texts/42",
+        "#/texts/43",
+        "#/texts/44",
+        "#/texts/45",
+        "#/texts/46",
+        "#/texts/47",
+        "#/texts/48",
+        "#/texts/49",
+        "#/texts/50",
+        "#/texts/51",
+        "#/texts/52",
+        "#/texts/53",
+        "#/texts/54",
+        "#/texts/55",
+        "#/texts/56",
+        "#/texts/57",
+        "#/texts/58",
+        "#/texts/59",
+        "#/texts/60",
+        "#/texts/61",
+        "#/texts/62",
+        "#/texts/63",
+        "#/texts/64",
+        "#/texts/65",
+        "#/texts/66",
+        "#/texts/67"
+      ],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.11711348739324831,
+            0.22261775623668323,
+            0.45558465695848654,
+            0.5880657928158538
+          ],
+          "character_span": [
+            0,
+            0
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/29",
+      "type": "caption",
+      "provider_label": "caption",
+      "text": "Figure 2: Dataset categories and sample counts for documents and pages.",
+      "raw_text": "Figure 2: Dataset categories and sample counts for documents and pages.",
+      "reading_order": 31,
+      "level": 2,
+      "parent_id": "#/pictures/0",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.08823529411764706,
+            0.6061393275252526,
+            0.47794876470588243,
+            0.6307730121301511
+          ],
+          "character_span": [
+            0,
+            71
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/68",
+      "type": "heading",
+      "provider_label": "section_header",
+      "text": "5.3 Benchmarking Methodology",
+      "raw_text": "5.3 Benchmarking Methodology",
+      "reading_order": 32,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.08823529411764706,
+            0.6629137891414141,
+            0.3457221397058824,
+            0.675296719570707
+          ],
+          "character_span": [
+            0,
+            28
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/69",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "We implemented several measures to enable a fair and reproducible benchmark across all tested assets. Specifically, the experimental setup accounts for the following factors:",
+      "raw_text": "We implemented several measures to enable a fair and reproducible benchmark across all tested assets. Specifically, the experimental setup accounts for the following factors:",
+      "reading_order": 33,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.08823529411764706,
+            0.6853868022727273,
+            0.4779487647058825,
+            0.7238588707160097
+          ],
+          "character_span": [
+            0,
+            174
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/70",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "All assets are installed in the latest available versions, in a clean Python environment, and configured to use the state-of-the-art processing options and models, where applicable. We selectively disabled non-essential functionalities to achieve a compatible feature-set across all compared libraries.",
+      "raw_text": "· All assets are installed in the latest available versions, in a clean Python environment, and configured to use the state-of-the-art processing options and models, where applicable. We selectively disabled non-essential functionalities to achieve a compatible feature-set across all compared libraries.",
+      "reading_order": 34,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.09556045751633986,
+            0.7342946305555557,
+            0.4779484869281046,
+            0.8142780626352016
+          ],
+          "character_span": [
+            0,
+            304
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/71",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "When running experiments on CPU, we inform all assets of the desired CPU thread budget of 8 threads, via the OMP NUM THREADS environment variable and any accepted configuration options. The L4 GPU on our AWS EC2 VM is hidden.",
+      "raw_text": "· When running experiments on CPU, we inform all assets of the desired CPU thread budget of 8 threads, via the OMP NUM THREADS environment variable and any accepted configuration options. The L4 GPU on our AWS EC2 VM is hidden.",
+      "reading_order": 35,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.09556045751633985,
+            0.8228261962121213,
+            0.4779484869281046,
+            0.888972507079646
+          ],
+          "character_span": [
+            0,
+            227
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/72",
+      "type": "list_item",
+      "provider_label": "list_item",
+      "text": "When running experiments on the L4 GPU, we enable CUDAacceleration in all accepted configuration options, ensure the GPU is visible and all required runtimes for AI inference are installed with CUDA support.",
+      "raw_text": "· When running experiments on the L4 GPU, we enable CUDAacceleration in all accepted configuration options, ensure the GPU is visible and all required runtimes for AI inference are installed with CUDA support.",
+      "reading_order": 36,
+      "level": 2,
+      "parent_id": "#/groups/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5293839869281045,
+            0.22434134772727274,
+            0.9117720163398687,
+            0.27665053738267614
+          ],
+          "character_span": [
+            0,
+            209
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/73",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Table 1 provides an overview of the versions and configuration options we considered for each asset.",
+      "raw_text": "Table 1 provides an overview of the versions and configuration options we considered for each asset.",
+      "reading_order": 37,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5220588235294117,
+            0.28558503459595946,
+            0.9117566689542478,
+            0.31021998182712057
+          ],
+          "character_span": [
+            0,
+            100
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/74",
+      "type": "heading",
+      "provider_label": "section_header",
+      "text": "5.4 Results",
+      "raw_text": "5.4 Results",
+      "reading_order": 38,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5220588235294117,
+            0.32592515277777756,
+            0.6176204004901961,
+            0.3383080832070705
+          ],
+          "character_span": [
+            0,
+            11
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/pictures/1",
+      "type": "figure",
+      "provider_label": "picture",
+      "text": "",
+      "raw_text": "",
+      "reading_order": 39,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/75",
+        "#/texts/76",
+        "#/texts/77",
+        "#/texts/78",
+        "#/texts/79",
+        "#/texts/80",
+        "#/texts/81",
+        "#/texts/82",
+        "#/texts/83",
+        "#/texts/84",
+        "#/texts/85",
+        "#/texts/86",
+        "#/texts/87"
+      ],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.582717047797309,
+            0.35655162310359456,
+            0.8521405388327206,
+            0.5652830721151949
+          ],
+          "character_span": [
+            0,
+            0
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/75",
+      "type": "caption",
+      "provider_label": "caption",
+      "text": "Figure 3: Distribution of conversion times for all documents, ordered by number of pages in a document, on all system configurations. Every dot represents one document. Log/log scale is used to even the spacing, since both number of pages and conversion times have long-tail distributions.",
+      "raw_text": "Figure 3: Distribution of conversion times for all documents, ordered by number of pages in a document, on all system configurations. Every dot represents one document. Log/log scale is used to even the spacing, since both number of pages and conversion times have long-tail distributions.",
+      "reading_order": 40,
+      "level": 2,
+      "parent_id": "#/pictures/1",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5220588235294118,
+            0.5810862972222223,
+            0.9117722941176465,
+            0.6472326080897471
+          ],
+          "character_span": [
+            0,
+            289
+          ]
+        }
+      ],
+      "disposition": "unsupported",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/88",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "Runtime Characteristics To analyze Docling's runtime characteristics, we begin by exploring the relationship between document length (in pages) and conversion time. As shown in Figure 3, this relationship is not strictly linear, as documents differ in their frequency of tables and bitmap elements (i.e., scanned content). This requires OCR or table structure recognition models to engage dynamically when layout analysis has detected such elements.",
+      "raw_text": "Runtime Characteristics To analyze Docling's runtime characteristics, we begin by exploring the relationship between document length (in pages) and conversion time. As shown in Figure 3, this relationship is not strictly linear, as documents differ in their frequency of tables and bitmap elements (i.e., scanned content). This requires OCR or table structure recognition models to engage dynamically when layout analysis has detected such elements.",
+      "reading_order": 41,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5220588235294118,
+            0.6696979873737375,
+            0.9117722941176468,
+            0.7778449818271208
+          ],
+          "character_span": [
+            0,
+            449
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    },
+    {
+      "id": "#/texts/89",
+      "type": "paragraph",
+      "provider_label": "text",
+      "text": "By breaking down the runtimes to a page level, we receive a more intuitive measure for the conversion speed (see also Figure 4). Processing a page in our benchmark dataset requires between 0.6 sec (5 th percentile) and 16.3 sec (95 th percentile), with a median of 0.79 sec on the x86 CPU. On the M3 Max SoC, it achieves 0.26/0.32/6.48 seconds per page (.05/median/.95), and on the Nvidia L4 GPU it achieves 57/114/2081 milliseconds per page (.05/median/.95). The",
+      "raw_text": "By breaking down the runtimes to a page level, we receive a more intuitive measure for the conversion speed (see also Figure 4). Processing a page in our benchmark dataset requires between 0.6 sec (5 th percentile) and 16.3 sec (95 th percentile), with a median of 0.79 sec on the x86 CPU. On the M3 Max SoC, it achieves 0.26/0.32/6.48 seconds per page (.05/median/.95), and on the Nvidia L4 GPU it achieves 57/114/2081 milliseconds per page (.05/median/.95). The",
+      "reading_order": 42,
+      "level": 1,
+      "parent_id": "#/body",
+      "children": [],
+      "source_spans": [
+        {
+          "page_number": 5,
+          "bbox": [
+            0.5220588235294118,
+            0.7813160952020203,
+            0.9117729477124178,
+            0.888972507079646
+          ],
+          "character_span": [
+            0,
+            463
+          ]
+        }
+      ],
+      "disposition": "uncertain",
+      "completeness": "unknown"
+    }
+  ],
+  "containers": [
+    {
+      "id": "#/body",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": [
+        "#/tables/0",
+        "#/pictures/0",
+        "#/texts/68",
+        "#/texts/69",
+        "#/groups/1",
+        "#/texts/73",
+        "#/texts/74",
+        "#/pictures/1",
+        "#/texts/88",
+        "#/texts/89"
+      ]
+    },
+    {
+      "id": "#/furniture",
+      "label": "unspecified",
+      "parent_id": null,
+      "children": []
+    },
+    {
+      "id": "#/groups/0",
+      "label": "unspecified",
+      "parent_id": "#/tables/0",
+      "children": [
+        "#/texts/1",
+        "#/texts/2",
+        "#/texts/3",
+        "#/texts/4",
+        "#/texts/5",
+        "#/texts/6",
+        "#/texts/7",
+        "#/texts/8",
+        "#/texts/9",
+        "#/texts/10",
+        "#/texts/11",
+        "#/texts/12",
+        "#/texts/13",
+        "#/texts/14",
+        "#/texts/15",
+        "#/texts/16",
+        "#/texts/17",
+        "#/texts/18",
+        "#/texts/19",
+        "#/texts/20",
+        "#/texts/21",
+        "#/texts/22",
+        "#/texts/23",
+        "#/texts/24",
+        "#/texts/25",
+        "#/texts/26",
+        "#/texts/27",
+        "#/texts/28"
+      ]
+    },
+    {
+      "id": "#/groups/1",
+      "label": "list",
+      "parent_id": "#/body",
+      "children": [
+        "#/texts/70",
+        "#/texts/71",
+        "#/texts/72"
+      ]
+    }
+  ],
+  "provider_status": "ConversionStatus.SUCCESS",
+  "missing_features": [
+    "unit_completeness",
+    "independent_text_verification"
+  ],
+  "schema_version": "structural-probe-v1",
+  "case_id": "holdout_table_figures",
+  "source_sha256": "f555f6260be1de6cd8f75addca4edc3c4456b2d5f3bf01a115942cb81396208a"
+}

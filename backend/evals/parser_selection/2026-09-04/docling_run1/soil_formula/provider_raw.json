@@ -1,0 +1,316 @@
+{
+  "schema_name": "DoclingDocument",
+  "version": "1.10.0",
+  "name": "土质土力学2026st",
+  "origin": {
+    "mimetype": "application/pdf",
+    "binary_hash": 2942633575476473321,
+    "filename": "土质土力学2026st.pdf"
+  },
+  "furniture": {
+    "self_ref": "#/furniture",
+    "children": [],
+    "content_layer": "furniture",
+    "name": "_root_",
+    "label": "unspecified"
+  },
+  "body": {
+    "self_ref": "#/body",
+    "children": [
+      {
+        "$ref": "#/texts/0"
+      },
+      {
+        "$ref": "#/pictures/0"
+      }
+    ],
+    "content_layer": "body",
+    "name": "_root_",
+    "label": "unspecified"
+  },
+  "groups": [],
+  "texts": [
+    {
+      "self_ref": "#/texts/0",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "section_header",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 70.80645243326823,
+            "t": 544.3923565317789,
+            "r": 329.8734944661458,
+            "b": 502.0253387858072,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            8
+          ]
+        }
+      ],
+      "orig": "基底附加压力计算",
+      "text": "基底附加压力计算",
+      "level": 1
+    },
+    {
+      "self_ref": "#/texts/1",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 441.4112955729167,
+            "t": 468.83783878580726,
+            "r": 518.3830973307292,
+            "b": 445.88903710937495,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            4
+          ]
+        }
+      ],
+      "orig": "初始状态",
+      "text": "初始状态"
+    },
+    {
+      "self_ref": "#/texts/2",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 668.0504150390625,
+            "t": 407.7587168782552,
+            "r": 740.7460123697916,
+            "b": 385.16297306315096,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            8
+          ]
+        }
+      ],
+      "orig": "Q = γ₀AD",
+      "text": "Q = γ₀AD"
+    },
+    {
+      "self_ref": "#/texts/3",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 451.7454833984375,
+            "t": 343.1490061848958,
+            "r": 494.1512451171875,
+            "b": 319.1410309244791,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            2
+          ]
+        }
+      ],
+      "orig": "开挖",
+      "text": "开挖"
+    },
+    {
+      "self_ref": "#/texts/4",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "formula",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 93.61290486653647,
+            "t": 215.34183658854164,
+            "r": 327.02268473307294,
+            "b": 148.26074121093745,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            19
+          ]
+        }
+      ],
+      "orig": "P-Q =p−γ₀D P₀ = - A",
+      "text": "P-Q =p−γ₀D P₀ = - A"
+    },
+    {
+      "self_ref": "#/texts/5",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 444.9748128255208,
+            "t": 216.75406803385414,
+            "r": 522.3029378255208,
+            "b": 192.74609277343745,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            4
+          ]
+        }
+      ],
+      "orig": "基础完成",
+      "text": "基础完成"
+    },
+    {
+      "self_ref": "#/texts/6",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "text",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 92.54385375976562,
+            "t": 122.84049381510414,
+            "r": 397.5801595052083,
+            "b": 68.4695221354167,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            31
+          ]
+        }
+      ],
+      "orig": "基底压力呈梯形分布时，基底附加 压力pomax, Pomin为",
+      "text": "基底压力呈梯形分布时，基底附加 压力pomax, Pomin为"
+    },
+    {
+      "self_ref": "#/texts/7",
+      "parent": {
+        "$ref": "#/pictures/0"
+      },
+      "children": [],
+      "content_layer": "body",
+      "label": "formula",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 448.538330078125,
+            "t": 113.30794173177077,
+            "r": 714.0196940104166,
+            "b": 27.867756184895825,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            32
+          ]
+        }
+      ],
+      "orig": "P 0max p max − γ₀d P 0 min P min",
+      "text": "P 0max p max − γ₀d P 0 min P min"
+    }
+  ],
+  "pictures": [
+    {
+      "self_ref": "#/pictures/0",
+      "parent": {
+        "$ref": "#/body"
+      },
+      "children": [
+        {
+          "$ref": "#/texts/1"
+        },
+        {
+          "$ref": "#/texts/2"
+        },
+        {
+          "$ref": "#/texts/3"
+        },
+        {
+          "$ref": "#/texts/4"
+        },
+        {
+          "$ref": "#/texts/5"
+        },
+        {
+          "$ref": "#/texts/6"
+        },
+        {
+          "$ref": "#/texts/7"
+        }
+      ],
+      "content_layer": "body",
+      "label": "picture",
+      "prov": [
+        {
+          "page_no": 160,
+          "bbox": {
+            "l": 56.66026806366982,
+            "t": 535.6111973343664,
+            "r": 745.0521277790568,
+            "b": 27.19610994561731,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            0
+          ]
+        }
+      ],
+      "captions": [],
+      "references": [],
+      "footnotes": [],
+      "annotations": []
+    }
+  ],
+  "tables": [],
+  "key_value_items": [],
+  "form_items": [],
+  "pages": {
+    "160": {
+      "size": {
+        "width": 841.89,
+        "height": 595.276
+      },
+      "page_no": 160
+    }
+  }
+}

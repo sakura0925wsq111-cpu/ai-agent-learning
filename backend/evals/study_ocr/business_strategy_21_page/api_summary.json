@@ -1,0 +1,34 @@
+{
+  "tested_at": "2026-09-04T09:49:09.677703+00:00",
+  "test_mode": "FastAPI TestClient, isolated in-memory SQLite, temporary upload directory",
+  "source_filename": "企业战略管理分章重点【21页】.pdf",
+  "source_sha256": "dca3544fa8d5e5d163d1e7e53073e5ad3905f795adf05b7f5b9bcf8928e7e6f0",
+  "upload_seconds": 0.0267,
+  "parse_seconds": 0.0847,
+  "page_count": 21,
+  "unit_count": 21,
+  "text_characters": 20777,
+  "extraction_methods": {
+    "native": 21
+  },
+  "quality_status_counts": {
+    "accepted": 21
+  },
+  "ocr_called": false,
+  "llm_called": false,
+  "cards_created": 0,
+  "checks_passed": [
+    "registration",
+    "login",
+    "upload",
+    "stored_sha256",
+    "parse",
+    "unit_query",
+    "page_order",
+    "repeat_idempotency",
+    "anonymous_401",
+    "cross_account_404",
+    "no_cards"
+  ],
+  "quality_caveat": "Native text is accepted directly; this is not OCR paragraph-gate or semantic-quality validation."
+}
