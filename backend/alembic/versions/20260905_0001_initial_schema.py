@@ -134,12 +134,7 @@ def upgrade() -> None:
         sa.Column("import_type", sa.String(length=20), nullable=False),
         sa.Column("items_json", sa.Text(), nullable=False),
         sa.Column("semester_start", sa.String(length=10), nullable=True),
-        sa.Column(
-            "status",
-            sa.String(length=20),
-            nullable=False,
-            comment="pending / done / archived / cancelled",
-        ),
+        sa.Column("status", sa.String(length=20), nullable=False),
         sa.Column("result_json", sa.Text(), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -184,7 +179,12 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.String(length=36), nullable=False),
         sa.Column("title", sa.String(length=500), nullable=False),
-        sa.Column("status", sa.String(length=20), nullable=False),
+        sa.Column(
+            "status",
+            sa.String(length=20),
+            nullable=False,
+            comment="pending / done / archived / cancelled",
+        ),
         sa.Column("deadline", sa.String(length=50), nullable=True),
         sa.Column(
             "source",
