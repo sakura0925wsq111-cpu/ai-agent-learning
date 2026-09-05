@@ -39,7 +39,7 @@ LLM_MODEL=deepseek-chat
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-`DEEPSEEK_API_KEY` 为空时，dev 环境的非 AI 接口仍可使用。生产环境会校验模型密钥、JWT 密钥、CORS 白名单、调试开关和演示账号设置；配置不安全时启动失败。详见[部署说明](../docs/deployment-week1.md)。
+`DEEPSEEK_API_KEY` 为空时，dev 环境的非 AI 接口仍可使用。生产环境强制 PostgreSQL，并校验模型密钥、JWT 密钥、CORS 白名单、调试开关和演示账号设置；配置不安全时启动失败。详见[部署说明](../docs/deployment-week1.md)。
 
 ## Docker
 
@@ -52,6 +52,16 @@ Invoke-RestMethod http://127.0.0.1:8000/ready
 
 镜像使用 Python 3.11 轻量基础镜像和非 root 用户。SQLite 与日志分别写入 `/app/data`、`/app/logs`，由 Compose 的 `icampus-data`、`icampus-logs` 卷持久化。默认不需要模型密钥即可启动非 AI 接口。
 
+生产结构必须先迁移再启动 API：
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path backend).Path
+python -m alembic -c backend/alembic.ini upgrade head
+python -m alembic -c backend/alembic.ini check
+```
+
+`docker-compose.postgres.yml` 已把迁移做成独立一次性服务。生产应用本身只验证 revision，不在启动阶段创建或修改表。
+
 ## 代码结构
 
 ```text
@@ -59,6 +69,7 @@ backend/
 ├── app/          # FastAPI 入口；API 路由位于 app/api
 ├── core/         # 配置、日志、异常与限流
 ├── database/     # SQLAlchemy 引擎、会话和初始化
+├── alembic/      # 生产数据库版本迁移
 ├── models/       # ORM 模型
 ├── schemas/      # Pydantic 模型
 ├── crud/         # 数据访问

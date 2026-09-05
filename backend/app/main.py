@@ -41,10 +41,10 @@ async def lifespan(app: FastAPI):
     logger.info("{} v{} starting...".format(settings.app_name, settings.app_version))
     logger.info("Environment: {}".format(settings.app_env))
 
-    # Import all models so Base.metadata knows about them, then create tables
+    # Import all models so metadata and migration checks see the full schema.
     import models  # noqa: F401
     init_db()
-    logger.info("Database initialized (all tables created if not exist).")
+    logger.info("Database schema is ready.")
 
     yield  # App runs here
 

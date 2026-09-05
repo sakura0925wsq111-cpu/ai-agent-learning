@@ -76,6 +76,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_environment(self) -> "Settings":
         if self.is_production:
+            if not self.database_url.startswith("postgresql"):
+                raise ValueError("prod requires a PostgreSQL DATABASE_URL")
             if not self.jwt_secret_key or self.jwt_secret_key == _DEV_SECRET or len(self.jwt_secret_key) < 32:
                 raise ValueError("prod requires JWT_SECRET_KEY with at least 32 non-default characters")
             if not self.llm_api_key:

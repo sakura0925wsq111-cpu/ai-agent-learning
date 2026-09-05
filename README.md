@@ -261,6 +261,20 @@ docker compose logs -f api
 
 停止但保留数据：`docker compose down`。除非明确要删除本地数据，不要执行 `docker compose down -v`。
 
+邀请制 Beta 使用 PostgreSQL 编排，迁移成功后 API 才会启动：
+
+```powershell
+$env:POSTGRES_PASSWORD = "replace-with-a-strong-password"
+$env:DATABASE_URL = "postgresql+psycopg://icampus:replace-with-a-strong-password@postgres:5432/icampus"
+$env:JWT_SECRET_KEY = "replace-with-at-least-32-random-characters"
+$env:DEEPSEEK_API_KEY = "your-model-key"
+$env:CORS_ORIGINS = "https://beta.example.com"
+docker compose -f docker-compose.postgres.yml up --build -d
+Invoke-RestMethod http://127.0.0.1:8000/ready
+```
+
+实际部署应从 Secret Manager 注入变量，不把上面的示例值写入仓库。完整范围与门禁见[邀请制 Beta 发布范围](docs/beta-release-scope.md)。
+
 ## 项目结构
 
 ```text
@@ -289,7 +303,7 @@ ai-agent-learning/
 - `AsyncSqliteSaver` 适合当前单机演示；多实例部署需要共享 checkpoint 存储。
 - OpenAI-compatible 客户端主体仍是同步调用，部分异步链路需要进一步隔离阻塞。
 - 限流是进程内实现，不适合多实例全局配额。
-- 数据库迁移主要依赖启动期建表与增量 SQL，尚未形成完整 Alembic 流程。
+- 生产主业务库已建立 PostgreSQL + Alembic 基线；开发/测试仍保留 SQLite 兼容启动逻辑。
 - 有后端测试、契约测试和 JavaScript 语法检查，但没有完整的小程序 UI/E2E 自动化套件。
 - 本 README 展示的是高保真设计稿；60 秒实机录屏尚未随仓库发布。
 - 当次真实 LLM eval 没有形成可审计的成本和延迟分位数，下一轮应先补测量再做性能宣称。
@@ -308,6 +322,8 @@ ai-agent-learning/
 - [后端运行与 API](backend/README.md)
 - [前端 API 对接](docs/frontend-api-reference.md)
 - [V2 产品需求](docs/iCampus-PRD-v2.md)
+- [邀请制 Beta 发布范围](docs/beta-release-scope.md)
+- [部署与数据库迁移](docs/deployment-week1.md)
 - [部署说明](docs/deployment-week1.md)
 - [隐私说明](docs/privacy.md)
 - [UI 与后端能力矩阵](deliverables/complete-design-v1-bento/backend-capability-matrix.md)

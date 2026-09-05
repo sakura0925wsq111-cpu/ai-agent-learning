@@ -13,18 +13,25 @@ from sqlalchemy.orm import Session, sessionmaker
 from core.config import PROJECT_ROOT, settings
 
 
+def resolve_database_url(database_url: str) -> str:
+    """Resolve repository-relative SQLite URLs while leaving server URLs intact."""
+    if not database_url.startswith("sqlite:///"):
+        return database_url
+
+    db_path = database_url.removeprefix("sqlite:///")
+    path = Path(db_path)
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{path.resolve().as_posix()}"
+
+
 def _create_engine() -> Engine:
     """Create a SQLAlchemy engine from settings."""
     connect_args: dict = {}
     if settings.database_url.startswith("sqlite"):
-        db_path = settings.database_url.replace("sqlite:///", "")
-        if not Path(db_path).is_absolute():
-            db_path = str(PROJECT_ROOT / db_path)
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         connect_args["check_same_thread"] = False
-        database_url = f"sqlite:///{db_path}"
-    else:
-        database_url = settings.database_url
+    database_url = resolve_database_url(settings.database_url)
 
     return create_engine(
         database_url,
@@ -54,15 +61,20 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Create all tables and run column migrations.
+    """Prepare the schema for the configured environment.
 
-    Called on application startup.
-    Safe to call repeatedly - won't drop existing data.
-    Adds missing columns for schema evolution.
+    Production schema changes are owned by Alembic and must run as a separate
+    deployment step. Development and tests retain the legacy bootstrap path so
+    existing local SQLite databases continue to work.
     """
     from database.base import Base
     from sqlalchemy import inspect, text
     from loguru import logger
+
+    if settings.is_production:
+        assert_database_schema_current()
+        logger.info("Verified production database at the current Alembic head.")
+        return
 
     Base.metadata.create_all(bind=engine)
 
@@ -172,3 +184,23 @@ def init_db() -> None:
                 ))
                 db.commit()
                 logger.info("Demo account initialized: {}", settings.demo_student_id)
+
+
+def assert_database_schema_current() -> None:
+    """Refuse production startup when the database is not at Alembic head."""
+    from alembic.config import Config
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+
+    config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    scripts = ScriptDirectory.from_config(config)
+    expected = set(scripts.get_heads())
+    with engine.connect() as connection:
+        current = set(MigrationContext.configure(connection).get_current_heads())
+
+    if current != expected:
+        raise RuntimeError(
+            "database schema is not at Alembic head: "
+            f"current={sorted(current)}, expected={sorted(expected)}; "
+            "run `python -m alembic -c alembic.ini upgrade head` before startup"
+        )

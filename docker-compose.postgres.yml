@@ -1,0 +1,80 @@
+name: icampus-beta-postgres
+
+services:
+  postgres:
+    image: postgres:16.10-bookworm@sha256:38471f330eb885e04de130b768d6db4e10469e2311879c7e5c699f6d2d8a1c74
+    environment:
+      POSTGRES_DB: icampus
+      POSTGRES_USER: icampus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - icampus-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U icampus -d icampus"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"]
+    environment:
+      APP_ENV: prod
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?DEEPSEEK_API_KEY is required}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+      DEBUG: "false"
+      DEMO_ACCOUNT_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: iCampus
+      APP_ENV: prod
+      DEBUG: "false"
+      HOST: 0.0.0.0
+      PORT: "8000"
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?DEEPSEEK_API_KEY is required}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+      DEMO_ACCOUNT_ENABLED: "false"
+      LOG_DIR: /app/logs
+      GROWTH_CHECKPOINT_DB: /app/data/growth_checkpoints.db
+    volumes:
+      - icampus-beta-state:/app/data
+      - icampus-beta-logs:/app/logs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  icampus-postgres-data:
+  icampus-beta-state:
+  icampus-beta-logs:

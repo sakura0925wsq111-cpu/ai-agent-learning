@@ -60,10 +60,23 @@ def _user(session_factory, label: str) -> tuple[str, dict[str, str]]:
 
 
 def test_production_configuration_rejects_missing_or_unsafe_secrets():
+    with pytest.raises(ValidationError, match="PostgreSQL"):
+        Settings(
+            _env_file=None,
+            app_env="prod",
+            database_url="sqlite:///./data/icampus.db",
+            debug=False,
+            jwt_secret_key="x" * 32,
+            DEEPSEEK_API_KEY="configured",
+            cors_origins="https://app.example.com",
+            demo_account_enabled=False,
+        )
+
     with pytest.raises(ValidationError):
         Settings(
             _env_file=None,
             app_env="prod",
+            database_url="postgresql+psycopg://icampus:test@db:5432/icampus",
             debug=False,
             jwt_secret_key="short",
             DEEPSEEK_API_KEY="configured",
@@ -74,6 +87,7 @@ def test_production_configuration_rejects_missing_or_unsafe_secrets():
     valid = Settings(
         _env_file=None,
         app_env="prod",
+        database_url="postgresql+psycopg://icampus:test@db:5432/icampus",
         debug=False,
         jwt_secret_key="x" * 32,
         DEEPSEEK_API_KEY="configured",

@@ -12,7 +12,7 @@ Copy-Item backend/.env.example backend/.env
 
 - `dev`：本机 SQLite、允许调试、可启用演示账号。
 - `test`：测试服务器，建议 PostgreSQL，使用测试域名 CORS 白名单，可启用演示账号。
-- `prod`：生产环境。`JWT_SECRET_KEY`、`DEEPSEEK_API_KEY`、明确的 `CORS_ORIGINS` 必填；`DEBUG` 和演示账号必须关闭，否则进程启动失败。
+- `prod`：生产环境。必须使用 PostgreSQL；`JWT_SECRET_KEY`、`DEEPSEEK_API_KEY`、明确的 `CORS_ORIGINS` 必填；`DEBUG` 和演示账号必须关闭，否则进程启动失败。
 
 不要把 `backend/.env`、数据库文件、密钥或密码提交到 Git。
 
@@ -78,13 +78,23 @@ CORS_ORIGINS=https://app.example.com
 DEMO_ACCOUNT_ENABLED=false
 ```
 
-推荐在进程管理器或容器中注入变量，不生成含密钥的镜像层。启动命令与 test 相同，可按容量增加 worker；导入预览已存数据库，可跨进程读取。
+推荐在进程管理器或容器中注入变量，不生成含密钥的镜像层。首次启动 API 前必须先执行迁移：
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path backend).Path
+python -m alembic -c backend/alembic.ini upgrade head
+python -m alembic -c backend/alembic.ini current
+```
+
+生产 API 启动时只核对数据库是否位于 Alembic head，不自动建表或修改表。如果迁移未执行，启动会直接失败。
 
 ## 6. 数据库与迁移边界
 
-SQLAlchemy URL 已支持 SQLite 和 PostgreSQL（`psycopg` 驱动已列入依赖）。当前项目仍通过 `Base.metadata.create_all()` 加少量兼容 SQL 为旧 SQLite 补列；第一周没有强行接入 Alembic，原因是现有数据库可能已有手工演进，直接生成基线迁移容易重复建表或错误回放。
+SQLAlchemy URL 支持 SQLite 和 PostgreSQL（`psycopg` 驱动已列入依赖）。开发和测试环境暂时保留 `Base.metadata.create_all()` 与旧 SQLite 兼容逻辑；生产环境的结构变更只允许通过 `backend/alembic/` 中的版本迁移完成。
 
-上线测试环境前应备份数据库。第二周建议：冻结模型、为现存库生成并人工核对 Alembic baseline、用空库与旧库各演练一次 upgrade，再停止运行时手工 DDL。生产环境不建议长期依赖 `create_all` 管理变更。
+新 PostgreSQL 数据库直接执行 `upgrade head`。已有 SQLite 数据库不能直接运行初始迁移，否则会因表已存在而失败；必须先备份并核对实际表、列、索引和约束。只有确认结构与 `20260905_0001` 完全一致时才能人工 `stamp`，否则应编写数据迁移脚本导入一个由 Alembic 创建的空 PostgreSQL 数据库。
+
+仓库提供 `docker-compose.postgres.yml`，其 `migrate` 服务成功后 API 才会启动。运行前必须从环境或 Secret Manager 提供 `POSTGRES_PASSWORD`、`DATABASE_URL`、`JWT_SECRET_KEY`、`DEEPSEEK_API_KEY` 和 `CORS_ORIGINS`。
 
 ## 7. 演示验收顺序
 
