@@ -143,7 +143,12 @@ def test_study_documents_require_login_and_are_owner_scoped(study_api):
 @pytest.mark.parametrize(
     ("filename", "content", "content_type", "file_type"),
     [
-        ("network.pdf", b"%PDF-1.7\nminimal-test-pdf", "application/pdf", "pdf"),
+        (
+            "network.pdf",
+            _pdf_bytes("TCP is connection-oriented and reliable."),
+            "application/pdf",
+            "pdf",
+        ),
         (
             "lecture.pptx",
             _pptx_bytes(),
@@ -171,6 +176,7 @@ def test_authenticated_user_can_upload_supported_study_file(
     assert payload["file_type"] == file_type
     assert payload["file_size"] == len(content)
     assert payload["status"] == "uploaded"
+    assert payload["page_count"] == 1
 
     with session_factory() as db:
         document = db.get(StudyDocument, payload["id"])
@@ -236,6 +242,31 @@ def test_oversized_study_upload_is_removed_without_database_record(
         assert db.query(StudyDocument).count() == 0
     storage = LocalStudyStorage()
     assert not list(storage.base_dir.rglob("*.uploading"))
+
+
+def test_upload_page_limit_accepts_100_and_rejects_101_before_ocr(study_api):
+    client, session_factory = study_api
+    _, headers = _user(session_factory, "over-page-limit")
+    allowed = client.post(
+        "/api/v1/study/documents",
+        headers=headers,
+        files={"file": ("one-hundred-pages.pdf", _pdf_bytes(*(["page"] * 100)), "application/pdf")},
+    )
+    assert allowed.status_code == 201, allowed.text
+    assert allowed.json()["data"]["page_count"] == 100
+
+    response = client.post(
+        "/api/v1/study/documents",
+        headers=headers,
+        files={"file": ("one-hundred-one-pages.pdf", _pdf_bytes(*(["page"] * 101)), "application/pdf")},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["message"] == "学习资料页数不能超过 100 页"
+    with session_factory() as db:
+        assert db.query(StudyDocument).count() == 1
+    storage = LocalStudyStorage()
+    assert len(list(storage.base_dir.rglob("*.pdf"))) == 1
 
 
 def test_pdf_parse_creates_page_units_and_is_idempotent(study_api):

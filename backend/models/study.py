@@ -152,6 +152,33 @@ class StudyKnowledgeRun(Base):
     )
 
 
+class StudyKnowledgePageCheckpoint(Base):
+    """Durable page-level result for resumable direct multimodal extraction."""
+
+    __tablename__ = "study_knowledge_page_checkpoints"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("study_knowledge_runs.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="queued")
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    model: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    statistics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "page_number", name="uq_study_knowledge_checkpoint_page"),
+        Index("ix_study_knowledge_checkpoint_run_status", "run_id", "status"),
+    )
+
+
 class StudyStructuredBlock(Base):
     """A lossless source block used by a particular knowledge run."""
 
@@ -200,6 +227,23 @@ class StudyKnowledgeUnit(Base):
     knowledge_type: Mapped[str] = mapped_column(String(30), nullable=False)
     structured_revision_id: Mapped[str] = mapped_column(String(64), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    original_content: Mapped[str] = mapped_column(
+        Text, nullable=False, default=lambda ctx: ctx.get_current_parameters()["content"]
+    )
+    review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+    @property
+    def is_edited(self) -> bool:
+        return self.content != self.original_content
+
+    @property
+    def source_usage(self) -> str:
+        return "reference_only" if self.is_edited else "extraction_evidence"
+
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     source_key: Mapped[str] = mapped_column(String(64), nullable=False)
     context_refs: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
@@ -327,10 +371,58 @@ class StudyUserCardState(Base):
     )
 
 
+class StudyChoiceQuestionRun(Base):
+    __tablename__ = "study_choice_question_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    knowledge_run_id: Mapped[str] = mapped_column(ForeignKey("study_knowledge_runs.id", ondelete="CASCADE"), index=True)
+    request_key: Mapped[str] = mapped_column(String(64), unique=True)
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    total_count: Mapped[int] = mapped_column(Integer)
+    processed_count: Mapped[int] = mapped_column(Integer, default=0)
+    generated_count: Mapped[int] = mapped_column(Integer, default=0)
+    skipped_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    model: Mapped[str] = mapped_column(String(255))
+    prompt_version: Mapped[str] = mapped_column(String(80))
+    snapshots: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    statistics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    audit: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class StudyChoiceQuestion(Base):
+    __tablename__ = "study_choice_questions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    question_run_id: Mapped[str] = mapped_column(ForeignKey("study_choice_question_runs.id", ondelete="CASCADE"), index=True)
+    knowledge_unit_id: Mapped[str] = mapped_column(ForeignKey("study_knowledge_units.id", ondelete="CASCADE"))
+    knowledge_unit_version: Mapped[int] = mapped_column(Integer)
+    source_content: Mapped[str] = mapped_column(Text)
+    prompt: Mapped[str] = mapped_column(Text)
+    options: Mapped[list[str]] = mapped_column(JSON)
+    correct_option: Mapped[str] = mapped_column(String(1))
+    answer_text: Mapped[str] = mapped_column(String(30))
+    answer_start: Mapped[int] = mapped_column(Integer)
+    answer_end: Mapped[int] = mapped_column(Integer)
+    answer_role: Mapped[str] = mapped_column(String(30))
+    explanation: Mapped[str] = mapped_column(Text)
+    source_refs: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    generation_meta: Mapped[dict[str, Any]] = mapped_column(JSON)
+    position: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    __table_args__ = (UniqueConstraint("question_run_id", "knowledge_unit_id", name="uq_choice_run_unit"),)
+
+
 __all__ = [
+    "StudyChoiceQuestionRun",
+    "StudyChoiceQuestion",
     "StudyDocument",
     "StudyDocumentUnit",
     "StudyKnowledgeRun",
+    "StudyKnowledgePageCheckpoint",
     "StudyStructuredBlock",
     "StudyKnowledgeUnit",
     "StudyCard",

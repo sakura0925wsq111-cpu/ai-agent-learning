@@ -8,10 +8,13 @@ from models.todo import Todo
 from models.today import Course, Exam, PlanTask, ImportPreview
 from models.study import (
     StudyAttempt,
+    StudyChoiceQuestion,
+    StudyChoiceQuestionRun,
     StudyCard,
     StudyDocument,
     StudyDocumentUnit,
     StudyKnowledgeRun,
+    StudyKnowledgePageCheckpoint,
     StudyKnowledgeUnit,
     StudyQuiz,
     StudyStructuredBlock,
@@ -23,6 +26,8 @@ __all__ = [
     "GrowthSession", "GrowthConversation", "GrowthReport",
     "Todo", "Course", "Exam", "PlanTask", "ImportPreview",
     "StudyDocument", "StudyDocumentUnit", "StudyKnowledgeRun",
+    "StudyKnowledgePageCheckpoint",
     "StudyStructuredBlock", "StudyKnowledgeUnit", "StudyCard",
     "StudyQuiz", "StudyAttempt", "StudyUserCardState",
+    "StudyChoiceQuestion", "StudyChoiceQuestionRun",
 ]

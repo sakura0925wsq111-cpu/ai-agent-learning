@@ -51,6 +51,31 @@ class StudyParseError(Exception):
         super().__init__(message)
 
 
+def inspect_study_page_count(file_type: str, path: Path) -> int:
+    """Read only document metadata so upload limits run before OCR or inference."""
+    try:
+        if file_type == "pdf":
+            with pymupdf.open(path) as document:
+                if document.needs_pass:
+                    raise StudyParseError("password_protected_pdf", "暂不支持加密 PDF")
+                page_count = document.page_count
+                if page_count < 1:
+                    raise StudyParseError("empty_document", "PDF 中没有页面")
+                return page_count
+        if file_type == "pptx":
+            page_count = len(Presentation(path).slides)
+            if page_count < 1:
+                raise StudyParseError("empty_document", "PPTX 中没有幻灯片")
+            return page_count
+    except StudyParseError:
+        raise
+    except Exception as exc:
+        error = "invalid_pdf" if file_type == "pdf" else "invalid_pptx"
+        message = "PDF 解析失败" if file_type == "pdf" else "PPTX 解析失败"
+        raise StudyParseError(error, message) from exc
+    raise StudyParseError("unsupported_file_type", "仅支持 PDF 或 PPTX 文件")
+
+
 def _unit(
     page_number: int,
     unit_type: str,
@@ -343,6 +368,7 @@ __all__ = [
     "ParsedDocument",
     "ParsedUnit",
     "StudyParseError",
+    "inspect_study_page_count",
     "parse_and_store_document",
     "parse_study_file",
 ]

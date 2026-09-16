@@ -22,6 +22,10 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
       LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      STUDY_DOUBAO_BASE_URL: ${STUDY_DOUBAO_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
+      STUDY_DOUBAO_MODEL: ${STUDY_DOUBAO_MODEL:-doubao-seed-2-1-turbo-260628}
+      STUDY_KNOWLEDGE_PIPELINE_VERSION: ${STUDY_KNOWLEDGE_PIPELINE_VERSION:-doubao-vision-v2}
       DEMO_ACCOUNT_ENABLED: ${DEMO_ACCOUNT_ENABLED:-true}
     volumes:
       - icampus-data:/app/data

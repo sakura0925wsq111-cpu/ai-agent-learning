@@ -66,6 +66,13 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
 
+    from database.study_review_migration import migrate_study_review
+    migrate_study_review(engine)
+    from database.study_choice_question_migration import migrate_study_choice_questions
+    migrate_study_choice_questions(engine)
+    from database.study_knowledge_checkpoint_migration import migrate_study_knowledge_checkpoints
+    migrate_study_knowledge_checkpoints(engine)
+
     inspector = inspect(engine)
 
     # ── Users table migrations ──
