@@ -12,6 +12,16 @@ jobs:
     name: Backend tests and frontend syntax
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7.4.1-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
     env:
       PYTHONPATH: backend
       APP_ENV: test
@@ -22,6 +32,7 @@ jobs:
       LLM_BASE_URL: http://127.0.0.1:9
       DEMO_ACCOUNT_ENABLED: "false"
       LOG_DIR: /tmp/icampus-logs
+      REDIS_INTEGRATION_URL: redis://127.0.0.1:6379/15
 
     steps:
       - name: Check out repository

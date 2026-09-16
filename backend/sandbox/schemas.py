@@ -50,11 +50,12 @@ class SandboxChatRequest(BaseModel):
 
 
 class SandboxResumeRequest(BaseModel):
-    """POST /sandbox/resume — resume a session with saved state."""
+    """POST /sandbox/resume — resume only server-owned persisted state."""
+    model_config = {"extra": "forbid"}
+
     user_id: str = Field(..., description="User ID")
     session_id: str = Field(..., description="Session ID to resume")
     message: str = Field("", max_length=3000, description="User message")
-    state: dict[str, Any] = Field(..., description="Previously saved session state")
 
 
 # ── Projection Result Sub-models ────────────────────────────────

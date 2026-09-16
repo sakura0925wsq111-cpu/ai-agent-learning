@@ -17,7 +17,7 @@ Endpoints (NEW — LangGraph capabilities):
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request as FastAPIRequest
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from loguru import logger
@@ -36,7 +36,7 @@ from schemas.growth import (
     AgentListResponse,
 )
 from services.growth_service import get_growth_service
-from services.llm_service import get_llm_service
+from services.llm_service import get_llm_service, reset_llm_context, set_llm_context
 from planning.router import PlanningRouter
 from utils.auth import get_current_user_id, require_user_access
 from core.rate_limit import enforce_ai_daily_limit
@@ -202,6 +202,7 @@ async def list_agents() -> dict[str, Any]:
 @router.get("/stream/{session_id}")
 async def growth_stream(
     session_id: str,
+    http_request: FastAPIRequest,
     user_id: str = Query(..., description="User ID"),
     message: str = Query("", description="User message (empty = continue)"),
     agent: str = Query("career", description="Agent type"),
@@ -224,11 +225,20 @@ async def growth_stream(
     service = get_growth_service(llm)
 
     async def event_generator():
-        async for sse in service.chat_stream(
-            db, session_id=session_id, user_id=user_id,
-            message=message, agent_type=agent,
-        ):
-            yield sse
+        context_token = set_llm_context(
+            user_id=current_user_id,
+            feature="growth.stream",
+            client_ip=http_request.client.host if http_request.client else "unknown",
+            device_id=http_request.headers.get("x-device-id", "").strip()[:128],
+        )
+        try:
+            async for sse in service.chat_stream(
+                db, session_id=session_id, user_id=user_id,
+                message=message, agent_type=agent,
+            ):
+                yield sse
+        finally:
+            reset_llm_context(context_token)
 
     return StreamingResponse(
         event_generator(),
@@ -309,6 +319,7 @@ async def growth_approve(
 @router.post("/chat/stream")
 async def growth_chat_stream(
     request: GrowthChatRequest,
+    http_request: FastAPIRequest,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
@@ -324,36 +335,40 @@ async def growth_chat_stream(
     service = get_growth_service(llm)
 
     async def event_generator():
-        # Run normal chat to get the full response
-        result = await service.chat(db, request=request)
-        msg = result.message or ""
-        session_id = result.session_id
-        stage = result.stage
-        finished = result.finished
-        report = result.report
-        progress = result.progress
+        context_token = set_llm_context(
+            user_id=current_user_id,
+            feature="growth.chat.stream",
+            client_ip=http_request.client.host if http_request.client else "unknown",
+            device_id=http_request.headers.get("x-device-id", "").strip()[:128],
+        )
+        try:
+            # Run normal chat to get the full response
+            result = await service.chat(db, request=request)
+            msg = result.message or ""
+            session_id = result.session_id
+            stage = result.stage
+            finished = result.finished
+            report = result.report
+            progress = result.progress
 
-        # Send initial status
-        yield f"event: status\ndata: {_json.dumps({'session_id': session_id, 'stage': stage, 'progress': progress}, ensure_ascii=False)}\n\n"
+            yield f"event: status\ndata: {_json.dumps({'session_id': session_id, 'stage': stage, 'progress': progress}, ensure_ascii=False)}\n\n"
+            if msg:
+                import re
+                chunks = re.findall(r'[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]|[a-zA-Z0-9]+|[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffefa-zA-Z0-9]+', msg)
+                for chunk in chunks:
+                    yield f"data: {_json.dumps({'token': chunk}, ensure_ascii=False)}\n\n"
+                    await asyncio.sleep(0.02)
 
-        # Stream the message token by token (split by character for CJK, by word for English)
-        if msg:
-            import re
-            # Split into small chunks: CJK chars individually, words as groups
-            chunks = re.findall(r'[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]|[a-zA-Z0-9]+|[^\u4e00-\u9fff\u3000-\u303f\uff00-\uffefa-zA-Z0-9]+', msg)
-            for chunk in chunks:
-                yield f"data: {_json.dumps({'token': chunk}, ensure_ascii=False)}\n\n"
-                await asyncio.sleep(0.02)  # Small delay for streaming effect
-
-        # Send done event with full metadata
-        done_data = {
-            "session_id": session_id, "stage": stage,
-            "finished": finished, "message": msg,
-            "progress": progress,
-        }
-        if report:
-            done_data["report"] = report
-        yield f"event: done\ndata: {_json.dumps(done_data, ensure_ascii=False, default=str)}\n\n"
+            done_data = {
+                "session_id": session_id, "stage": stage,
+                "finished": finished, "message": msg,
+                "progress": progress,
+            }
+            if report:
+                done_data["report"] = report
+            yield f"event: done\ndata: {_json.dumps(done_data, ensure_ascii=False, default=str)}\n\n"
+        finally:
+            reset_llm_context(context_token)
 
     return StreamingResponse(
         event_generator(),
@@ -386,6 +401,7 @@ async def growth_qa(
 @router.post("/qa/stream")
 async def growth_qa_stream(
     request: GrowthChatRequest,
+    http_request: FastAPIRequest,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
@@ -401,11 +417,20 @@ async def growth_qa_stream(
     service = get_growth_service(llm)
 
     async def event_generator():
-        for event, data in service.free_qa_stream(db, request=request):
-            if event == "token":
-                yield f"data: {_json.dumps({'token': data}, ensure_ascii=False)}\n\n"
-            elif event == "done":
-                yield f"event: done\ndata: {data}\n\n"
+        context_token = set_llm_context(
+            user_id=current_user_id,
+            feature="growth.qa.stream",
+            client_ip=http_request.client.host if http_request.client else "unknown",
+            device_id=http_request.headers.get("x-device-id", "").strip()[:128],
+        )
+        try:
+            for event, data in service.free_qa_stream(db, request=request):
+                if event == "token":
+                    yield f"data: {_json.dumps({'token': data}, ensure_ascii=False)}\n\n"
+                elif event == "done":
+                    yield f"event: done\ndata: {data}\n\n"
+        finally:
+            reset_llm_context(context_token)
 
     return StreamingResponse(
         event_generator(),

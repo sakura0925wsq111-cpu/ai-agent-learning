@@ -16,7 +16,7 @@ import json
 from typing import Any
 
 import re
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request as FastAPIRequest
 from loguru import logger
 
 from sandbox.orchestrator import DecisionSandbox
@@ -34,6 +34,7 @@ from sandbox.schemas import (
 from database.session import get_db
 from sqlalchemy.orm import Session
 from core.rate_limit import enforce_ai_daily_limit
+from services.llm_service import reset_llm_context, set_llm_context
 from utils.auth import get_current_user_id, require_user_access
 from utils.json_parser import safe_json_parse
 
@@ -366,15 +367,9 @@ async def resume_session(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(enforce_ai_daily_limit),
 ):
-    """Resume a sandbox session with previously saved state.
-
-    Used when the client has persisted the session state and wants to continue.
-    """
-    # Restore from the provided state
-    from sandbox.state import SandboxSession
-    session = SandboxSession.from_dict(request.state)
-    require_user_access(session.user_id, current_user_id)
-    sandbox._sessions[session.session_id] = session
+    """Resume a sandbox session from server-owned memory or live state."""
+    require_user_access(request.user_id, current_user_id)
+    session = _load_session(sandbox, request.session_id, current_user_id, db)
 
     if session.finished:
         return SandboxChatResponse(
@@ -438,6 +433,7 @@ from fastapi.responses import StreamingResponse
 @router.post("/chat/stream")
 async def sandbox_chat_stream(
     request: SandboxChatRequest,
+    http_request: FastAPIRequest,
     sandbox: DecisionSandbox = Depends(get_sandbox),
     db: Session = Depends(get_db),
     current_user_id: str = Depends(enforce_ai_daily_limit),
@@ -447,8 +443,17 @@ async def sandbox_chat_stream(
     session = _load_session(sandbox, request.session_id, current_user_id, db)
 
     async def event_stream():
-        async for event, data in sandbox.chat_stream(session, request.message, db_session=db):
-            yield f"event: {event}\ndata: {data}\n\n"
+        context_token = set_llm_context(
+            user_id=current_user_id,
+            feature="sandbox.chat.stream",
+            client_ip=http_request.client.host if http_request.client else "unknown",
+            device_id=http_request.headers.get("x-device-id", "").strip()[:128],
+        )
+        try:
+            async for event, data in sandbox.chat_stream(session, request.message, db_session=db):
+                yield f"event: {event}\ndata: {data}\n\n"
+        finally:
+            reset_llm_context(context_token)
 
     return StreamingResponse(
         event_stream(),

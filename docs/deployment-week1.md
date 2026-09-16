@@ -63,7 +63,7 @@ Set-Location backend
 ..\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-探针：负载均衡存活检查使用 `GET /health`；接流量前使用 `GET /ready`。`/ready` 会执行数据库 `SELECT 1` 并核对关键配置。`REDIS_URL` 当前仅为可选配置，不会因 Redis 未部署而阻止就绪。
+探针：负载均衡存活检查使用 `GET /health`；接流量前使用 `GET /ready`。`/ready` 会执行数据库 `SELECT 1` 并核对关键配置。生产环境要求 Redis 可用；Redis 未配置或不可达时 `/ready` 返回 503。
 
 ## 5. 生产环境（prod）
 
@@ -71,9 +71,11 @@ Set-Location backend
 APP_ENV=prod
 DEBUG=false
 DATABASE_URL=postgresql+psycopg://icampus:<password>@postgres:5432/icampus
+REDIS_URL=redis://redis:6379/0
 JWT_SECRET_KEY=<至少32位、独立生成的随机值>
 DEEPSEEK_API_KEY=<生产密钥>
 LLM_MODEL=deepseek-chat
+LLM_MAX_RETRIES=0
 CORS_ORIGINS=https://app.example.com
 DEMO_ACCOUNT_ENABLED=false
 ```
@@ -94,7 +96,7 @@ SQLAlchemy URL 支持 SQLite 和 PostgreSQL（`psycopg` 驱动已列入依赖）
 
 新 PostgreSQL 数据库直接执行 `upgrade head`。已有 SQLite 数据库不能直接运行初始迁移，否则会因表已存在而失败；必须先备份并核对实际表、列、索引和约束。只有确认结构与 `20260905_0001` 完全一致时才能人工 `stamp`，否则应编写数据迁移脚本导入一个由 Alembic 创建的空 PostgreSQL 数据库。
 
-仓库提供 `docker-compose.postgres.yml`，其 `migrate` 服务成功后 API 才会启动。运行前必须从环境或 Secret Manager 提供 `POSTGRES_PASSWORD`、`DATABASE_URL`、`JWT_SECRET_KEY`、`DEEPSEEK_API_KEY` 和 `CORS_ORIGINS`。
+仓库提供 `docker-compose.postgres.yml`，内含 PostgreSQL、持久化 Redis、一次性 migration 和 API；migration 成功且 Redis 健康后 API 才会启动。运行前必须从环境或 Secret Manager 提供 `POSTGRES_PASSWORD`、`DATABASE_URL`、`JWT_SECRET_KEY`、`DEEPSEEK_API_KEY` 和 `CORS_ORIGINS`。
 
 ## 7. 演示验收顺序
 
@@ -109,4 +111,4 @@ SQLAlchemy URL 支持 SQLite 和 PostgreSQL（`psycopg` 驱动已列入依赖）
 
 - 代码回滚不删除数据库；导入只覆盖当前用户同来源的导入记录，不碰手工课程/考试。
 - AI 日志包含 `user_id`、功能、模型、耗时、成功状态、错误类型和可用的 token 用量，不记录提示词、密钥或完整响应。
-- 进程内登录/AI 限流适合单实例测试环境。多 worker/多实例生产部署应把 `core/rate_limit.py` 的存储替换为 Redis；接口边界已独立保留。
+- 生产登录、注册、上传和 AI 安全额度使用 Redis 共享状态；Redis 故障时生产请求 fail closed。AI 配额在真实 provider 调用层扣减，因此 streaming、JSON repair、沙盘并行调用和考试 PDF fallback 都单独计数。可通过 `AI_ENABLED=false` 或 Redis 键 `icampus:ai:enabled=0` 紧急关闭 AI。

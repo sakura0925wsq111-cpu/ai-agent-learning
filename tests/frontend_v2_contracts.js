@@ -113,6 +113,8 @@ function run() {
   assert.match(frontendFile("pages/action/index.js"), /load\(phaseKey\)/);
   assert.match(frontendFile("pkg-growth/sandbox-result/index.wxml"), /comparisonRows/);
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /sandboxService\.resume/);
+  assert.doesNotMatch(frontendFile("services/sandbox-service.js"), /state\s*,\s*message|state\s*:/);
+  assert.match(frontendFile("services/request.js"), /X-Device-ID/);
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /selectedLabels/);
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /restoredMessages/);
   assert.match(frontendFile("pkg-growth/sandbox-chat/index.js"), /item\.value \|\| item\.name/);

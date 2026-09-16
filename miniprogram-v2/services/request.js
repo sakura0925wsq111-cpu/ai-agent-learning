@@ -1,6 +1,7 @@
 const sessionStore = require("../stores/session-store");
 const uiStore = require("../stores/ui-store");
 const { unwrapResponse, normalizeError } = require("../normalizers/response");
+const { getDeviceId } = require("../utils/device-id");
 
 const pendingGets = new Map();
 let redirecting = false;
@@ -29,6 +30,7 @@ function request(options) {
     const run = () => {
       attempt += 1;
       const headers = Object.assign({ "Content-Type": "application/json" }, options.header || {});
+      headers["X-Device-ID"] = getDeviceId();
       if (sessionStore.state.token) headers.Authorization = `Bearer ${sessionStore.state.token}`;
       task = wx.request({
         url: `${baseUrl()}${url}`,

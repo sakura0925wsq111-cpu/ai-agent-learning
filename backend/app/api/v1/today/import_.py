@@ -7,11 +7,18 @@ Excel exam schedule: flexible column-mapped extraction, zero LLM.
 
 from __future__ import annotations
 
-import io, json, re
+import asyncio
+import io
+import json
+import multiprocessing
+import re
+import threading
+import zipfile
+from contextvars import copy_context
 from datetime import date as dt_date, datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -19,12 +26,14 @@ from database.session import get_db
 from schemas.response import APIResponse
 from schemas.today import ImportConfirmRequest
 from core.config import settings
+from core.rate_limit import enforce_ai_daily_limit, enforce_upload_rate_limit
 from core.time import business_today
 from models.today import Course, Exam, ImportPreview
 from services.llm_service import get_llm_service
 from utils.auth import get_current_user_id, require_user_access
 
 router = APIRouter()
+_PARSER_SLOTS = threading.BoundedSemaphore(max(1, settings.upload_parser_workers))
 
 @router.get("/import/preview", response_model=APIResponse[dict])
 def get_import_preview(
@@ -35,10 +44,10 @@ def get_import_preview(
     """Get import preview data by import_id."""
     preview = db.get(ImportPreview, import_id)
     if preview is None:
-        return APIResponse.error(code=404, message="导入预览不存在或已过期")
+        raise HTTPException(status_code=404, detail="导入预览不存在或已过期")
     require_user_access(preview.user_id, current_user_id)
     if _is_preview_expired(preview):
-        return APIResponse.error(code=410, message="导入预览已过期，请重新上传")
+        raise HTTPException(status_code=410, detail="导入预览已过期，请重新上传")
     items = json.loads(preview.items_json)
     return APIResponse.ok(data={
         "import_id": import_id,
@@ -75,6 +84,105 @@ async def _read_upload(
     if magic and not any(content.startswith(signature) for signature in magic):
         raise ValueError(f"文件内容不是有效的 {label} 格式")
     return content
+
+
+def _parser_process_entry(result_connection, func, args) -> None:
+    try:
+        result_connection.send(("ok", func(*args)))
+    except ValueError as exc:
+        result_connection.send(("rejected", str(exc)))
+    except Exception as exc:
+        result_connection.send(("error", type(exc).__name__))
+    finally:
+        result_connection.close()
+
+
+async def _run_parser(func, *args):
+    """Run parsing in a killable, bounded subprocess with a hard timeout."""
+    if not _PARSER_SLOTS.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="文件解析任务过多，请稍后再试")
+    context = multiprocessing.get_context("spawn")
+    parent_connection, child_connection = context.Pipe(duplex=False)
+    process = context.Process(
+        target=_parser_process_entry,
+        args=(child_connection, func, args),
+        daemon=True,
+        name="icampus-upload-parser",
+    )
+    started = False
+    try:
+        process.start()
+        started = True
+        child_connection.close()
+        try:
+            outcome, payload = await asyncio.wait_for(
+                asyncio.to_thread(parent_connection.recv),
+                timeout=settings.upload_parser_timeout_seconds,
+            )
+        except TimeoutError as exc:
+            process.terminate()
+            await asyncio.to_thread(process.join, 2.0)
+            raise HTTPException(status_code=408, detail="文件解析超时，请拆分文件后重试") from exc
+        except EOFError as exc:
+            raise RuntimeError(f"parser process exited without a result (exit={process.exitcode})") from exc
+        await asyncio.to_thread(process.join, 2.0)
+        if outcome == "rejected":
+            raise ValueError(payload)
+        if outcome == "error":
+            raise RuntimeError(f"parser process failed: {payload}")
+        return payload
+    finally:
+        if started and process.is_alive():
+            process.terminate()
+            process.join(timeout=2.0)
+        if started:
+            process.close()
+        parent_connection.close()
+        child_connection.close()
+        _PARSER_SLOTS.release()
+
+
+async def _run_llm_parse(func, *args):
+    """Run the blocking provider call off-loop while preserving quota context."""
+    context = copy_context()
+    task = asyncio.create_task(asyncio.to_thread(context.run, func, *args))
+    try:
+        return await asyncio.wait_for(task, timeout=settings.upload_parser_timeout_seconds + 1.0)
+    except TimeoutError as exc:
+        task.cancel()
+        raise HTTPException(status_code=504, detail="AI 解析超时，请稍后再试") from exc
+
+
+def _validate_xlsx_archive(file_bytes: bytes) -> None:
+    """Reject oversized or suspicious OOXML archives before openpyxl expands them."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as archive:
+            infos = archive.infolist()
+            if len(infos) > settings.upload_xlsx_max_entries:
+                raise ValueError("Excel 压缩包文件项过多")
+            names = {item.filename for item in infos}
+            if "[Content_Types].xml" not in names or "xl/workbook.xml" not in names:
+                raise ValueError("文件内容不是有效的 XLSX 工作簿")
+            total_uncompressed = 0
+            for item in infos:
+                normalized = item.filename.replace("\\", "/")
+                if normalized.startswith("/") or "../" in f"/{normalized}":
+                    raise ValueError("Excel 压缩包包含非法路径")
+                if item.flag_bits & 0x1:
+                    raise ValueError("不支持加密的 Excel 文件")
+                if item.file_size > settings.upload_xlsx_max_entry_bytes:
+                    raise ValueError("Excel 内部单个文件过大")
+                total_uncompressed += item.file_size
+                if total_uncompressed > settings.upload_xlsx_max_uncompressed_bytes:
+                    raise ValueError("Excel 解压后内容过大")
+                if item.file_size and item.compress_size == 0:
+                    raise ValueError("Excel 压缩结构异常")
+                if item.compress_size:
+                    ratio = item.file_size / item.compress_size
+                    if ratio > settings.upload_xlsx_max_compression_ratio:
+                        raise ValueError("Excel 压缩比异常")
+    except zipfile.BadZipFile as exc:
+        raise ValueError("文件内容不是有效的 XLSX 工作簿") from exc
 
 WEEKDAY_KW = ["星期一","星期二","星期三","星期四","星期五","星期六","星期日"]
 _EXAM_DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})\((\d{2}:\d{2})-(\d{2}:\d{2})\)")
@@ -220,10 +328,16 @@ def _extract_courses_from_pdf(
     saved_col_map: dict[int, int] | None = None
     semester_start: dt_date | None = None
     all_text_parts: list[str] = []
+    extracted_chars = 0
 
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+        if len(pdf.pages) > settings.upload_pdf_max_pages:
+            raise ValueError(f"PDF 页数不能超过 {settings.upload_pdf_max_pages} 页")
         for page in pdf.pages:
             page_text = page.extract_text() or ""
+            extracted_chars += len(page_text)
+            if extracted_chars > settings.upload_max_extracted_chars:
+                raise ValueError("PDF 可提取文本过多")
             all_text_parts.append(page_text)
 
             if semester_start is None and page_text:
@@ -265,6 +379,8 @@ def _extract_courses_from_pdf(
                         if any(kw in ct and len(ct) < 12 for kw in WEEKDAY_KW):
                             continue
                         all_courses.extend(_parse_cell(ct, weekday))
+                        if len(all_courses) > settings.upload_excel_max_rows:
+                            raise ValueError("PDF 中可导入的课程记录过多")
 
     if semester_start is None:
         full_text = "\n".join(all_text_parts)
@@ -384,11 +500,16 @@ def _extract_exams_from_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
     except ImportError:
         raise RuntimeError("openpyxl required: pip install openpyxl")
 
-    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+    _validate_xlsx_archive(file_bytes)
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True, read_only=True)
     try:
         ws = wb.active
         if not ws:
             raise RuntimeError("Excel file has no active sheet")
+        if ws.max_row > settings.upload_excel_max_rows:
+            raise ValueError(f"Excel 行数不能超过 {settings.upload_excel_max_rows}")
+        if ws.max_column > settings.upload_excel_max_columns:
+            raise ValueError(f"Excel 列数不能超过 {settings.upload_excel_max_columns}")
         return _extract_exams_from_rows(list(ws.iter_rows(values_only=True)))
     finally:
         wb.close()
@@ -403,6 +524,10 @@ def _extract_exams_from_xls(file_bytes: bytes) -> list[dict[str, Any]]:
     wb = xlrd.open_workbook(file_contents=file_bytes)
     try:
         ws = wb.sheet_by_index(0)
+        if ws.nrows > settings.upload_excel_max_rows:
+            raise ValueError(f"Excel 行数不能超过 {settings.upload_excel_max_rows}")
+        if ws.ncols > settings.upload_excel_max_columns:
+            raise ValueError(f"Excel 列数不能超过 {settings.upload_excel_max_columns}")
         rows: list[list[Any]] = []
         for row_index in range(ws.nrows):
             row: list[Any] = []
@@ -423,17 +548,29 @@ def _extract_text_from_pdf(file_bytes: bytes) -> str:
     try:
         import pdfplumber
         parts = []
+        extracted_chars = 0
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+            if len(pdf.pages) > settings.upload_pdf_max_pages:
+                raise ValueError(f"PDF 页数不能超过 {settings.upload_pdf_max_pages} 页")
             for p in pdf.pages:
                 t = p.extract_text()
                 if t:
+                    extracted_chars += len(t)
+                    if extracted_chars > settings.upload_max_extracted_chars:
+                        raise ValueError("PDF 可提取文本过多")
                     parts.append(t)
         return "\n".join(parts)
     except ImportError:
         pass
     try:
         from PyPDF2 import PdfReader
-        return "\n".join(p.extract_text() or "" for p in PdfReader(io.BytesIO(file_bytes)).pages)
+        reader = PdfReader(io.BytesIO(file_bytes))
+        if len(reader.pages) > settings.upload_pdf_max_pages:
+            raise ValueError(f"PDF 页数不能超过 {settings.upload_pdf_max_pages} 页")
+        text = "\n".join(p.extract_text() or "" for p in reader.pages)
+        if len(text) > settings.upload_max_extracted_chars:
+            raise ValueError("PDF 可提取文本过多")
+        return text
     except ImportError:
         raise RuntimeError("No PDF library.")
 
@@ -451,6 +588,8 @@ def _parse_exams_llm(raw_text: str, llm) -> list[dict[str, Any]]:
             system_prompt=prompt,
             temperature=0.1,
             max_tokens=2000,
+            request_timeout=settings.upload_parser_timeout_seconds,
+            max_retries=0,
         )
         m = re.search(r"\[.*\]", resp, re.DOTALL)
         if m:
@@ -463,6 +602,8 @@ def _parse_exams_llm(raw_text: str, llm) -> list[dict[str, Any]]:
                         pass
             return items
         return []
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Exam LLM parse failed: {}", exc)
         return []
@@ -472,9 +613,10 @@ def _parse_exams_llm(raw_text: str, llm) -> list[dict[str, Any]]:
 
 @router.post("/import", response_model=APIResponse[dict])
 async def import_pdf(
+    request: Request,
     file: UploadFile = File(...),
     user_id: str = Query(..., description="User ID"),
-    import_type: str = Query("course", description="course or exam"),
+    import_type: str = Query("course", pattern=r"^(course|exam)$", description="course or exam"),
     semester_start: str | None = Query(
         None,
         description="Semester start date YYYY-MM-DD. Overrides auto-detection.",
@@ -483,51 +625,67 @@ async def import_pdf(
     current_user_id: str = Depends(get_current_user_id),
 ):
     require_user_access(user_id, current_user_id)
+    enforce_upload_rate_limit(request, user_id)
     try:
         file_bytes = await _read_upload(
             file, suffixes=(".pdf",), label="PDF", magic=(b"%PDF-",)
         )
     except ValueError as exc:
-        return APIResponse.error(code=400, message=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     resolved_semester: dt_date | None = None
 
     if import_type == "course":
         try:
-            items, auto_semester = _extract_courses_from_pdf(file_bytes)
+            items, auto_semester = await _run_parser(_extract_courses_from_pdf, file_bytes)
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:
-            logger.error("Course PDF failed: {}", exc)
-            return APIResponse.error(code=400, message=str(exc))
+            logger.warning("Course PDF parse failed: {}", type(exc).__name__)
+            raise HTTPException(status_code=400, detail="PDF 解析失败，请检查文件是否完整") from exc
 
         if semester_start:
             try:
                 resolved_semester = dt_date.fromisoformat(semester_start)
-            except ValueError:
-                return APIResponse.error(code=400, message="Invalid semester_start format, use YYYY-MM-DD")
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="Invalid semester_start format, use YYYY-MM-DD") from exc
         elif auto_semester:
             resolved_semester = auto_semester
 
         if resolved_semester:
             logger.info("Semester start resolved: {}", resolved_semester.isoformat())
     else:
-        raw = _extract_text_from_pdf(file_bytes)
+        enforce_ai_daily_limit(request, current_user_id)
+        try:
+            raw = await _run_parser(_extract_text_from_pdf, file_bytes)
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.warning("Exam PDF parse failed: {}", type(exc).__name__)
+            raise HTTPException(status_code=400, detail="PDF 解析失败，请检查文件是否完整") from exc
         if not raw.strip():
-            return APIResponse.error(code=400, message="PDF empty")
-        items = _parse_exams_llm(raw, get_llm_service())
+            raise HTTPException(status_code=422, detail="PDF 中没有可提取的文字")
+        items = await _run_llm_parse(_parse_exams_llm, raw, get_llm_service())
 
     if not items:
-        return APIResponse.error(code=422, message="No items found in PDF")
+        raise HTTPException(status_code=422, detail="未从 PDF 中识别到可导入内容")
 
     return _store_preview(db, user_id, import_type, items, resolved_semester)
 
 
 @router.post("/import/excel", response_model=APIResponse[dict])
 async def import_excel(
+    request: Request,
     file: UploadFile = File(...),
     user_id: str = Query(..., description="User ID"),
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
 ):
     require_user_access(user_id, current_user_id)
+    enforce_upload_rate_limit(request, user_id)
     try:
         filename = (file.filename or "").lower()
         is_xls = filename.endswith(".xls") and not filename.endswith(".xlsx")
@@ -538,16 +696,21 @@ async def import_excel(
             magic=(b"\xD0\xCF\x11\xE0",) if is_xls else (b"PK\x03\x04",),
         )
     except ValueError as exc:
-        return APIResponse.error(code=400, message=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
-        items = _extract_exams_from_xls(file_bytes) if is_xls else _extract_exams_from_xlsx(file_bytes)
+        parser = _extract_exams_from_xls if is_xls else _extract_exams_from_xlsx
+        items = await _run_parser(parser, file_bytes)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        logger.error("Excel exam import failed: {}", exc)
-        return APIResponse.error(code=400, message=str(exc))
+        logger.warning("Excel exam import failed: {}", type(exc).__name__)
+        raise HTTPException(status_code=400, detail="Excel 解析失败，请检查文件是否完整") from exc
 
     if not items:
-        return APIResponse.error(code=422, message="No exam records found in Excel file")
+        raise HTTPException(status_code=422, detail="未从 Excel 中识别到考试记录")
 
     return _store_preview(db, user_id, "exam", items)
 
@@ -560,16 +723,16 @@ def confirm_import(
 ):
     preview = db.get(ImportPreview, payload.import_id)
     if preview is None:
-        return APIResponse.error(code=404, message="导入预览不存在")
+        raise HTTPException(status_code=404, detail="导入预览不存在")
     require_user_access(preview.user_id, current_user_id)
     if preview.status == "confirmed" and preview.result_json:
         return APIResponse.ok(data=json.loads(preview.result_json), message="该导入已确认")
     if preview.status != "pending":
-        return APIResponse.error(code=409, message="导入正在处理，请勿重复提交")
+        raise HTTPException(status_code=409, detail="导入正在处理，请勿重复提交")
     if _is_preview_expired(preview):
         preview.status = "expired"
         db.commit()
-        return APIResponse.error(code=410, message="导入预览已过期，请重新上传")
+        raise HTTPException(status_code=410, detail="导入预览已过期，请重新上传")
 
     claimed = db.query(ImportPreview).filter(
         ImportPreview.id == payload.import_id,
@@ -580,7 +743,7 @@ def confirm_import(
         latest = db.get(ImportPreview, payload.import_id)
         if latest and latest.status == "confirmed" and latest.result_json:
             return APIResponse.ok(data=json.loads(latest.result_json), message="该导入已确认")
-        return APIResponse.error(code=409, message="导入正在处理，请勿重复提交")
+        raise HTTPException(status_code=409, detail="导入正在处理，请勿重复提交")
     db.refresh(preview)
     user_id, itype, items = preview.user_id, preview.import_type, json.loads(preview.items_json)
     if payload.selected_indexes is not None:
@@ -588,12 +751,12 @@ def confirm_import(
         if any(index < 0 or index >= len(items) for index in selected):
             preview.status = "pending"
             db.commit()
-            return APIResponse.error(code=400, message="预览选择项无效，请刷新后重试")
+            raise HTTPException(status_code=400, detail="预览选择项无效，请刷新后重试")
         items = [items[index] for index in selected]
     if not items:
         preview.status = "pending"
         db.commit()
-        return APIResponse.error(code=400, message="请至少选择一项导入")
+        raise HTTPException(status_code=400, detail="请至少选择一项导入")
     saved = 0
     try:
         if itype == "course":
@@ -660,7 +823,7 @@ def confirm_import(
             stored.status = "pending"
             db.commit()
         logger.exception("Import confirmation failed: id={}", payload.import_id)
-        return APIResponse.error(code=500, message="导入保存失败，请稍后重试")
+        raise HTTPException(status_code=500, detail="导入保存失败，请稍后重试")
     logger.info("Import confirmed: {} {}/{}", itype, saved, len(items))
     return APIResponse.ok(data=result)
 

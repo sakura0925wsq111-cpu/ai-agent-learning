@@ -16,6 +16,18 @@ services:
       retries: 12
     restart: unless-stopped
 
+  redis:
+    image: redis:7.4.1-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - icampus-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
   migrate:
     build:
       context: .
@@ -24,6 +36,7 @@ services:
     environment:
       APP_ENV: prod
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?DEEPSEEK_API_KEY is required}
       CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
@@ -31,6 +44,8 @@ services:
       DEMO_ACCOUNT_ENABLED: "false"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: "no"
 
@@ -48,12 +63,22 @@ services:
       HOST: 0.0.0.0
       PORT: "8000"
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?DEEPSEEK_API_KEY is required}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
       LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
       CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
       DEMO_ACCOUNT_ENABLED: "false"
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
+      REGISTRATION_RATE_LIMIT: ${REGISTRATION_RATE_LIMIT:-5}
+      REGISTRATION_GLOBAL_DAILY_LIMIT: ${REGISTRATION_GLOBAL_DAILY_LIMIT:-200}
+      AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-50}
+      AI_IP_DAILY_LIMIT: ${AI_IP_DAILY_LIMIT:-250}
+      AI_DEVICE_DAILY_LIMIT: ${AI_DEVICE_DAILY_LIMIT:-100}
+      AI_GLOBAL_DAILY_LIMIT: ${AI_GLOBAL_DAILY_LIMIT:-2000}
+      AI_GLOBAL_CONCURRENCY_LIMIT: ${AI_GLOBAL_CONCURRENCY_LIMIT:-8}
+      AI_ENABLED: ${AI_ENABLED:-true}
       LOG_DIR: /app/logs
       GROWTH_CHECKPOINT_DB: /app/data/growth_checkpoints.db
     volumes:
@@ -62,6 +87,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD
@@ -76,5 +103,6 @@ services:
 
 volumes:
   icampus-postgres-data:
+  icampus-redis-data:
   icampus-beta-state:
   icampus-beta-logs:

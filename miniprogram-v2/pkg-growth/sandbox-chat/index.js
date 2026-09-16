@@ -39,8 +39,8 @@ Page({
     const cached = stored && stored.sessionId === this.data.sessionId ? stored.lastResponse : null;
     if (cached) {
       try {
-        if (stored.state) await sandboxService.resume(sessionStore.state.userId, this.data.sessionId, stored.state);
-        this.applyResponse(cached, true); this.setData({ loading: false }); return;
+        const resumed = await sandboxService.resume(sessionStore.state.userId, this.data.sessionId);
+        this.applyResponse(resumed, true); this.setData({ loading: false }); return;
       } catch (error) { /* Fall through to a server-side session lookup. */ }
     }
     try { const result = await sandboxService.chat(sessionStore.state.userId, this.data.sessionId, ""); this.applyResponse(result, true); this.setData({ loading: false }); }

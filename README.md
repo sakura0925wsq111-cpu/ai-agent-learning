@@ -224,7 +224,7 @@ DEEPSEEK_API_KEY=
 LLM_BASE_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-chat
 LLM_TIMEOUT=30
-LLM_MAX_RETRIES=1
+LLM_MAX_RETRIES=0
 ```
 
 不使用 AI 时保持 `DEEPSEEK_API_KEY=`。开发模板可创建演示账号 `demo2026` / `DemoPass123!`；生产环境必须关闭演示账号并替换 JWT 密钥。
@@ -302,7 +302,7 @@ ai-agent-learning/
 - `career_data` 具备官方原文归档、哈希去重、版本和来源审计，但目前没有注册为 Agent 工具，也没有接入 RAG；不能声称规划建议已经使用该数据。
 - `AsyncSqliteSaver` 适合当前单机演示；多实例部署需要共享 checkpoint 存储。
 - OpenAI-compatible 客户端主体仍是同步调用，部分异步链路需要进一步隔离阻塞。
-- 限流是进程内实现，不适合多实例全局配额。
+- 生产环境要求 Redis：登录、注册和上传限流共享存储；AI 在每次真实 provider 调用前执行用户、IP、设备、全局日预算、全局并发和 kill switch 检查。开发/测试在未配置 Redis 时才使用进程内回退。
 - 生产主业务库已建立 PostgreSQL + Alembic 基线；开发/测试仍保留 SQLite 兼容启动逻辑。
 - 有后端测试、契约测试和 JavaScript 语法检查，但没有完整的小程序 UI/E2E 自动化套件。
 - 本 README 展示的是高保真设计稿；60 秒实机录屏尚未随仓库发布。

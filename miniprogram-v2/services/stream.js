@@ -1,5 +1,6 @@
 const sessionStore = require("../stores/session-store");
 const { normalizeError } = require("../normalizers/response");
+const { getDeviceId } = require("../utils/device-id");
 
 function fallbackDecoder() {
   let carry = [];
@@ -55,6 +56,7 @@ function stream(options) {
   const decoder = createDecoder();
   const promise = new Promise((resolve, reject) => {
     const header = Object.assign({ "Content-Type": "application/json", Accept: "text/event-stream" }, options.header || {});
+    header["X-Device-ID"] = getDeviceId();
     if (sessionStore.state.token) header.Authorization = `Bearer ${sessionStore.state.token}`;
     task = wx.request({
       url: `${getApp().globalData.baseUrl}${options.url}`,

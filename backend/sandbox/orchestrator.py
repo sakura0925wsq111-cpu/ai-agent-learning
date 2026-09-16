@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 import re
 import uuid
 from typing import Any
@@ -1142,7 +1143,10 @@ class DecisionSandbox:
                 return (path_type, self._build_fallback_report(path_type))
 
         with ThreadPoolExecutor(max_workers=len(session.path_selections)) as executor:
-            futures = {executor.submit(run_one, pt): pt for pt in session.path_selections}
+            futures = {
+                executor.submit(copy_context().run, run_one, pt): pt
+                for pt in session.path_selections
+            }
             for future in as_completed(futures):
                 pt, report = future.result()
                 reports[pt] = report

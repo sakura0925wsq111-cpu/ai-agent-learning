@@ -49,6 +49,9 @@ async def lifespan(app: FastAPI):
     yield  # App runs here
 
     # SHUTDOWN
+    from core.redis_client import reset_redis_client
+
+    reset_redis_client()
     logger.info("{} shutting down.".format(settings.app_name))
 
 
@@ -67,7 +70,7 @@ app.add_middleware(
     allow_origins=settings.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Device-ID"],
 )
 
 
@@ -82,7 +85,14 @@ async def add_llm_observability_context(request: Request, call_next):
     if authorization.lower().startswith("bearer "):
         user_id = verify_token(authorization[7:].strip()) or "anonymous"
     feature = request.url.path.removeprefix("/api/v1/").replace("/", ".") or "root"
-    token = set_llm_context(user_id=user_id, feature=feature)
+    client_ip = request.client.host if request.client else "unknown"
+    device_id = request.headers.get("x-device-id", "").strip()[:128]
+    token = set_llm_context(
+        user_id=user_id,
+        feature=feature,
+        client_ip=client_ip,
+        device_id=device_id,
+    )
     try:
         return await call_next(request)
     finally:

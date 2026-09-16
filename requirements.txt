@@ -6,3 +6,4 @@ Pillow==12.3.0
 
 # Test runner used by backend/tests.
 pytest==9.1.1
+fakeredis[lua]==2.38.0

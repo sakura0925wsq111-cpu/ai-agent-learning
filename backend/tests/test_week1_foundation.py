@@ -77,6 +77,7 @@ def test_production_configuration_rejects_missing_or_unsafe_secrets():
             _env_file=None,
             app_env="prod",
             database_url="postgresql+psycopg://icampus:test@db:5432/icampus",
+            redis_url="redis://redis:6379/0",
             debug=False,
             jwt_secret_key="short",
             DEEPSEEK_API_KEY="configured",
@@ -88,6 +89,7 @@ def test_production_configuration_rejects_missing_or_unsafe_secrets():
         _env_file=None,
         app_env="prod",
         database_url="postgresql+psycopg://icampus:test@db:5432/icampus",
+        redis_url="redis://redis:6379/0",
         debug=False,
         jwt_secret_key="x" * 32,
         DEEPSEEK_API_KEY="configured",
@@ -96,6 +98,33 @@ def test_production_configuration_rejects_missing_or_unsafe_secrets():
     )
     assert valid.is_production
     assert valid.cors_allowed_origins == ["https://app.example.com"]
+
+    with pytest.raises(ValidationError, match="Redis"):
+        Settings(
+            _env_file=None,
+            app_env="prod",
+            database_url="postgresql+psycopg://icampus:test@db:5432/icampus",
+            redis_url="",
+            debug=False,
+            jwt_secret_key="x" * 32,
+            DEEPSEEK_API_KEY="configured",
+            cors_origins="https://app.example.com",
+            demo_account_enabled=False,
+        )
+
+    with pytest.raises(ValidationError, match="LLM_MAX_RETRIES=0"):
+        Settings(
+            _env_file=None,
+            app_env="prod",
+            database_url="postgresql+psycopg://icampus:test@db:5432/icampus",
+            redis_url="redis://redis:6379/0",
+            debug=False,
+            jwt_secret_key="x" * 32,
+            DEEPSEEK_API_KEY="configured",
+            llm_max_retries=1,
+            cors_origins="https://app.example.com",
+            demo_account_enabled=False,
+        )
 
 
 def test_health_and_readiness_probes_are_separate(api):

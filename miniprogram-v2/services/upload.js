@@ -1,11 +1,13 @@
 const sessionStore = require("../stores/session-store");
 const { unwrapResponse, normalizeError } = require("../normalizers/response");
+const { getDeviceId } = require("../utils/device-id");
 
 function upload(options) {
   let task;
   let timer;
   const promise = new Promise((resolve, reject) => {
     const header = Object.assign({}, options.header || {});
+    header["X-Device-ID"] = getDeviceId();
     if (sessionStore.state.token) header.Authorization = `Bearer ${sessionStore.state.token}`;
     task = wx.uploadFile({
       url: `${getApp().globalData.baseUrl}${options.url}`,

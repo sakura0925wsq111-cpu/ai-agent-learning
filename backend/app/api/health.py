@@ -1,10 +1,13 @@
 ﻿"""Health check and version endpoints."""
 
+import asyncio
+
 from fastapi import APIRouter, Response, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from core.config import settings
+from core.redis_client import get_redis_client
 from database.session import engine
 from schemas.response import APIResponse
 
@@ -36,11 +39,32 @@ async def readiness_check(response: Response):
     )
     ready = ready and config_ok
     checks["configuration"] = {"ok": config_ok}
-    checks["redis"] = {
-        "ok": True,
-        "configured": bool(settings.redis_url),
-        "required": False,
-    }
+    redis_required = settings.is_production
+    redis_ok = not redis_required and not settings.redis_url
+    if settings.redis_url:
+        try:
+            client = get_redis_client()
+            redis_ok = bool(client and await asyncio.to_thread(client.ping))
+        except Exception as exc:
+            checks["redis"] = {
+                "ok": False,
+                "configured": True,
+                "required": redis_required,
+                "error": type(exc).__name__,
+            }
+        else:
+            checks["redis"] = {
+                "ok": redis_ok,
+                "configured": True,
+                "required": redis_required,
+            }
+    else:
+        checks["redis"] = {
+            "ok": redis_ok,
+            "configured": False,
+            "required": redis_required,
+        }
+    ready = ready and (redis_ok or not redis_required)
 
     if not ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE

@@ -1,6 +1,7 @@
 """User REST API — CRUD endpoints for /api/v1/users."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -12,7 +13,7 @@ from schemas.user import (
 )
 from crud.user import user as user_crud
 from core.exceptions import NotFoundException
-from core.rate_limit import enforce_login_rate_limit
+from core.rate_limit import enforce_login_rate_limit, enforce_registration_rate_limit
 from utils.auth import (
     create_token,
     get_current_user_id,
@@ -93,8 +94,9 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 
 @router.post("", response_model=APIResponse[LoginResponse], status_code=201)
-def create_user(payload: UserCreate, db: Session = Depends(get_db)):
+def create_user(payload: UserCreate, request: Request, db: Session = Depends(get_db)):
     """Create a new user (register). Returns token + user info."""
+    enforce_registration_rate_limit(request, payload.student_id)
     # Check duplicate student_id
     existing = user_crud.get_by_student_id(db, student_id=payload.student_id)
     if existing:
@@ -111,7 +113,11 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
         "enroll_year": payload.enroll_year,
         "grade": payload.grade or "",
     }
-    obj = user_crud.create(db, obj_in=data)
+    try:
+        obj = user_crud.create(db, obj_in=data)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Student ID already registered") from exc
     token = create_token(obj.id)
     user_resp = UserResponse.model_validate(obj)
 

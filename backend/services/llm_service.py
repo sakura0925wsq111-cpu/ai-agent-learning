@@ -6,20 +6,30 @@ import time
 from contextvars import ContextVar, Token
 from typing import Any, Callable
 
+from fastapi import HTTPException
 from loguru import logger
 from openai import OpenAI
 
+from core.ai_quota import AIQuotaContext, get_ai_quota_manager
 from core.config import settings
 from utils.json_parser import safe_json_parse
 
 
 _llm_context: ContextVar[dict[str, str]] = ContextVar(
-    "llm_context", default={"user_id": "system", "feature": "unknown"}
+    "llm_context",
+    default={"user_id": "system", "feature": "unknown", "client_ip": "unknown", "device_id": ""},
 )
 
 
-def set_llm_context(*, user_id: str, feature: str) -> Token:
-    return _llm_context.set({"user_id": user_id or "anonymous", "feature": feature or "unknown"})
+def set_llm_context(
+    *, user_id: str, feature: str, client_ip: str = "unknown", device_id: str = ""
+) -> Token:
+    return _llm_context.set({
+        "user_id": user_id or "anonymous",
+        "feature": feature or "unknown",
+        "client_ip": client_ip or "unknown",
+        "device_id": device_id or "",
+    })
 
 
 def reset_llm_context(token: Token) -> None:
@@ -27,7 +37,7 @@ def reset_llm_context(token: Token) -> None:
 
 
 class LLMService:
-    """One reusable client with timeout, retry, validation, and cost metadata logs."""
+    """One reusable client with timeout, validation, quota, and cost metadata logs."""
 
     def __init__(self) -> None:
         self._client = OpenAI(
@@ -112,12 +122,19 @@ class LLMService:
         started = time.perf_counter()
         response = None
         try:
-            response = client.chat.completions.create(
-                model=self._model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+            context = _llm_context.get()
+            with get_ai_quota_manager().lease(AIQuotaContext(
+                user_id=context.get("user_id", "system"),
+                feature=context.get("feature", "unknown"),
+                client_ip=context.get("client_ip", "unknown"),
+                device_id=context.get("device_id", ""),
+            )):
+                response = client.chat.completions.create(
+                    model=self._model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
             content = response.choices[0].message.content
             content = self._sanitize(content or "")
             if not content:
@@ -126,6 +143,8 @@ class LLMService:
             return content
         except Exception as exc:
             self._log_call(started=started, success=False, response=response, error=exc)
+            if isinstance(exc, HTTPException):
+                raise
             if isinstance(exc, RuntimeError) and str(exc).startswith("AI 服务"):
                 raise
             raise RuntimeError("AI 服务响应超时或不可用，请稍后重试") from exc
@@ -209,20 +228,29 @@ class LLMService:
         messages.append({"role": "user", "content": user_message})
         started = time.perf_counter()
         try:
-            stream = self._client.chat.completions.create(
-                model=self._model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=True,
-            )
-            for chunk in stream:
-                delta = chunk.choices[0].delta
-                if delta.content:
-                    yield delta.content
+            context = _llm_context.get()
+            with get_ai_quota_manager().lease(AIQuotaContext(
+                user_id=context.get("user_id", "system"),
+                feature=context.get("feature", "unknown"),
+                client_ip=context.get("client_ip", "unknown"),
+                device_id=context.get("device_id", ""),
+            )):
+                stream = self._client.chat.completions.create(
+                    model=self._model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True,
+                )
+                for chunk in stream:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        yield delta.content
             self._log_call(started=started, success=True)
         except Exception as exc:
             self._log_call(started=started, success=False, error=exc)
+            if isinstance(exc, HTTPException):
+                raise
             raise RuntimeError("AI 服务响应超时或不可用，请稍后重试") from exc
 
 
